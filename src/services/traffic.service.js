@@ -1,23 +1,30 @@
 const producer = require("../config/kafka");
+const logger = require("../utils/logger");
 
-const generateTraffic = async (count = 10) => {
+const generateTraffic = async (count = 10, requestId) => {
   await producer.connect();
 
   const messages = [];
   for (let i = 0; i < count; i++) {
     messages.push({
-      value: `Request-${i + 1}`,
+      value: JSON.stringify({
+        requestId,
+        request: `Request-${i + 1}`,
+      }),
     });
   }
 
   await producer.send({
     topic: "test-topic",
-    messages
+    messages,
   });
 
-  console.log(`${count} messages send to kafka...`)
+  logger.info({
+    requestId,
+    message: `Sent ${count} messages to Kafka`,
+  });
 
   await producer.disconnect();
 };
 
-module.exports = {generateTraffic};
+module.exports = { generateTraffic };

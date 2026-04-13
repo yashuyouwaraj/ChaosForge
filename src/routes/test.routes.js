@@ -1,4 +1,5 @@
 const express = require('express');
+const logger = require("../utils/logger");
 
 const {sendMessage} = require('../services/producer.service');
 
@@ -9,7 +10,11 @@ const router = express.Router();
 router.get('/traffic',async(req,res)=>{
     const count = req.query.count || 10;
 
-    await generateTraffic(count);
+    const requestId = req.requestId ;
+
+    logger.info({requestId, message:`Generating ${count} requests`})
+    
+    await generateTraffic(count, requestId);
 
     res.send(`Generated ${count} requests ✅`)
 })

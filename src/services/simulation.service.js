@@ -1,9 +1,13 @@
-const {recordRequest} = require("../metrics/metrics.store")
+const {recordRequest} = require("../metrics/metrics.store");
+const logger = require("../utils/logger");
 
-const simulateProcessing = async (message) => {
+const simulateProcessing = async (message,requestId) => {
   const start = Date.now();
 
-  console.log("Processing:", message);
+  logger.info({
+    requestId,
+    message:`Processing ${message}`
+  })
 
   //simulate delay (0-2 sec)
   const delay = Math.random()*2000;
@@ -15,11 +19,11 @@ const simulateProcessing = async (message) => {
   const latency = Date.now() - start;
 
   if (fail) {
-    console.log("❌ Failed:", message);
+    logger.error({ requestId, message: `Failed ${message}` });
     recordRequest(latency, false);
     return;
   }
-  console.log("✅ Success:", message);
+  logger.info({ requestId, message: `Success ${message}` });
   recordRequest(latency, true);
 };
 

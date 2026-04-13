@@ -1,5 +1,6 @@
 const { Kafka } = require("kafkajs");
 const { simulateProcessing } = require("../services/simulation.service");
+const logger = require("../utils/logger");
 
 const kafka = new Kafka({
   clientId: "traffic-consumer",
@@ -15,9 +16,14 @@ const runConsumer = async () => {
 
   await consumer.run({
     eachMessage: async ({ message }) => {
-      const msg = message.value.toString();
-      console.log("Received message...", msg);
-      await simulateProcessing(msg);
+
+      const data = JSON.parse(message.value.toString());
+
+      const {requestId, request} = data;
+
+      logger.info({requestId, message:`Received ${request}`})
+
+      await simulateProcessing(request, requestId);
     },
   });
 };
