@@ -1,3 +1,5 @@
+const { getIO } = require("../websocket/socket");
+
 let metrics = {
   totalRequests: 0,
   success: 0,
@@ -13,6 +15,14 @@ const recordRequest = (latency, isSuccess) => {
     metrics.failure++;
   }
   metrics.totalLatency += latency;
+
+  // 🔥 EMIT LIVE DATA
+  try{
+    const io = getIO();
+    io.emit("metrics",getMetrics())
+  } catch(err){
+    console.error("Error emitting metrics:", err);
+  }
 };
 
 const getMetrics = () => {
