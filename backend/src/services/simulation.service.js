@@ -1,13 +1,21 @@
 const {recordRequest} = require("../metrics/metrics.store");
 const logger = require("../utils/logger");
+const {getIO} = require("../websocket/socket")
 
 const simulateProcessing = async (message,requestId) => {
-  const start = Date.now();
+  const io = getIO();
 
-  logger.info({
-    requestId,
-    message:`Processing ${message}`
-  })
+  const log=(text,type="info")=>{
+    io.emit("logs",{
+      requestId,message:text,
+      type,
+      time:new Date().toLocaleTimeString()
+    })
+  }
+
+  log(`Processing ${message}`)
+
+  const start = Date.now();
 
   //simulate delay (0-2 sec)
   const delay = Math.random()*2000;
@@ -19,11 +27,11 @@ const simulateProcessing = async (message,requestId) => {
   const latency = Date.now() - start;
 
   if (fail) {
-    logger.error({ requestId, message: `Failed ${message}` });
+    log(`Failed ${message}`, "error");
     recordRequest(latency, false);
     return;
   }
-  logger.info({ requestId, message: `Success ${message}` });
+  log(`Success ${message}`, "success");
   recordRequest(latency, true);
 };
 
