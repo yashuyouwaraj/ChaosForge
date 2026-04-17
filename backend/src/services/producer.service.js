@@ -5,10 +5,17 @@ const sendMessage = async () => {
 
   await producer.send({
     topic: "test-topic",
-    messages: [{ value: "Hello ChaosForge 🚀" }],
+    messages: [
+      {
+        value: JSON.stringify({
+          requestId: `manual-${Date.now()}`,
+          request: "Hello ChaosForge",
+        }),
+      },
+    ],
   });
 
-  console.log("Message sent to Kafka topic successfully! ✅");
+  console.log("Message sent to Kafka topic successfully!");
 
   await producer.disconnect();
 };

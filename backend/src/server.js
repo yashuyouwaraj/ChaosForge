@@ -5,7 +5,7 @@ const {initSocket} = require("./websocket/socket");
 const app = require("./app");
 const runConsumer = require("./consumers/traffic.consumer");
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 const server = http.createServer(app)
 
@@ -13,7 +13,9 @@ const server = http.createServer(app)
 initSocket(server)
 
 // start consumer
-runConsumer();
+runConsumer().catch((error) => {
+    console.error("Kafka consumer failed to start:", error.message);
+});
 
 server.listen(PORT,()=>{
     console.log(`Server is running on port localhost:${PORT}`);

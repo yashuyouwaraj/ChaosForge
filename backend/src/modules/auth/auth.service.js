@@ -4,7 +4,7 @@ const { createUser, findUserByEmail } = require("../user/user.model");
 
 const signup = async (email, password) => {
   const hashed = await bcrypt.hash(password, 10);
-  return createUser({ email, password: hashed });
+  return createUser({ email, password: hashed, role: "user" });
 };
 
 const login = async (email, password) => {
@@ -14,9 +14,16 @@ const login = async (email, password) => {
 
   const valid = await bcrypt.compare(password, user.password);
 
-  if(!valid) throw new Error("Invalid password");
+  if (!valid) throw new Error("Invalid password");
 
-  const token = jwt.sign({email},"secret",{expiresIn:"1h"})
+  const token = jwt.sign(
+    {
+      email: user.email,
+      role: user.role,
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: "1h" }
+  );
 
   return token;
 };
