@@ -8,11 +8,13 @@ export default function LogsPanel() {
   const bottomRef = useRef(null);
 
   useEffect(() => {
-    socket.on("logs", (log) => {
+    const handleLog = (log) => {
       setLogs((prev) => [...prev.slice(-50), log]); // keep last 50 logs
-    });
+    };
 
-    return () => socket.off("logs");
+    socket.on("logs", handleLog);
+
+    return () => socket.off("logs", handleLog);
   }, []);
 
   useEffect(() => {
@@ -25,18 +27,20 @@ export default function LogsPanel() {
 
       {logs.map((log, index) => (
         <div key={index} className="mb-1">
-          <span className="text-gray-500">[{log.time}]</span>{" "}
-          <span className="text-purple-400">[{log.requestId.slice(0, 5)}]</span>{" "}
+          <span className="text-gray-500">[{log?.time || "--:--:--"}]</span>{" "}
+          <span className="text-purple-400">
+            [{(log?.requestId || "local").slice(0, 5)}]
+          </span>{" "}
           <span
             className={
-              log.type === "error"
+              log?.type === "error"
                 ? "text-red-400"
-                : log.type === "success"
+                : log?.type === "success"
                 ? "text-green-400"
                 : "text-gray-300"
             }
           >
-            {log.message}
+            {log?.message || "No log message"}
           </span>
         </div>
       ))}

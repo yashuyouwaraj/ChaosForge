@@ -1,7 +1,7 @@
 const producer = require("../config/kafka");
 const logger = require("../utils/logger");
 
-const generateTraffic = async (count = 10, requestId) => {
+const generateTraffic = async (count = 10,projectId, requestId) => {
   await producer.connect();
 
   const messages = [];
@@ -9,6 +9,7 @@ const generateTraffic = async (count = 10, requestId) => {
     messages.push({
       value: JSON.stringify({
         requestId,
+        projectId,
         request: `Request-${i + 1}`,
       }),
     });
