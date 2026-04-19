@@ -1,6 +1,7 @@
 let users = [];
 
 const createUser = (user)=>{
+    user.plan = "free"
     users.push(user)
     return user
 }

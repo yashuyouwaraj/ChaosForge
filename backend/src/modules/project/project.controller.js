@@ -1,9 +1,8 @@
 const projectService = require("./project.service");
-const {generateTraffic} = require("../../services/traffic.service")
+const { generateTraffic } = require("../../services/traffic.service");
 
 const createProject = (req, res) => {
   const { name } = req.body;
-
   const project = projectService.create(name, req.user.email);
 
   return res.json(project);
@@ -21,25 +20,33 @@ const getProject = (req, res) => {
   return res.json(project);
 };
 
+const runProjectTraffic = async (req, res) => {
+  const { id } = req.params;
+  const count = Number.parseInt(req.query.count || "10", 10);
 
-const runProjectTraffic = async(req,res)=>{
-  const {id} = req.params;
-  const count = req.query.count || 10;
+  if (!Number.isInteger(count) || count <= 0) {
+    return res.status(400).json({ message: "Count must be a positive number" });
+  }
 
-  const project = projectService.getOne(id)
+  if (req.user.plan === "free" && count > 50) {
+    return res.status(403).json({
+      message: "Upgrade to Pro for traffic counts above 50",
+    });
+  }
 
-  if(!project) return res.status(404).json({message:"Project not found"})
+  const project = projectService.getOne(id);
 
-   // 🔐 IMPORTANT: Ownership check
-   if(project.owner !==req.user.email){
-    return res.status(403).json({message:"Not your project"})
-   }
+  if (!project) {
+    return res.status(404).json({ message: "Project not found" });
+  }
 
-   await generateTraffic(count, id, req.requestId)
+  if (project.owner !== req.user.email) {
+    return res.status(403).json({ message: "Not your project" });
+  }
 
-  return res.json({message: `Traffic started for project ${id}`})
-}
+  await generateTraffic(count, id, req.requestId);
 
-
+  return res.json({ message: `Traffic started for project ${id}` });
+};
 
 module.exports = { createProject, getProjects, getProject, runProjectTraffic };

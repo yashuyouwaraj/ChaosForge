@@ -2,6 +2,18 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { createUser, findUserByEmail } = require("../user/user.model");
 
+const createAuthToken = (user) => {
+  return jwt.sign(
+    {
+      email: user.email,
+      role: user.role,
+      plan: user.plan,
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: "1h" },
+  );
+};
+
 const signup = async (email, password) => {
   const existingUser = findUserByEmail(email);
 
@@ -32,16 +44,14 @@ const login = async (email, password) => {
     throw error;
   }
 
-  const token = jwt.sign(
-    {
-      email: user.email,
-      role: user.role,
-    },
-    process.env.JWT_SECRET,
-    { expiresIn: "1h" }
-  );
-
-  return token;
+  return createAuthToken(user);
 };
 
-module.exports = { signup, login };
+const upgradePlan = (email, plan) => {
+  const user = findUserByEmail(email);
+  if (!user) throw new Error("User not found");
+  user.plan = plan;
+  return user;
+};
+
+module.exports = { signup, login, upgradePlan, createAuthToken };

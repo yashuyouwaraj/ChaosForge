@@ -1,4 +1,4 @@
-const { signup, login } = require("./auth.service");
+const { signup, login, upgradePlan, createAuthToken } = require("./auth.service");
 
 const signupHandler = async (req, res) => {
   try {
@@ -25,4 +25,16 @@ const loginHandler = async (req, res) => {
   }
 };
 
-module.exports = { signupHandler, loginHandler };
+const upgradeHandler = (req, res) => {
+  const { plan } = req.body;
+  const user = upgradePlan(req.user.email, plan);
+  const token = createAuthToken(user);
+
+  res.json({
+    message: "Plan upgraded successfully",
+    plan: user.plan,
+    token,
+  });
+};
+
+module.exports = { signupHandler, loginHandler, upgradeHandler };
