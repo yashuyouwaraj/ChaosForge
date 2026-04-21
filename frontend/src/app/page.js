@@ -22,15 +22,11 @@ export default function Home() {
 
   const upgrade = async () => {
     try {
-      const res = await api("/auth/upgrade", "POST", { plan: "pro" });
+      const res = await api("/payment/checkout", "POST");
 
-      if (res?.token) {
-        localStorage.setItem("token", res.token);
-      }
-
-      setStatus(res?.message || "Upgraded to Pro");
-    } catch (error) {
-      setStatus(error.message || "Upgrade failed");
+      window.location.href = res.url; // redirect to Stripe
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -57,7 +53,7 @@ export default function Home() {
       setStatus("");
       const res = await api(
         `/projects/${projectId}/traffic?count=${parsedCount}`,
-        "POST"
+        "POST",
       );
       setStatus(res?.message || "Simulation started");
     } catch (error) {
