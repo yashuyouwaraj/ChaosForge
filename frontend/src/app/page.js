@@ -6,6 +6,8 @@ import MetricsGrid from "../components/MetricsGrid";
 import GraphSection from "../components/GraphSection";
 import LogsPanel from "../components/LogsPanel";
 import { api } from "../lib/api";
+import PremiumGate from "../components/PremiumGate";
+import PlanBadge from "../components/PlanBadge";
 import PaymentHistory from "../components/PaymentHistory";
 
 export default function Home() {
@@ -22,34 +24,57 @@ export default function Home() {
   const [count, setCount] = useState("50");
   const [plan, setPlan] = useState("free");
 
-useEffect(() => {
-  const fetchUser = async () => {
-    const data = await api("/auth/me");
-    setPlan(data.plan);
-  };
-
-  fetchUser();
-
-  // 👇 also re-fetch every few seconds (optional)
-  const interval = setInterval(fetchUser, 3000);
-
-  return () => clearInterval(interval);
-}, []);
-
-  const upgrade = async () => {
-    try {
-      const res = await api("/payment/checkout", "POST");
-
-      window.location.href = res.url; // redirect to Stripe
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   useEffect(() => {
     const id = localStorage.getItem("projectId");
     setProjectId(id);
   }, []);
+
+  useEffect(() => {
+    let shouldPoll = true;
+
+    const fetchUser = async () => {
+      try {
+        const data = await api("/auth/me");
+
+        if (shouldPoll) {
+          setPlan(data.plan || "free");
+        }
+      } catch (error) {
+        if (
+          error.message === "User not found" ||
+          error.message === "Invalid token" ||
+          error.message === "No token provided"
+        ) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("projectId");
+          setProjectId(null);
+          setPlan("free");
+          shouldPoll = false;
+          return;
+        }
+
+        console.warn("Failed to fetch user:", error.message);
+      }
+    };
+
+    fetchUser();
+
+    const interval = setInterval(fetchUser, 3000);
+
+    return () => {
+      shouldPoll = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  const upgrade = async () => {
+    try {
+      const res = await api("/payment/checkout", "POST");
+      window.location.href = res.url;
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const runSimulation = async () => {
     if (!projectId) {
@@ -115,8 +140,12 @@ useEffect(() => {
     <div className="p-10 max-w-7xl mx-auto">
       <h1 className="text-3xl font-bold mb-6">ChaosForge Dashboard</h1>
       <div className="mb-4">
-        <h2>Your Plan: {plan.toUpperCase()} 🚀</h2>
+        <div className="flex justify-between mb-6">
+          <h1 className="text-2xl">ChaosForge</h1>
+          <PlanBadge plan={plan} />
+        </div>
       </div>
+
       <button
         onClick={upgrade}
         className="bg-purple-500 px-4 py-2 rounded-lg mb-4"
@@ -125,6 +154,7 @@ useEffect(() => {
       </button>
 
       <PaymentHistory />
+
       <div className="mb-6">
         <div className="mb-3">
           <input
@@ -136,15 +166,26 @@ useEffect(() => {
             placeholder="Request count"
           />
         </div>
-        <button
-          onClick={runSimulation}
-          disabled={isRunning}
-          className="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded-lg disabled:opacity-60"
-        >
-          {isRunning ? "Running..." : "Run Simulation"}
-        </button>
+
+        <PremiumGate plan={plan} required="pro" onUpgrade={upgrade}>
+          <button
+            onClick={runSimulation}
+            disabled={isRunning}
+            className="bg-blue-500 px-4 py-2 rounded-lg disabled:opacity-60"
+          >
+            {isRunning ? "Running..." : "Run High Traffic Simulation"}
+          </button>
+        </PremiumGate>
+
+        <PremiumGate plan={plan} required="premium" onUpgrade={upgrade}>
+          <div className="bg-purple-900 p-6 rounded-xl mt-6">
+            Chaos Engine (Advanced Failure Simulation)
+          </div>
+        </PremiumGate>
+
         {status ? <p className="mt-3 text-sm text-gray-300">{status}</p> : null}
       </div>
+
       <MetricsGrid metrics={metrics} />
       <GraphSection data={graphData} />
       <LogsPanel />

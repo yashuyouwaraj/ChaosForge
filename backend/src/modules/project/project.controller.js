@@ -1,5 +1,6 @@
 const projectService = require("./project.service");
 const { generateTraffic } = require("../../services/traffic.service");
+const { findUserByEmail } = require("../user/user.model");
 
 const createProject = (req, res) => {
   const { name } = req.body;
@@ -23,12 +24,17 @@ const getProject = (req, res) => {
 const runProjectTraffic = async (req, res) => {
   const { id } = req.params;
   const count = Number.parseInt(req.query.count || "10", 10);
+  const user = findUserByEmail(req.user.email);
 
   if (!Number.isInteger(count) || count <= 0) {
     return res.status(400).json({ message: "Count must be a positive number" });
   }
 
-  if (req.user.plan === "free" && count > 50) {
+  if (!user) {
+    return res.status(404).json({ message: "User not found" });
+  }
+
+  if (user.plan === "free" && count > 50) {
     return res.status(403).json({
       message: "Upgrade to Pro for traffic counts above 50",
     });
