@@ -1,4 +1,5 @@
 const { signup, login, upgradePlan, createAuthToken } = require("./auth.service");
+const { findUserByEmail } = require("../user/user.model");
 
 const signupHandler = async (req, res) => {
   try {
@@ -37,4 +38,18 @@ const upgradeHandler = (req, res) => {
   });
 };
 
-module.exports = { signupHandler, loginHandler, upgradeHandler };
+const getMe = (req, res) => {
+  const user = findUserByEmail(req.user.email);
+
+  if (!user) {
+    return res.status(404).json({ message: "User not found" });
+  }
+
+  res.json({
+    email: user.email,
+    role: user.role,
+    plan: user.plan,
+  });
+};
+
+module.exports = { signupHandler, loginHandler, upgradeHandler, getMe };
