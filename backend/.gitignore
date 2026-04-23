@@ -66,3 +66,5 @@ docker-compose.override.yml
 
 # Generated package-lock if using npm, keep it if you want deterministic installs
 # package-lock.json
+
+*.txt

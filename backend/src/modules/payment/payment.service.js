@@ -2,11 +2,16 @@ const Stripe = require("stripe");
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
+
 const createCheckoutSession = async (email) => {
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ["card", "upi"],
     mode: "payment",
     customer_email: email,
+    
+    metadata:{
+      plan:"pro" // 👈 ADD THIS
+    },
     line_items: [
       {
         price_data: {

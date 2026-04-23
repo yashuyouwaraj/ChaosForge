@@ -21,11 +21,11 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use("/payment", paymentRoutes);
+
 app.use(express.json());
 
 app.use("/auth", authRoutes);
-
-app.use("/payment", paymentRoutes);
 
 app.use(requestIdMiddleware);
 
