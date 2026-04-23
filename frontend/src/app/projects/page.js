@@ -1,32 +1,43 @@
-"use client"
+"use client";
 
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 
-export default function Projects(){
-    const [projects, setProjects] = useState([]);
-    const [name, setName] = useState("");
+export default function Projects() {
+  const [projects, setProjects] = useState([]);
+  const [name, setName] = useState("");
 
-    const fetchProjects = async()=>{
-        const data = await api("/projects")
+  const createProject = async () => {
+    await api("/projects", "POST", { name });
+    const data = await api("/projects");
+    setProjects(data);
+  };
+
+  useEffect(() => {
+    let ignore = false;
+
+    const loadProjects = async () => {
+      const data = await api("/projects");
+
+      if (!ignore) {
         setProjects(data);
-    }
+      }
+    };
 
-    const createProject = async()=>{
-        await api("/projects","POST",{name})
-        fetchProjects()
-    }
+    loadProjects();
 
-    useEffect(()=>{
-        fetchProjects()
-    },[])
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
-     return (
+  return (
     <div className="p-10">
       <h1 className="text-2xl mb-4">My Projects</h1>
 
       <input
         placeholder="Project name"
+        value={name}
         onChange={(e) => setName(e.target.value)}
         className="p-2 mr-2"
       />

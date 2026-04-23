@@ -1,40 +1,47 @@
 const { getIO } = require("../websocket/socket");
 
-let metrics = {
-  totalRequests: 0,
-  success: 0,
-  failure: 0,
-  totalLatency: 0,
-};
+let metrics = {};
 
-const recordRequest = (latency, isSuccess) => {
-  metrics.totalRequests++;
-  if (isSuccess) {
-    metrics.success++;
-  } else {
-    metrics.failure++;
+const recordRequest = (projectId, latency, isSuccess) => {
+  if (!metrics[projectId]) {
+    metrics[projectId] = {
+      totalRequests: 0,
+      success: 0,
+      failure: 0,
+      totalLatency: 0,
+    };
   }
-  metrics.totalLatency += latency;
+
+  const m = metrics[projectId];
+
+  m.totalRequests++;
+  m.totalLatency += latency;
+
+  if (isSuccess) {
+    m.success++;
+  } else {
+    m.failure++;
+  }
+  m.totalLatency += latency;
 
   // 🔥 EMIT LIVE DATA
-  try{
+  try {
     const io = getIO();
-    io.emit("metrics",getMetrics())
-  } catch(err){
+    io.emit("metrics", getMetrics());
+  } catch (err) {
     console.error("Error emitting metrics:", err);
   }
 };
 
-const getMetrics = () => {
-  const avgLatency =
-    metrics.totalRequests === 0
-      ? 0
-      : metrics.totalLatency / metrics.totalRequests;
-
-    return {
-        ...metrics,
-        avgLatency:avgLatency.toFixed(2)
+const getMetrics = (projectId) => {
+  return (
+    metrics[projectId] || {
+      totalRequests: 0,
+      success: 0,
+      failure: 0,
+      totalLatency: 0,
     }
+  );
 };
 
-module.exports= {recordRequest, getMetrics}
+module.exports = { recordRequest, getMetrics };

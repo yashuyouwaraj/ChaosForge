@@ -23,6 +23,7 @@ export default function Home() {
   const [isRunning, setIsRunning] = useState(false);
   const [count, setCount] = useState("50");
   const [plan, setPlan] = useState("free");
+  const [logsByProject, setLogsByProject] = useState({});
 
   useEffect(() => {
     const id = localStorage.getItem("projectId");
@@ -110,6 +111,10 @@ export default function Home() {
   };
 
   useEffect(() => {
+    if (!projectId) {
+      return;
+    }
+
     const handleMetrics = (data) => {
       setMetrics(data);
       setGraphData((prev) => [
@@ -121,10 +126,30 @@ export default function Home() {
       ]);
     };
 
-    socket.on("metrics", handleMetrics);
+    const metricsEvent = `metrics-${projectId}`;
+    socket.on(metricsEvent, handleMetrics);
 
     return () => {
-      socket.off("metrics", handleMetrics);
+      socket.off(metricsEvent, handleMetrics);
+    };
+  }, [projectId]);
+
+  useEffect(() => {
+    const handleProjectLog = (log) => {
+      if (!log?.projectId) {
+        return;
+      }
+
+      setLogsByProject((prev) => ({
+        ...prev,
+        [log.projectId]: [...(prev[log.projectId] || []).slice(-50), log],
+      }));
+    };
+
+    socket.on("project-log", handleProjectLog);
+
+    return () => {
+      socket.off("project-log", handleProjectLog);
     };
   }, []);
 
@@ -188,7 +213,7 @@ export default function Home() {
 
       <MetricsGrid metrics={metrics} />
       <GraphSection data={graphData} />
-      <LogsPanel />
+      <LogsPanel projectId={projectId} logs={logsByProject[projectId] || []} />
     </div>
   );
 }

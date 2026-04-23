@@ -1,21 +1,9 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import socket from "../lib/socket";
+import { useEffect, useRef } from "react";
 
-export default function LogsPanel() {
-  const [logs, setLogs] = useState([]);
+export default function LogsPanel({ projectId, logs = [] }) {
   const bottomRef = useRef(null);
-
-  useEffect(() => {
-    const handleLog = (log) => {
-      setLogs((prev) => [...prev.slice(-50), log]); // keep last 50 logs
-    };
-
-    socket.on("logs", handleLog);
-
-    return () => socket.off("logs", handleLog);
-  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -23,10 +11,16 @@ export default function LogsPanel() {
 
   return (
     <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-xl p-4 mt-6 h-64 overflow-y-auto font-mono text-sm">
-      <h2 className="mb-2 text-gray-400">🧾 Live Logs</h2>
+      <h2 className="mb-2 text-gray-400">
+        Live Logs {projectId ? `(${projectId.slice(0, 8)})` : ""}
+      </h2>
+
+      {logs.length === 0 ? (
+        <p className="text-gray-500">No logs yet. Run a simulation.</p>
+      ) : null}
 
       {logs.map((log, index) => (
-        <div key={index} className="mb-1">
+        <div key={`${log?.requestId || "log"}-${index}`} className="mb-1">
           <span className="text-gray-500">[{log?.time || "--:--:--"}]</span>{" "}
           <span className="text-purple-400">
             [{(log?.requestId || "local").slice(0, 5)}]
@@ -36,8 +30,8 @@ export default function LogsPanel() {
               log?.type === "error"
                 ? "text-red-400"
                 : log?.type === "success"
-                ? "text-green-400"
-                : "text-gray-300"
+                  ? "text-green-400"
+                  : "text-gray-300"
             }
           >
             {log?.message || "No log message"}

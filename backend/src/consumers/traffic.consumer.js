@@ -12,17 +12,17 @@ const consumer = kafka.consumer({ groupId: "traffic-group" });
 const runConsumer = async () => {
   await consumer.connect();
 
-  await consumer.subscribe({ topic: "test-topic", fromBeginning: true });
+  await consumer.subscribe({ topic: "traffic-topic", fromBeginning: true });
 
   await consumer.run({
     eachMessage: async ({ message }) => {
       try {
         const data = JSON.parse(message.value.toString());
-        const { requestId, request } = data;
+        const { requestId, request, projectId } = data;
 
         logger.info({ requestId, message: `Received ${request}` });
 
-        await simulateProcessing(request, requestId);
+        await simulateProcessing(request, requestId, projectId);
       } catch (error) {
         logger.error({
           message: "Failed to process Kafka message",

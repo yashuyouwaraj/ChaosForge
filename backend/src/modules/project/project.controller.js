@@ -1,6 +1,7 @@
 const projectService = require("./project.service");
 const { generateTraffic } = require("../../services/traffic.service");
 const { findUserByEmail } = require("../user/user.model");
+const { getIO } = require("../../websocket/socket");
 
 const createProject = (req, res) => {
   const { name } = req.body;
@@ -49,6 +50,17 @@ const runProjectTraffic = async (req, res) => {
   if (project.owner !== req.user.email) {
     return res.status(403).json({ message: "Not your project" });
   }
+
+  const startLog = {
+    projectId: id,
+    requestId: req.requestId,
+    message: `Starting ${count} requests`,
+    type: "info",
+    time: new Date().toLocaleTimeString(),
+  };
+
+  getIO().emit(`logs-${id}`, startLog);
+  getIO().emit("project-log", startLog);
 
   await generateTraffic(count, id, req.requestId);
 
