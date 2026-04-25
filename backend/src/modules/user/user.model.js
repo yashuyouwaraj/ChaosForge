@@ -1,13 +1,17 @@
-let users = [];
+const mongoose = require("mongoose");
 
-const createUser = (user)=>{
-    user.plan = "free"
-    users.push(user)
-    return user
-}
+const userSchema = new mongoose.Schema({
+    email:String,
+    password:String,
+    role:{
+        type:String,
+        default:"user"
+    },
+    plan:{
+        type:String,
+        default:"free",
+    }
 
-const findUserByEmail = (email)=>{
-    return users.find((u)=> u.email ===email)
-}
+})
 
-module.exports= {createUser, findUserByEmail}
+module.exports = mongoose.model("User",userSchema)

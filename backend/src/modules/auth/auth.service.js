@@ -1,6 +1,7 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const { createUser, findUserByEmail } = require("../user/user.model");
+const { createUser } = require("../user/user.model");
+const User = require("../user/user.model");
 
 const createAuthToken = (user) => {
   return jwt.sign(
@@ -15,20 +16,20 @@ const createAuthToken = (user) => {
 };
 
 const signup = async (email, password) => {
-  const existingUser = findUserByEmail(email);
-
-  if (existingUser) {
-    const error = new Error("User already exists");
-    error.statusCode = 409;
-    throw error;
-  }
-
   const hashed = await bcrypt.hash(password, 10);
-  return createUser({ email, password: hashed, role: "user" });
+
+  const user = new User({
+    email,
+    password: hashed,
+  });
+
+  await user.save();
+
+  return user;
 };
 
 const login = async (email, password) => {
-  const user = findUserByEmail(email);
+  const user = await User.findOne({ email });
 
   if (!user) {
     const error = new Error("User not found");
@@ -47,10 +48,11 @@ const login = async (email, password) => {
   return createAuthToken(user);
 };
 
-const upgradePlan = (email, plan) => {
-  const user = findUserByEmail(email);
+const upgradePlan = async (email, plan) => {
+  const user = await User.findOne({ email });
   if (!user) throw new Error("User not found");
   user.plan = plan;
+  await user.save();
   return user;
 };
 
