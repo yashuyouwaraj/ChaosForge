@@ -3,23 +3,30 @@ const { generateTraffic } = require("../../services/traffic.service");
 const { getIO } = require("../../websocket/socket");
 const User = require("../user/user.model");
 
-const createProject = (req, res) => {
+const createProject = async (req, res) => {
   const { name } = req.body;
-  const project = projectService.create(name, req.user.email);
+  const project = await projectService.create(name, req.user.email);
 
   return res.json(project);
 };
 
-const getProjects = (req, res) => {
-  const projects = projectService.getAll(req.user.email);
+const getProjects = async (req, res) => {
+  const projects = await projectService.getAll(req.user.email);
 
-  return res.json(projects);
+  res.json(projects);
 };
 
-const getProject = (req, res) => {
-  const project = projectService.getOne(req.params.id);
+const getProject = async (req, res) => {
+  const project = await projectService.getOne(req.params.id);
 
-  return res.json(project);
+  if(!project){
+    return res.status(404).json({ message: "Project not found" });
+  }
+  if(project.owner !== req.user.email){
+    return res.status(403).json({ message: "Forbidden" });
+  }
+
+  res.json(project);
 };
 
 const runProjectTraffic = async (req, res) => {
@@ -41,7 +48,7 @@ const runProjectTraffic = async (req, res) => {
     });
   }
 
-  const project = projectService.getOne(id);
+  const project = await projectService.getOne(id);
 
   if (!project) {
     return res.status(404).json({ message: "Project not found" });

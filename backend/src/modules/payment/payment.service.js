@@ -8,9 +8,9 @@ const createCheckoutSession = async (email) => {
     payment_method_types: ["card", "upi"],
     mode: "payment",
     customer_email: email,
-    
-    metadata:{
-      plan:"pro" // 👈 ADD THIS
+
+    metadata: {
+      plan: "pro",
     },
     line_items: [
       {
@@ -19,13 +19,13 @@ const createCheckoutSession = async (email) => {
           product_data: {
             name: "ChaosForge Pro Plan",
           },
-          unit_amount: 50000, //Rs 500
+          unit_amount: 50000, // Rs 500
         },
         quantity: 1,
       },
     ],
-    success_url: "http://localhost:3001/success",
-    cancel_url: "http://localhost:3001/cancel",
+    success_url: "http://localhost:3000/success?session_id={CHECKOUT_SESSION_ID}",
+    cancel_url: "http://localhost:3000/cancel",
   });
   return session.url;
 };

@@ -45,18 +45,22 @@ export default function Projects() {
       <button onClick={createProject}>Create</button>
 
       <div className="mt-6">
-        {projects.map((p) => (
-          <div
-            key={p.id}
-            className="p-4 bg-white/10 mb-2 cursor-pointer"
-            onClick={() => {
-              localStorage.setItem("projectId", p.id);
-              window.location.href = "/";
-            }}
-          >
-            {p.name}
-          </div>
-        ))}
+        {projects.map((p, index) => {
+          const projectId = p._id || p.id || `project-${index}`;
+
+          return (
+            <div
+              key={projectId}
+              className="p-4 bg-white/10 mb-2 cursor-pointer"
+              onClick={() => {
+                localStorage.setItem("projectId", projectId);
+                window.location.href = "/";
+              }}
+            >
+              {p.name}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

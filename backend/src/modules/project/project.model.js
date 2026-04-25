@@ -1,17 +1,12 @@
-let projects = [];
+const mongoose = require("mongoose")
 
-const createProject = (project) => {
-  projects.push(project);
-  return project;
-};
+const projectSchema = new mongoose.Schema({
+  name:String,
+  owner:String, //email
+  createdAt:{
+    type:Date,
+    default:Date.now
+  }
+})
 
-const getProjectsByUser = (email) => {
-  return projects.filter((p) => p.owner === email);
-};
-
-const getProjectById = (id) => {
-  return projects.find((p) => p.id === id);
-};
-
-
-module.exports = { createProject, getProjectsByUser, getProjectById };
+module.exports = mongoose.model("Project",projectSchema)

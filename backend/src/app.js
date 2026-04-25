@@ -21,10 +21,15 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use("/payment", paymentRoutes);
+app.post(
+  "/payment/webhook",
+  express.raw({ type: "*/*" }),
+  paymentRoutes.webhookHandler,
+);
 
 app.use(express.json());
 
+app.use("/payment", paymentRoutes.router);
 app.use("/auth", authRoutes);
 
 app.use(requestIdMiddleware);

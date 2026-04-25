@@ -1,12 +1,15 @@
-let payments = [];
+const mongoose = require("mongoose");
 
-const savePayment = (payment) => {
-  payments.push(payment);
-  return payment;
-};
+const paymentSchema = new mongoose.Schema({
+  email: String,
+  plan: String,
+  amount: Number,
+  status: String,
+  sessionId: String,
+  date: {
+    type: Date,
+    default: Date.now,
+  },
+});
 
-const getPaymentsByUser = (email) => {
-  return payments.filter((p) => p.email === email);
-};
-
-module.exports = { savePayment, getPaymentsByUser };
+module.exports = mongoose.model("Payment", paymentSchema)

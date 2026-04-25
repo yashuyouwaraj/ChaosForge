@@ -1,8 +1,7 @@
 const { createCheckoutSession } = require("./payment.service");
 const Stripe = require("stripe");
 const { upgradePlan } = require("../auth/auth.service");
-const { savePayment } = require("./payment.model");
-const { getPaymentsByUser } = require("./payment.model");
+const Payment = require("./payment.model");
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -10,6 +9,8 @@ const webhook = async (req, res) => {
   const sig = req.headers["stripe-signature"];
 
   let event;
+
+  console.log("Stripe webhook received, signature header:", sig);
 
   try {
     event = stripe.webhooks.constructEvent(
@@ -27,34 +28,90 @@ const webhook = async (req, res) => {
     const email = session.customer_email;
     const plan = session.metadata.plan || "pro";
 
+    console.log("Stripe webhook event received:", event.type);
     console.log("Payment success for:", email);
 
     if (email) {
-      upgradePlan(email, "pro");
-      savePayment({
-        email,
-        plan,
-        amount: session.amount_total / 100,
-        status: "success",
-        date: new Date(),
-      });
+      try {
+        const user = await upgradePlan(email, "pro");
+        console.log("User upgraded to pro:", user.email, user.plan);
+        await Payment.create({
+          email,
+          plan,
+          amount: session.amount_total / 100,
+          status: "success",
+        });
+        console.log("Payment record saved for:", email);
+      } catch (err) {
+        console.error("Webhook processing failed:", err);
+        return res.status(500).json({ message: "Webhook processing failed" });
+      }
+    } else {
+      console.warn("Webhook checkout.session.completed missing customer_email");
     }
   }
 
   res.json({ received: true });
 };
 
+const getPayments = async (req, res) => {
+  try {
+    const payments = await Payment.find({ email: req.user.email }).sort({ date: -1 });
+    res.json(payments);
+  } catch (err) {
+    console.error("Failed to fetch payment history:", err);
+    res.status(500).json({ message: "Failed to fetch payment history" });
+  }
+};
 
+const confirmPayment = async (req, res) => {
+  try {
+    const sessionId = req.query.session_id;
 
-const getPayments = (req, res) => {
-  const payments = getPaymentsByUser(req.user.email);
+    if (!sessionId) {
+      return res.status(400).json({ message: "Missing session_id" });
+    }
 
-  res.json(payments);
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    if (!session || session.payment_status !== "paid") {
+      return res.status(400).json({ message: "Payment not completed" });
+    }
+
+    const email = session.customer_email;
+    const plan = session.metadata.plan || "pro";
+
+    if (!email) {
+      return res.status(400).json({ message: "Session missing customer email" });
+    }
+
+    const existingPayment = await Payment.findOne({ sessionId: session.id });
+
+    if (!existingPayment) {
+      await Payment.create({
+        email,
+        plan,
+        amount: session.amount_total / 100,
+        status: "success",
+        sessionId: session.id,
+      });
+      console.log("Payment record saved via confirmation endpoint for:", email);
+    }
+
+    const user = await upgradePlan(email, plan);
+    console.log("User upgraded to pro via confirmation endpoint:", user.email, user.plan);
+
+    res.json({ message: "Payment confirmed", plan: user.plan });
+  } catch (err) {
+    console.error("Confirm payment failed:", err);
+    res.status(500).json({ message: "Confirm payment failed" });
+  }
 };
 
 const checkout = async (req, res) => {
   const url = await createCheckoutSession(req.user.email);
+  console.log("Checkout session created for:", req.user.email);
   res.json({ url });
 };
 
-module.exports = { checkout, webhook, getPayments };
+module.exports = { checkout, webhook, getPayments, confirmPayment };
