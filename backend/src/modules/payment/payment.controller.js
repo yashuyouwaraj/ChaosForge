@@ -30,18 +30,21 @@ const webhook = async (req, res) => {
 
     console.log("Stripe webhook event received:", event.type);
     console.log("Payment success for:", email);
+    console.log("Session ID:", session.id);
+    console.log("Amount:", session.amount_total);
 
     if (email) {
       try {
         const user = await upgradePlan(email, "pro");
         console.log("User upgraded to pro:", user.email, user.plan);
-        await Payment.create({
+        const payment = await Payment.create({
           email,
           plan,
           amount: session.amount_total / 100,
           status: "success",
+          sessionId: session.id,
         });
-        console.log("Payment record saved for:", email);
+        console.log("Payment record saved for:", email, "ID:", payment._id);
       } catch (err) {
         console.error("Webhook processing failed:", err);
         return res.status(500).json({ message: "Webhook processing failed" });
