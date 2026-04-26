@@ -15,6 +15,12 @@ initSocket(server)
 
 connectDB();
 
+const cors = require("cors");
+
+app.use(cors({
+  origin: "*"
+}));
+
 // start consumer
 runConsumer().catch((error) => {
     console.error("Kafka consumer failed to start:", error.message);
