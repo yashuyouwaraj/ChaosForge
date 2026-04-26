@@ -2,6 +2,7 @@ const projectService = require("./project.service");
 const { generateTraffic } = require("../../services/traffic.service");
 const { getIO } = require("../../websocket/socket");
 const User = require("../user/user.model");
+const { success, error } = require("../../utils/response");
 
 const createProject = async (req, res) => {
   const { name } = req.body;
@@ -19,14 +20,14 @@ const getProjects = async (req, res) => {
 const getProject = async (req, res) => {
   const project = await projectService.getOne(req.params.id);
 
-  if(!project){
-    return res.status(404).json({ message: "Project not found" });
+  if (!project) {
+    return error(res, "Project not found", 404);
   }
-  if(project.owner !== req.user.email){
+  if (project.owner !== req.user.email) {
     return res.status(403).json({ message: "Forbidden" });
   }
 
-  res.json(project);
+  return success(res, project);
 };
 
 const runProjectTraffic = async (req, res) => {

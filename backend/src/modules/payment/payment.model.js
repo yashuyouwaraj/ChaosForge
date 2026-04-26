@@ -1,7 +1,10 @@
 const mongoose = require("mongoose");
 
 const paymentSchema = new mongoose.Schema({
-  email: String,
+  email: {
+    type: String,
+    index: true,
+  },
   plan: String,
   amount: Number,
   status: String,
@@ -12,4 +15,4 @@ const paymentSchema = new mongoose.Schema({
   },
 });
 
-module.exports = mongoose.model("Payment", paymentSchema)
+module.exports = mongoose.model("Payment", paymentSchema);

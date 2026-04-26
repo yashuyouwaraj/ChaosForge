@@ -6,11 +6,28 @@ import { api } from "../../lib/api";
 export default function Projects() {
   const [projects, setProjects] = useState([]);
   const [name, setName] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const createProject = async () => {
-    await api("/projects", "POST", { name });
-    const data = await api("/projects");
-    setProjects(data);
+    if (!name.trim()) {
+      setError("Project name is required.");
+      return;
+    }
+
+    setError("");
+    setLoading(true);
+
+    try {
+      await api("/projects", "POST", { name });
+      const data = await api("/projects");
+      setProjects(data);
+      setName("");
+    } catch (err) {
+      setError(err.message || "Unable to create project.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -42,7 +59,11 @@ export default function Projects() {
         className="p-2 mr-2"
       />
 
-      <button onClick={createProject}>Create</button>
+      <button onClick={createProject} disabled={loading}>
+        {loading ? "Creating..." : "Create"}
+      </button>
+
+      {error ? <p className="mt-3 text-red-400">{error}</p> : null}
 
       <div className="mt-6">
         {projects.map((p, index) => {
