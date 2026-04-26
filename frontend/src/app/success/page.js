@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { api } from "../../lib/api";
 
-export default function SuccessPage() {
+function SuccessContent() {
   const [status, setStatus] = useState("Confirming payment...");
   const [error, setError] = useState("");
   const searchParams = useSearchParams();
@@ -38,5 +38,13 @@ export default function SuccessPage() {
       {error ? <p className="text-red-300">{error}</p> : null}
       <p className="mt-4">You can now return to the app and continue using ChaosForge.</p>
     </div>
+  );
+}
+
+export default function SuccessPage() {
+  return (
+    <Suspense fallback={<div className="p-10">Loading...</div>}>
+      <SuccessContent />
+    </Suspense>
   );
 }
