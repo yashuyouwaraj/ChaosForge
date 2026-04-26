@@ -5,23 +5,24 @@ const {initSocket} = require("./websocket/socket");
 const app = require("./app");
 const runConsumer = require("./consumers/traffic.consumer");
 const connectDB= require("./config/db")
+const cors = require("cors");
+const errorHandler = require("./middleware/error.middleware");
 
 const PORT = process.env.PORT || 3001;
 
 const server = http.createServer(app)
 
+const useKafka = process.env.USE_KAFKA === "true";
 // init socket
 initSocket(server)
 
 connectDB();
 
-const cors = require("cors");
+app.use(errorHandler);
 
 app.use(cors({
   origin: "*"
 }));
-
-const useKafka = process.env.USE_KAFKA === "true";
 
 if (useKafka) {
   runConsumer().catch((error) => {
