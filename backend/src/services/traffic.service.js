@@ -1,38 +1,25 @@
-const producer = require("../config/kafka");
+const { v4: uuidv4 } = require("uuid");
 const logger = require("../utils/logger");
+const { simulateProcessing } = require("./simulation.service");
 
-const generateTraffic = async (count = 10, projectId, requestId) => {
-  if (process.env.USE_KAFKA !== "true") {
-    logger.info({
-      requestId,
-      message: "Kafka disabled. Skipping traffic generation.",
-    });
-    return;
-  }
+const generateTraffic = async (count = 10, projectId, url) => {
 
-  await producer.connect();
+  const promises = [];
 
   for (let i = 0; i < count; i++) {
-    await producer.send({
-      topic: "traffic-topic",
-      messages: [
-        {
-          value: JSON.stringify({
-            requestId,
-            projectId,
-            request: `Request-${i + 1}`,
-          }),
-        },
-      ],
-    });
+    const requestId = uuidv4();
+
+    promises.push(
+      simulateProcessing(url, requestId, projectId)
+    );
   }
 
-  logger.info({
-    requestId,
-    message: `Sent ${count} messages to Kafka`,
-  });
+  await Promise.all(promises); // 💀 parallel execution
 
-  await producer.disconnect();
+  logger.info({
+    message: `Executed ${count} real HTTP requests`,
+    projectId,
+  });
 };
 
 module.exports = { generateTraffic };

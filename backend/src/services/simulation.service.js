@@ -1,48 +1,43 @@
 const { recordRequest, getMetrics } = require("../metrics/metrics.store");
-const logger = require("../utils/logger");
-const { getIO } = require("../websocket/socket");
+const { getIO, emitBufferedLog } = require("../websocket/socket");
+const axios = require("axios");
 
-const simulateProcessing = async (message, requestId, projectId) => {
+const simulateProcessing = async (url, requestId, projectId) => {
   const io = getIO();
-
-  const log = (text, type = "info") => {
-    const payload = {
-      projectId,
-      requestId,
-      message: text,
-      type,
-      time: new Date().toLocaleTimeString(),
-    };
-
-    io.emit(`logs-${projectId}`, payload);
-    io.emit("project-log", payload);
-  };
-
-  log(`Processing ${message}`);
 
   const start = Date.now();
 
-  //simulate delay (0-2 sec)
-  const delay = Math.random() * 2000;
-  await new Promise((resolve) => setTimeout(resolve, delay));
+  try {
+    const res = await axios.get(url, { timeout: 3000 });
 
-  // simulate failure (30% chance)
-  const fail = Math.random() < 0.3;
+    const latency = Date.now() - start;
 
-  const latency = Date.now() - start;
-
-  if (fail) {
-    log(`Failed ${message}`, "error");
-    recordRequest(projectId, latency, false);
-  } else {
-    log(`Success ${message}`, "success");
     recordRequest(projectId, latency, true);
+
+    emitBufferedLog(projectId, {
+      requestId,
+      message: `✅ ${url} - ${res.status}`,
+      type: "success",
+      time: new Date().toLocaleTimeString(),
+    });
+
+  } catch (err) {
+    const latency = Date.now() - start;
+
+    recordRequest(projectId, latency, false);
+
+    emitBufferedLog(projectId, {
+      requestId,
+      message: `❌ ${url} - ${err.message}`,
+      type: "error",
+      time: new Date().toLocaleTimeString(),
+    });
   }
 
-  // 💀 EMIT PROJECT METRICS
-  const m= getMetrics(projectId)
+  // 📊 Emit updated metrics
+  const m = getMetrics(projectId);
 
-  io.emit(`metrics-${projectId}`,{
+  io.emit(`metrics-${projectId}`, {
     totalRequests: m.totalRequests,
     success: m.success,
     failure: m.failure,

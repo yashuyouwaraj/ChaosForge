@@ -31,6 +31,7 @@ const getProject = async (req, res) => {
 };
 
 const runProjectTraffic = async (req, res) => {
+  const url = req.query.url || "https://jsonplaceholder.typicode.com/posts";
   const { id } = req.params;
   const count = Number.parseInt(req.query.count || "10", 10);
   const user = await User.findOne({ email: req.user.email });
@@ -70,7 +71,7 @@ const runProjectTraffic = async (req, res) => {
   getIO().emit(`logs-${id}`, startLog);
   getIO().emit("project-log", startLog);
 
-  await generateTraffic(count, id, req.requestId);
+  await generateTraffic(count, id, url);
 
   return res.json({ message: `Traffic started for project ${id}` });
 };

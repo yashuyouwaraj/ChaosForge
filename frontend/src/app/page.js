@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import socket from "../lib/socket";
 import MetricsGrid from "../components/MetricsGrid";
 import GraphSection from "../components/GraphSection";
@@ -22,8 +22,11 @@ export default function Home() {
   const [status, setStatus] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [count, setCount] = useState("50");
+  const [url, setUrl] = useState("");
   const [plan, setPlan] = useState("free");
-  const [logsByProject, setLogsByProject] = useState({});
+  const [logs, setLogs] = useState([]);
+  const pendingLogsRef = useRef([]);
+  const flushScheduledRef = useRef(false);
 
   useEffect(() => {
     const id = localStorage.getItem("projectId");
@@ -94,7 +97,7 @@ export default function Home() {
       setIsRunning(true);
       setStatus("");
       const res = await api(
-        `/projects/${projectId}/traffic?count=${parsedCount}`,
+        `/projects/${projectId}/traffic?count=${parsedCount}&url=${encodeURIComponent(url)}`,
         "POST",
       );
       setStatus(res?.message || "Simulation started");
@@ -135,23 +138,48 @@ export default function Home() {
   }, [projectId]);
 
   useEffect(() => {
-    const handleProjectLog = (log) => {
-      if (!log?.projectId) {
+    pendingLogsRef.current = [];
+    setLogs([]);
+  }, [projectId]);
+
+  useEffect(() => {
+    if (!projectId) {
+      return;
+    }
+
+    const flushLogs = () => {
+      const incomingLogs = pendingLogsRef.current;
+      if (incomingLogs.length === 0) {
+        flushScheduledRef.current = false;
         return;
       }
 
-      setLogsByProject((prev) => ({
-        ...prev,
-        [log.projectId]: [...(prev[log.projectId] || []).slice(-50), log],
-      }));
+      pendingLogsRef.current = [];
+      setLogs((prev) => [...prev, ...incomingLogs].slice(-100));
+      flushScheduledRef.current = false;
     };
 
-    socket.on("project-log", handleProjectLog);
+    const scheduleFlush = () => {
+      if (flushScheduledRef.current) {
+        return;
+      }
+      flushScheduledRef.current = true;
+      requestAnimationFrame(flushLogs);
+    };
+
+    const handleLogEvent = (incoming) => {
+      const incomingLogs = Array.isArray(incoming) ? incoming : [incoming];
+      pendingLogsRef.current.push(...incomingLogs);
+      scheduleFlush();
+    };
+
+    const projectLogEvent = `logs-${projectId}`;
+    socket.on(projectLogEvent, handleLogEvent);
 
     return () => {
-      socket.off("project-log", handleProjectLog);
+      socket.off(projectLogEvent, handleLogEvent);
     };
-  }, []);
+  }, [projectId]);
 
   if (!projectId) {
     return (
@@ -183,6 +211,12 @@ export default function Home() {
       <div className="mb-6">
         <div className="mb-3">
           <input
+            placeholder="Enter API URL"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            className="p-2 mr-2"
+          />
+          <input
             type="number"
             min="1"
             value={count}
@@ -213,7 +247,7 @@ export default function Home() {
 
       <MetricsGrid metrics={metrics} />
       <GraphSection data={graphData} />
-      <LogsPanel projectId={projectId} logs={logsByProject[projectId] || []} />
+      <LogsPanel projectId={projectId} logs={logs} />
     </div>
   );
 }
