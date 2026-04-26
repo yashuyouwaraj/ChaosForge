@@ -2,6 +2,14 @@ const producer = require("../config/kafka");
 const logger = require("../utils/logger");
 
 const generateTraffic = async (count = 10, projectId, requestId) => {
+  if (process.env.USE_KAFKA !== "true") {
+    logger.info({
+      requestId,
+      message: "Kafka disabled. Skipping traffic generation.",
+    });
+    return;
+  }
+
   await producer.connect();
 
   for (let i = 0; i < count; i++) {

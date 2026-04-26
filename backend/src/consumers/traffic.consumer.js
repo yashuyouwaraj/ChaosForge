@@ -2,6 +2,8 @@ const { Kafka } = require("kafkajs");
 const { simulateProcessing } = require("../services/simulation.service");
 const logger = require("../utils/logger");
 
+const useKafka = process.env.USE_KAFKA === "true";
+
 const kafka = new Kafka({
   clientId: "traffic-consumer",
   brokers: [process.env.KAFKA_BROKER || "localhost:9092"],
@@ -10,6 +12,11 @@ const kafka = new Kafka({
 const consumer = kafka.consumer({ groupId: "traffic-group" });
 
 const runConsumer = async () => {
+  if (!useKafka) {
+    logger.info("Kafka disabled in production. Traffic consumer will not start.");
+    return;
+  }
+
   await consumer.connect();
 
   await consumer.subscribe({ topic: "traffic-topic", fromBeginning: true });
