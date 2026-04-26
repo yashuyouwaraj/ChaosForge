@@ -52,7 +52,6 @@ export default function Signup() {
         <button onClick={handleSignup} disabled={loading}>
           {loading ? "Signing up..." : "Sign Up"}
         </button>
-
         {error ? <p className="mt-3 text-red-400">{error}</p> : null}
       </div>
     </div>
