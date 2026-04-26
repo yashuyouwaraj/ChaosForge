@@ -24,8 +24,8 @@ const createCheckoutSession = async (email) => {
         quantity: 1,
       },
     ],
-    success_url: "http://localhost:3000/success?session_id={CHECKOUT_SESSION_ID}",
-    cancel_url: "http://localhost:3000/cancel",
+    success_url: process.env.STRIPE_SUCCESS_URL || "http://localhost:3000/success?session_id={CHECKOUT_SESSION_ID}",
+    cancel_url: process.env.STRIPE_CANCEL_URL || "http://localhost:3000/cancel",
   });
   return session.url;
 };
