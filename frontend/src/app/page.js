@@ -25,6 +25,7 @@ export default function Home() {
   const [url, setUrl] = useState("");
   const [plan, setPlan] = useState("free");
   const [logs, setLogs] = useState([]);
+  const [rate, setRate] = useState("50");
   const pendingLogsRef = useRef([]);
   const flushScheduledRef = useRef(false);
 
@@ -97,7 +98,7 @@ export default function Home() {
       setIsRunning(true);
       setStatus("");
       const res = await api(
-        `/projects/${projectId}/traffic?count=${parsedCount}&url=${encodeURIComponent(url)}`,
+        `/projects/${projectId}/traffic?count=1000&url=${url}&rate=${rate}`,
         "POST",
       );
       setStatus(res?.message || "Simulation started");
@@ -214,6 +215,12 @@ export default function Home() {
             placeholder="Enter API URL"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
+            className="p-2 mr-2"
+          />
+          <input
+            placeholder="Requests per second"
+            value={rate}
+            onChange={(e) => setRate(e.target.value)}
             className="p-2 mr-2"
           />
           <input

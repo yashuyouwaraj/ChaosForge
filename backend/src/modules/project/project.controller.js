@@ -71,7 +71,9 @@ const runProjectTraffic = async (req, res) => {
   getIO().emit(`logs-${id}`, startLog);
   getIO().emit("project-log", startLog);
 
-  await generateTraffic(count, id, url);
+  const rate = req.query.rate || 50;
+
+await generateTraffic(count, id, url, rate);
 
   return res.json({ message: `Traffic started for project ${id}` });
 };
