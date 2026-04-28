@@ -9,6 +9,7 @@ import { api } from "../lib/api";
 import PremiumGate from "../components/PremiumGate";
 import PlanBadge from "../components/PlanBadge";
 import PaymentHistory from "../components/PaymentHistory";
+import MetricsChart from "../components/MetricsChart";
 
 export default function Home() {
   const [metrics, setMetrics] = useState({
@@ -28,6 +29,7 @@ export default function Home() {
   const [rate, setRate] = useState("50");
   const pendingLogsRef = useRef([]);
   const flushScheduledRef = useRef(false);
+  const [history, setHistory] = useState([]);
 
   useEffect(() => {
     const id = localStorage.getItem("projectId");
@@ -121,6 +123,16 @@ export default function Home() {
 
     const handleMetrics = (data) => {
       setMetrics(data);
+
+      setHistory((prev) => [
+        ...prev.slice(-20),
+        {
+          time: new Date().toLocaleTimeString(),
+          avgLatency: data.avgLatency,
+          p95Latency: data.p95Latency ?? 0,
+        },
+      ]);
+
       setGraphData((prev) => [
         ...prev,
         {
@@ -253,7 +265,10 @@ export default function Home() {
       </div>
 
       <MetricsGrid metrics={metrics} />
-      <GraphSection data={graphData} />
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6">
+        <GraphSection data={graphData} />
+        <MetricsChart data={history} />
+      </div>
       <LogsPanel projectId={projectId} logs={logs} />
     </div>
   );

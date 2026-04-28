@@ -80,4 +80,4 @@ const getMetrics = (projectId) => {
   };
 };
 
-module.exports = { recordRequest, getMetrics };
+module.exports = { recordRequest, getMetrics, calculateP95, calculateRPS };
