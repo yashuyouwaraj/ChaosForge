@@ -12,6 +12,20 @@ const recordRequest = (projectId, latency, isSuccess) => {
       totalLatency: 0,
       latencies: [],
       timestamps: [],
+      latencyBuckets: {
+        "0-500": 0,
+        "500-1000": 0,
+        "1000-2000": 0,
+        "2000+": 0,
+      }, // For histogram
+
+      errorTypes: {
+        timeout: 0,
+        network: 0,
+        server: 0,
+      },
+
+      failureTimeline: [], // For failure timeline
     };
   }
 
@@ -22,17 +36,23 @@ const recordRequest = (projectId, latency, isSuccess) => {
   m.latencies.push(latency);
   m.timestamps.push(Date.now());
 
+  if(latency<500) m.latencyBuckets["0-500"]++;
+  else if(latency<1000) m.latencyBuckets["500-1000"]++;
+  else if(latency<2000) m.latencyBuckets["1000-2000"]++;
+  else m.latencyBuckets["2000+"]++;
+
   if (isSuccess) {
     m.success++;
   } else {
     m.failure++;
+    // 💀 FAILURE TIMELINE
+    m.failureTimeline.push({time:Date.now()})
   }
-  m.totalLatency += latency;
 
   // 🔥 EMIT LIVE DATA
   try {
     const io = getIO();
-    io.emit("metrics", getMetrics());
+    io.emit(`metrics-${projectId}`, getMetrics(projectId));
   } catch (err) {
     console.error("Error emitting metrics:", err);
   }
@@ -66,6 +86,18 @@ const getMetrics = (projectId) => {
       avgLatency: 0,
       p95Latency: 0,
       rps: 0,
+      latencyBuckets: {
+        "0-500": 0,
+        "500-1000": 0,
+        "1000-2000": 0,
+        "2000+": 0,
+      },
+      errorTypes: {
+        timeout: 0,
+        network: 0,
+        server: 0,
+      },
+      failureTimeline: [],
     };
   }
 
@@ -77,6 +109,9 @@ const getMetrics = (projectId) => {
       m.totalRequests > 0 ? Math.round(m.totalLatency / m.totalRequests) : 0,
     p95Latency: calculateP95(m.latencies),
     rps: calculateRPS(m.timestamps),
+    latencyBuckets: m.latencyBuckets,
+    errorTypes: m.errorTypes,
+    failureTimeline: m.failureTimeline,
   };
 };
 

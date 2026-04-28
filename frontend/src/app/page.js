@@ -17,6 +17,19 @@ export default function Home() {
     success: 0,
     failure: 0,
     avgLatency: 0,
+    p95Latency: 0,
+    rps: 0,
+    latencyBuckets: {
+      "0-500": 0,
+      "500-1000": 0,
+      "1000-2000": 0,
+      "2000+": 0,
+    },
+    errorTypes: {
+      timeout: 0,
+      network: 0,
+      server: 0,
+    },
   });
   const [projectId, setProjectId] = useState(null);
   const [graphData, setGraphData] = useState([]);
@@ -100,7 +113,7 @@ export default function Home() {
       setIsRunning(true);
       setStatus("");
       const res = await api(
-        `/projects/${projectId}/traffic?count=1000&url=${url}&rate=${rate}`,
+        `/projects/${projectId}/traffic?count=${parsedCount}&url=${encodeURIComponent(url)}&rate=${rate}`,
         "POST",
       );
       setStatus(res?.message || "Simulation started");
@@ -265,6 +278,20 @@ export default function Home() {
       </div>
 
       <MetricsGrid metrics={metrics} />
+      <div>
+        <h3>Latency Distribution</h3>
+        {Object.entries(metrics.latencyBuckets || {}).map(([range, value]) => (
+          <div key={range}>
+            {range} ms: {value}
+          </div>
+        ))}
+      </div>
+      <div>
+        <h3>Errors</h3>
+        <div>Timeout: {metrics.errorTypes?.timeout}</div>
+        <div>Network: {metrics.errorTypes?.network}</div>
+        <div>Server: {metrics.errorTypes?.server}</div>
+      </div>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6">
         <GraphSection data={graphData} />
         <MetricsChart data={history} />
