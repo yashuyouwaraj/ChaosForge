@@ -34,6 +34,7 @@ const runProjectTraffic = async (req, res) => {
   const url = req.query.url || "https://jsonplaceholder.typicode.com/posts";
   const { id } = req.params;
   const count = Number.parseInt(req.query.count || "10", 10);
+  const rate = req.query.rate || 50;
   const user = await User.findOne({ email: req.user.email });
 
   if (!Number.isInteger(count) || count <= 0) {
@@ -71,9 +72,7 @@ const runProjectTraffic = async (req, res) => {
   getIO().emit(`logs-${id}`, startLog);
   getIO().emit("project-log", startLog);
 
-  const rate = req.query.rate || 50;
-
-await generateTraffic(count, id, url, rate);
+  await generateTraffic(count, id, url, rate);
 
   return res.json({ message: `Traffic started for project ${id}` });
 };

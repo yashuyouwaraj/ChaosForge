@@ -41,10 +41,9 @@ const simulateProcessing = async (url, requestId, projectId) => {
     totalRequests: m.totalRequests,
     success: m.success,
     failure: m.failure,
-    avgLatency:
-      m.totalRequests > 0
-        ? Math.round(m.totalLatency / m.totalRequests)
-        : 0,
+    avgLatency: m.avgLatency,
+    p95Latency: m.p95Latency,
+    rps: m.rps,
   });
 };
 
