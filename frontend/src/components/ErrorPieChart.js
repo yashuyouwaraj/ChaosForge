@@ -21,8 +21,17 @@ export default function ErrorPieChart({ errorTypes }) {
           No error data available yet.
         </div>
       ) : (
-        <div style={{ width: "100%", height: 300 }}>
-          <ResponsiveContainer>
+        <div
+          style={{
+            position: "relative",
+            display: "block",
+            width: "100%",
+            height: 300,
+            minWidth: 0,
+            minHeight: 300,
+          }}
+        >
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={300}>
             <PieChart>
               <Pie
                 data={data}

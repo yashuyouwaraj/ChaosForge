@@ -6,6 +6,7 @@ const requestIdMiddleware = require("./middleware/requestId");
 const authRoutes = require("./modules/auth/auth.routes");
 const projectRoutes = require("./modules/project/project.routes");
 const paymentRoutes = require("./modules/payment/payment.routes");
+const reportRoutes = require("./modules/report/report.routes");
 
 const app = express();
 
@@ -35,6 +36,8 @@ app.use("/auth", authRoutes);
 app.use(requestIdMiddleware);
 
 app.use("/projects", projectRoutes);
+
+app.use("/report", reportRoutes.router);
 
 app.use("/", testRoutes);
 

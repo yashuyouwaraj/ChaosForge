@@ -13,6 +13,7 @@ import MetricsChart from "../components/MetricsChart";
 import DistributionChart from "@/components/DistributionChart";
 import ErrorPieChart from "@/components/ErrorPieChart";
 
+
 export default function Home() {
   const [metrics, setMetrics] = useState({
     totalRequests: 0,
@@ -160,7 +161,11 @@ export default function Home() {
     socket.on(metricsEvent, handleMetrics);
 
     const interval = setInterval(() => {
-      if (!latestMetricsRef.current && buffer.current.length === 0 && graphBuffer.current.length === 0) {
+      if (
+        !latestMetricsRef.current &&
+        buffer.current.length === 0 &&
+        graphBuffer.current.length === 0
+      ) {
         return;
       }
 
@@ -308,6 +313,14 @@ export default function Home() {
         <ErrorPieChart errorTypes={metrics.errorTypes} />
       </div>
       <LogsPanel projectId={projectId} logs={logs} />
+
+      <button onClick={() => window.open(`/report/csv/${projectId}`)}>
+        Download CSV
+      </button>
+
+      <button onClick={() => window.open(`/report/pdf/${projectId}`)}>
+        Download PDF
+      </button>
     </div>
   );
 }

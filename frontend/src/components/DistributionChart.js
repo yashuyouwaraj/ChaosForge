@@ -22,8 +22,17 @@ export default function DistributionChart({ buckets }) {
     <div className="bg-white/10 backdrop-blur-md p-4 rounded-xl mt-6">
       <h2>📊 Latency Distribution</h2>
 
-      <div style={{ width: "100%", height: 250 }}>
-        <ResponsiveContainer>
+      <div
+        style={{
+          position: "relative",
+          display: "block",
+          width: "100%",
+          height: 250,
+          minWidth: 0,
+          minHeight: 250,
+        }}
+      >
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={250}>
           <BarChart data={data}>
             <XAxis dataKey="range" tick={{ fill: "#d1d5db" }} />
             <YAxis tick={{ fill: "#d1d5db" }} />
