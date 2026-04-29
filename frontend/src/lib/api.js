@@ -1,10 +1,14 @@
-const getBaseUrl = () => {
+export const getBaseUrl = () => {
     if (process.env.NEXT_PUBLIC_API_URL) {
         return process.env.NEXT_PUBLIC_API_URL;
     }
 
     if (typeof window !== "undefined") {
-        return `http://${window.location.hostname}:3001`;
+        const hostname = window.location.hostname;
+        if (hostname === "localhost" || hostname === "127.0.0.1") {
+            return "http://localhost:3001";
+        }
+        return window.location.origin;
     }
 
     return "http://localhost:3001";

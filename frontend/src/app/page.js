@@ -5,7 +5,7 @@ import socket from "../lib/socket";
 import MetricsGrid from "../components/MetricsGrid";
 import GraphSection from "../components/GraphSection";
 import LogsPanel from "../components/LogsPanel";
-import { api } from "../lib/api";
+import { api, getBaseUrl } from "../lib/api";
 import PremiumGate from "../components/PremiumGate";
 import PlanBadge from "../components/PlanBadge";
 import PaymentHistory from "../components/PaymentHistory";
@@ -314,11 +314,23 @@ export default function Home() {
       </div>
       <LogsPanel projectId={projectId} logs={logs} />
 
-      <button onClick={() => window.open(`/report/csv/${projectId}`)}>
+      <button
+        disabled={!projectId}
+        onClick={() =>
+          projectId && window.open(`${getBaseUrl()}/report/csv/${projectId}`, "_blank")
+        }
+        className="bg-blue-500 px-4 py-2 rounded-lg disabled:opacity-60"
+      >
         Download CSV
       </button>
 
-      <button onClick={() => window.open(`/report/pdf/${projectId}`)}>
+      <button
+        disabled={!projectId}
+        onClick={() =>
+          projectId && window.open(`${getBaseUrl()}/report/pdf/${projectId}`, "_blank")
+        }
+        className="bg-blue-500 px-4 py-2 rounded-lg disabled:opacity-60"
+      >
         Download PDF
       </button>
     </div>
