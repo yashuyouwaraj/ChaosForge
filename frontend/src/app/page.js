@@ -314,25 +314,25 @@ export default function Home() {
       </div>
       <LogsPanel projectId={projectId} logs={logs} />
 
-      <button
-        disabled={!projectId}
-        onClick={() =>
-          projectId && window.open(`${getBaseUrl()}/report/csv/${projectId}`, "_blank")
-        }
-        className="bg-blue-500 px-4 py-2 rounded-lg disabled:opacity-60"
+      <a
+        href={projectId ? `${getBaseUrl()}/report/csv/${projectId}` : "#"}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-block bg-blue-500 px-4 py-2 rounded-lg text-center disabled:opacity-60"
+        aria-disabled={!projectId}
       >
         Download CSV
-      </button>
+      </a>
 
-      <button
-        disabled={!projectId}
-        onClick={() =>
-          projectId && window.open(`${getBaseUrl()}/report/pdf/${projectId}`, "_blank")
-        }
-        className="bg-blue-500 px-4 py-2 rounded-lg disabled:opacity-60"
+      <a
+        href={projectId ? `${getBaseUrl()}/report/pdf/${projectId}` : "#"}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-block bg-blue-500 px-4 py-2 rounded-lg text-center disabled:opacity-60 mt-2"
+        aria-disabled={!projectId}
       >
         Download PDF
-      </button>
+      </a>
     </div>
   );
 }
