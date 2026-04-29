@@ -10,6 +10,8 @@ import PremiumGate from "../components/PremiumGate";
 import PlanBadge from "../components/PlanBadge";
 import PaymentHistory from "../components/PaymentHistory";
 import MetricsChart from "../components/MetricsChart";
+import DistributionChart from "@/components/DistributionChart";
+import ErrorPieChart from "@/components/ErrorPieChart";
 
 export default function Home() {
   const [metrics, setMetrics] = useState({
@@ -43,6 +45,9 @@ export default function Home() {
   const pendingLogsRef = useRef([]);
   const flushScheduledRef = useRef(false);
   const [history, setHistory] = useState([]);
+  const buffer = useRef([]);
+  const graphBuffer = useRef([]);
+  const latestMetricsRef = useRef(null);
 
   useEffect(() => {
     const id = localStorage.getItem("projectId");
@@ -135,30 +140,48 @@ export default function Home() {
     }
 
     const handleMetrics = (data) => {
-      setMetrics(data);
+      latestMetricsRef.current = data;
 
-      setHistory((prev) => [
-        ...prev.slice(-20),
-        {
-          time: new Date().toLocaleTimeString(),
-          avgLatency: data.avgLatency,
-          p95Latency: data.p95Latency ?? 0,
-        },
-      ]);
+      const time = new Date().toLocaleTimeString();
+      buffer.current.push({
+        time,
+        avgLatency: data.avgLatency,
+        p95Latency: data.p95Latency ?? 0,
+        rps: data.rps,
+      });
 
-      setGraphData((prev) => [
-        ...prev,
-        {
-          time: new Date().toLocaleTimeString(),
-          requests: data.totalRequests,
-        },
-      ]);
+      graphBuffer.current.push({
+        time,
+        requests: data.totalRequests,
+      });
     };
 
     const metricsEvent = `metrics-${projectId}`;
     socket.on(metricsEvent, handleMetrics);
 
+    const interval = setInterval(() => {
+      if (!latestMetricsRef.current && buffer.current.length === 0 && graphBuffer.current.length === 0) {
+        return;
+      }
+
+      if (latestMetricsRef.current) {
+        setMetrics(latestMetricsRef.current);
+        latestMetricsRef.current = null;
+      }
+
+      if (buffer.current.length > 0) {
+        setHistory((prev) => [...prev, ...buffer.current].slice(-50));
+        buffer.current = [];
+      }
+
+      if (graphBuffer.current.length > 0) {
+        setGraphData((prev) => [...prev, ...graphBuffer.current].slice(-50));
+        graphBuffer.current = [];
+      }
+    }, 500);
+
     return () => {
+      clearInterval(interval);
       socket.off(metricsEvent, handleMetrics);
     };
   }, [projectId]);
@@ -278,23 +301,11 @@ export default function Home() {
       </div>
 
       <MetricsGrid metrics={metrics} />
-      <div>
-        <h3>Latency Distribution</h3>
-        {Object.entries(metrics.latencyBuckets || {}).map(([range, value]) => (
-          <div key={range}>
-            {range} ms: {value}
-          </div>
-        ))}
-      </div>
-      <div>
-        <h3>Errors</h3>
-        <div>Timeout: {metrics.errorTypes?.timeout}</div>
-        <div>Network: {metrics.errorTypes?.network}</div>
-        <div>Server: {metrics.errorTypes?.server}</div>
-      </div>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6">
         <GraphSection data={graphData} />
         <MetricsChart data={history} />
+        <DistributionChart buckets={metrics.latencyBuckets} />
+        <ErrorPieChart errorTypes={metrics.errorTypes} />
       </div>
       <LogsPanel projectId={projectId} logs={logs} />
     </div>
