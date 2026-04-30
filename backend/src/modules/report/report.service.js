@@ -9,8 +9,20 @@ const buildCSV = (metrics) => {
     ["RPS", metrics.rps],
   ];
 
-  return rows.map(r => r.join(",")).join("\n");
+  return rows.map((r) => r.join(",")).join("\n");
 };
 
+const drawSectionTitle = (doc, title) => {
+  doc.moveDown();
+  doc.fontSize(16).font("Helvetica-Bold").text(title, { underline: true });
+  doc.moveDown(0.5);
+  doc.font("Helvetica");
+};
 
-module.exports = { buildCSV };
+const drawKeyValue = (doc, label, value) => {
+  doc.fontSize(11).text(`${label}: `, { continued: true });
+  doc.font("Helvetica-Bold").text(`${value}`);
+  doc.font("Helvetica");
+};
+
+module.exports = { buildCSV, drawSectionTitle, drawKeyValue };

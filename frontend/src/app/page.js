@@ -13,7 +13,6 @@ import MetricsChart from "../components/MetricsChart";
 import DistributionChart from "@/components/DistributionChart";
 import ErrorPieChart from "@/components/ErrorPieChart";
 
-
 export default function Home() {
   const [metrics, setMetrics] = useState({
     totalRequests: 0,
@@ -43,12 +42,18 @@ export default function Home() {
   const [plan, setPlan] = useState("free");
   const [logs, setLogs] = useState([]);
   const [rate, setRate] = useState("50");
+  const [logsFocusTrigger, setLogsFocusTrigger] = useState(0);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const pendingLogsRef = useRef([]);
   const flushScheduledRef = useRef(false);
   const [history, setHistory] = useState([]);
   const buffer = useRef([]);
   const graphBuffer = useRef([]);
   const latestMetricsRef = useRef(null);
+  const requestsChartRef = useRef(null);
+  const latencyChartRef = useRef(null);
+  const distributionChartRef = useRef(null);
+  const errorChartRef = useRef(null);
 
   useEffect(() => {
     const id = localStorage.getItem("projectId");
@@ -102,6 +107,172 @@ export default function Home() {
     }
   };
 
+  const addMetricsSnapshot = (snapshot) => {
+    const time = new Date().toLocaleTimeString();
+    setMetrics(snapshot);
+    setHistory((prev) =>
+      [
+        ...prev,
+        {
+          time,
+          avgLatency: snapshot.avgLatency,
+          p95Latency: snapshot.p95Latency ?? 0,
+          rps: snapshot.rps,
+        },
+      ].slice(-50),
+    );
+    setGraphData((prev) =>
+      [
+        ...prev,
+        {
+          time,
+          requests: snapshot.totalRequests,
+        },
+      ].slice(-50),
+    );
+  };
+
+  const refreshMetricsSnapshot = async () => {
+    if (!projectId) {
+      return;
+    }
+
+    const snapshot = await api(`/metrics/${projectId}`);
+    addMetricsSnapshot(snapshot);
+  };
+
+  const imageToDataUrl = (image, timeoutMs = 4000) =>
+    new Promise((resolve, reject) => {
+      const timeout = window.setTimeout(() => {
+        reject(new Error("Chart capture timed out"));
+      }, timeoutMs);
+
+      image.onload = () => {
+        window.clearTimeout(timeout);
+        resolve();
+      };
+
+      image.onerror = () => {
+        window.clearTimeout(timeout);
+        reject(new Error("Chart capture failed"));
+      };
+    });
+
+  const captureChart = async (ref) => {
+    if (!ref.current) {
+      return null;
+    }
+
+    const svg = ref.current.querySelector("svg");
+    if (!svg) {
+      return null;
+    }
+
+    const rect = svg.getBoundingClientRect();
+    const width = Math.max(1, Math.round(rect.width));
+    const height = Math.max(1, Math.round(rect.height));
+    const clonedSvg = svg.cloneNode(true);
+    clonedSvg.setAttribute("width", String(width));
+    clonedSvg.setAttribute("height", String(height));
+    clonedSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+
+    const background = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "rect",
+    );
+    background.setAttribute("width", "100%");
+    background.setAttribute("height", "100%");
+    background.setAttribute("fill", "#0f172a");
+    clonedSvg.insertBefore(background, clonedSvg.firstChild);
+
+    const svgText = new XMLSerializer().serializeToString(clonedSvg);
+    const svgBlob = new Blob([svgText], {
+      type: "image/svg+xml;charset=utf-8",
+    });
+    const svgUrl = URL.createObjectURL(svgBlob);
+    const image = new Image();
+
+    try {
+      const imageLoaded = imageToDataUrl(image);
+      image.src = svgUrl;
+      await imageLoaded;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      context.fillStyle = "#0f172a";
+      context.fillRect(0, 0, width, height);
+      context.drawImage(image, 0, 0, width, height);
+
+      return canvas.toDataURL("image/jpeg", 0.86);
+    } catch (error) {
+      console.warn(error.message);
+      return null;
+    } finally {
+      URL.revokeObjectURL(svgUrl);
+    }
+  };
+
+  const downloadPdf = async () => {
+    if (!projectId || isDownloadingPdf) {
+      return;
+    }
+
+    try {
+      setIsDownloadingPdf(true);
+      await refreshMetricsSnapshot();
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+
+      const charts = await Promise.all([
+        captureChart(requestsChartRef),
+        captureChart(latencyChartRef),
+        captureChart(distributionChartRef),
+      ]);
+      const token = localStorage.getItem("token");
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 20000);
+      let res;
+      try {
+        res = await fetch(`${getBaseUrl()}/report/pdf/${projectId}`, {
+          method: "POST",
+          signal: controller.signal,
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: token ? `Bearer ${token}` : "",
+          },
+          body: JSON.stringify({
+            requestsChart: charts[0],
+            latencyChart: charts[1],
+            distributionChart: charts[2],
+          }),
+        });
+      } finally {
+        window.clearTimeout(timeout);
+      }
+
+      if (!res.ok) {
+        const message = await res.text();
+        throw new Error(message || "Failed to download PDF");
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `report-${projectId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setStatus(error.message || "Failed to download PDF");
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
+
   const runSimulation = async () => {
     if (!projectId) {
       setStatus("No project selected");
@@ -118,11 +289,23 @@ export default function Home() {
     try {
       setIsRunning(true);
       setStatus("");
+      const startTime = new Date().toLocaleTimeString();
+      setGraphData([{ time: startTime, requests: 0 }]);
+      setHistory([
+        {
+          time: startTime,
+          avgLatency: 0,
+          p95Latency: 0,
+          rps: 0,
+        },
+      ]);
       const res = await api(
         `/projects/${projectId}/traffic?count=${parsedCount}&url=${encodeURIComponent(url)}&rate=${rate}`,
         "POST",
       );
+      await refreshMetricsSnapshot();
       setStatus(res?.message || "Simulation started");
+      setLogsFocusTrigger((current) => current + 1);
     } catch (error) {
       if (error.message === "Project not found") {
         localStorage.removeItem("projectId");
@@ -306,33 +489,46 @@ export default function Home() {
       </div>
 
       <MetricsGrid metrics={metrics} />
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6">
-        <GraphSection data={graphData} />
-        <MetricsChart data={history} />
-        <DistributionChart buckets={metrics.latencyBuckets} />
-        <ErrorPieChart errorTypes={metrics.errorTypes} />
+      <div className="grid min-w-0 grid-cols-1 xl:grid-cols-2 gap-6 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6">
+        <div ref={requestsChartRef} className="min-w-0">
+          <GraphSection data={graphData} />
+        </div>
+        <div ref={latencyChartRef} className="min-w-0">
+          <MetricsChart data={history} />
+        </div>
+        <div ref={distributionChartRef} className="min-w-0">
+          <DistributionChart buckets={metrics.latencyBuckets} />
+        </div>
+        <div ref={errorChartRef} className="min-w-0">
+          <ErrorPieChart errorTypes={metrics.errorTypes} />
+        </div>
       </div>
-      <LogsPanel projectId={projectId} logs={logs} />
+      <LogsPanel
+        projectId={projectId}
+        logs={logs}
+        focusTrigger={logsFocusTrigger}
+      />
 
-      <a
-        href={projectId ? `${getBaseUrl()}/report/csv/${projectId}` : "#"}
-        target="_blank"
-        rel="noreferrer"
-        className="inline-block bg-blue-500 px-4 py-2 rounded-lg text-center disabled:opacity-60"
-        aria-disabled={!projectId}
-      >
-        Download CSV
-      </a>
+      <div className="flex flex-col gap-2">
+        <a
+          href={projectId ? `${getBaseUrl()}/report/csv/${projectId}` : "#"}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-block bg-blue-500 px-4 py-2 rounded-lg text-center disabled:opacity-60"
+          aria-disabled={!projectId}
+        >
+          Download CSV
+        </a>
 
-      <a
-        href={projectId ? `${getBaseUrl()}/report/pdf/${projectId}` : "#"}
-        target="_blank"
-        rel="noreferrer"
-        className="inline-block bg-blue-500 px-4 py-2 rounded-lg text-center disabled:opacity-60 mt-2"
-        aria-disabled={!projectId}
-      >
-        Download PDF
-      </a>
+        <button
+          type="button"
+          onClick={downloadPdf}
+          disabled={!projectId || isDownloadingPdf}
+          className="inline-block bg-blue-500 px-4 py-2 rounded-lg text-center disabled:opacity-60 mt-2"
+        >
+          {isDownloadingPdf ? "Preparing PDF..." : "Download PDF"}
+        </button>
+      </div>
     </div>
   );
 }

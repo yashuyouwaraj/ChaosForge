@@ -3,7 +3,7 @@ const { getIO } = require("../websocket/socket");
 
 let metrics = {};
 
-const recordRequest = (projectId, latency, isSuccess) => {
+const recordRequest = (projectId, latency, isSuccess, errorType = "network") => {
   if (!metrics[projectId]) {
     metrics[projectId] = {
       totalRequests: 0,
@@ -45,6 +45,9 @@ const recordRequest = (projectId, latency, isSuccess) => {
     m.success++;
   } else {
     m.failure++;
+    if (m.errorTypes[errorType] !== undefined) {
+      m.errorTypes[errorType]++;
+    }
     // 💀 FAILURE TIMELINE
     m.failureTimeline.push({time:Date.now()})
   }
@@ -62,7 +65,7 @@ const calculateP95 = (latencies) => {
   if (latencies.length === 0) return 0;
 
   const sorted = [...latencies].sort((a, b) => a - b);
-  const index = Math.ceil(0.95 * sorted.length);
+  const index = Math.max(0, Math.ceil(0.95 * sorted.length) - 1);
 
   return sorted[index];
 };

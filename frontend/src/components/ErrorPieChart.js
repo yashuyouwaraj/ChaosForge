@@ -1,6 +1,7 @@
 "use client";
 
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+import { PieChart, Pie, Cell, Tooltip, Legend } from "recharts";
+import ChartFrame from "./ChartFrame";
 
 const COLORS = ["#e9724d", "#72BAA9", "#3b82f6"];
 
@@ -21,35 +22,25 @@ export default function ErrorPieChart({ errorTypes }) {
           No error data available yet.
         </div>
       ) : (
-        <div
-          style={{
-            position: "relative",
-            display: "block",
-            width: "100%",
-            height: 300,
-            minWidth: 0,
-            minHeight: 300,
-          }}
-        >
-          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={300}>
-            <PieChart>
-              <Pie
-                data={data}
-                dataKey="value"
-                nameKey="name"
-                outerRadius={100}
-                paddingAngle={4}
-                cornerRadius={8}
-                isAnimationActive={true}
-              >
-                {data.map((_, i) => (
-                  <Cell key={`slice-${i}`} fill={COLORS[i % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
+        <ChartFrame height={300}>
+          <PieChart>
+            <Pie
+              data={data}
+              dataKey="value"
+              nameKey="name"
+              outerRadius={92}
+              paddingAngle={4}
+              cornerRadius={8}
+              isAnimationActive={true}
+            >
+              {data.map((_, i) => (
+                <Cell key={`slice-${i}`} fill={COLORS[i % COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip />
+            <Legend />
+          </PieChart>
+        </ChartFrame>
       )}
     </div>
   );

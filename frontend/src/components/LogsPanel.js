@@ -2,15 +2,35 @@
 
 import { useEffect, useRef } from "react";
 
-export default function LogsPanel({ projectId, logs = [] }) {
-  const bottomRef = useRef(null);
+export default function LogsPanel({ projectId, logs = [], focusTrigger = 0 }) {
+  const panelRef = useRef(null);
+
+  const scrollToLogEnd = () => {
+    if (!panelRef.current) {
+      return;
+    }
+
+    panelRef.current.scrollTop = panelRef.current.scrollHeight;
+  };
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    scrollToLogEnd();
   }, [logs]);
 
+  useEffect(() => {
+    if (focusTrigger === 0 || !panelRef.current) {
+      return;
+    }
+
+    panelRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+    scrollToLogEnd();
+  }, [focusTrigger]);
+
   return (
-    <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-xl p-4 mt-6 h-64 overflow-y-auto font-mono text-sm">
+    <div
+      ref={panelRef}
+      className="bg-black/40 backdrop-blur-md border border-white/10 rounded-xl p-4 mt-6 h-64 overflow-y-auto font-mono text-sm"
+    >
       <h2 className="mb-2 text-gray-400">
         Live Logs {projectId ? `(${projectId.slice(0, 8)})` : ""}
       </h2>
@@ -38,8 +58,6 @@ export default function LogsPanel({ projectId, logs = [] }) {
           </span>
         </div>
       ))}
-
-      <div ref={bottomRef}></div>
     </div>
   );
 }

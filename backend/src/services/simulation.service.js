@@ -1,6 +1,5 @@
 const { recordRequest, getMetrics } = require("../metrics/metrics.store");
 const { getIO, emitBufferedLog } = require("../websocket/socket");
-const metricsStore = require("../metrics/metrics.store");
 const axios = require("axios");
 
 const simulateProcessing = async (url, requestId, projectId) => {
@@ -24,15 +23,13 @@ const simulateProcessing = async (url, requestId, projectId) => {
   } catch (err) {
     const latency = Date.now() - start;
 
-    const metricsData = metricsStore.getMetrics?.(projectId);
+    const errorType = err.code === "ECONNABORTED"
+      ? "timeout"
+      : err.response
+        ? "server"
+        : "network";
 
-    if (metricsData) {
-      if (err.code === "ECONNABORTED") metricsData.errorTypes.timeout++;
-      else if (err.response) metricsData.errorTypes.server++;
-      else metricsData.errorTypes.network++;
-    }
-
-    recordRequest(projectId, latency, false);
+    recordRequest(projectId, latency, false, errorType);
 
     emitBufferedLog(projectId, {
       requestId,
