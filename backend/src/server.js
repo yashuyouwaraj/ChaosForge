@@ -24,15 +24,20 @@ app.use(cors({
   origin: "*"
 }));
 
-if (useKafka) {
-  runConsumer().catch((error) => {
-    console.error("Kafka consumer failed to start:", error.message);
+const startServer = async () => {
+  if (useKafka) {
+    await runConsumer();
+    console.log("Kafka consumer started.");
+  } else {
+    console.log("Kafka disabled in production. Skipping consumer startup.");
+  }
+
+  server.listen(PORT,()=>{
+      console.log(`Server is running on port localhost:${PORT}`);
   });
-} else {
-  console.log("Kafka disabled in production. Skipping consumer startup.");
-}
+};
 
-server.listen(PORT,()=>{
-    console.log(`Server is running on port localhost:${PORT}`);
+startServer().catch((error) => {
+  console.error("Server failed to start:", error.message);
+  process.exit(1);
 });
-

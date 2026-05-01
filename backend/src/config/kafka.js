@@ -6,8 +6,9 @@ const kafka = new Kafka({
 })
 
 const producer = kafka.producer();
+const consumer = kafka.consumer({ groupId: 'simulation-group' });
 
-module.exports = producer;
+module.exports = { producer, consumer };
 
 
 // 1. Connect → Kafka broker

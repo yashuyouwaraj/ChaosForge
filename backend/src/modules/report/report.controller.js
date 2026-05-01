@@ -187,6 +187,7 @@ const downloadPDF = (req, res) => {
   addChart(doc, "Latency Trends", latencyChart);
   addChart(doc, "Latency Distribution", distributionChart);
   drawErrorBreakdown(doc, metrics.errorTypes);
+  doc.moveDown(1.5)
 
   drawSectionTitle(doc, "Insights");
   doc.font("Helvetica-Bold").text("Observations:");
