@@ -1,17 +1,20 @@
-const {Kafka} = require('kafkajs')
+const { Kafka } = require("kafkajs");
 
 const kafka = new Kafka({
-    clientId: 'chaosforge',
-    brokers:[process.env.KAFKA_BROKER || 'localhost:9092']
-})
+  clientId: "chaosforge",
+  brokers: [process.env.KAFKA_BROKER || "localhost:9092"],
+});
 
 const producer = kafka.producer();
-const consumer = kafka.consumer({ groupId: 'simulation-group' });
 
-module.exports = { producer, consumer };
+let isConnected = false;
 
+const connectProducer = async () => {
+  if (!isConnected) {
+    await producer.connect();
+    isConnected = true;
+    console.log("✅ Kafka Producer Connected");
+  }
+};
 
-// 1. Connect → Kafka broker
-// 2. Send → message goes to topic
-// 3. Kafka → stores in partition
-// 4. Disconnect → done
+module.exports = { kafka, producer, connectProducer };

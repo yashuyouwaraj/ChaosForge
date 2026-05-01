@@ -31,16 +31,8 @@ const runConsumer = async () => {
       try {
         const data = JSON.parse(message.value.toString());
 
+        // Skip completion messages
         if (data.type === "traffic-complete") {
-          const io = getIO();
-
-          emitBufferedLog(data.projectId, {
-            requestId: data.requestId,
-            message: `Completed ${data.total} requests`,
-            type: "complete",
-            time: new Date().toLocaleTimeString(),
-          });
-          io.emit(`metrics-${data.projectId}`, getMetrics(data.projectId));
           return;
         }
 
@@ -48,19 +40,19 @@ const runConsumer = async () => {
 
         logger.info({
           requestId,
-          message: `Processing request for ${url}`,
+          message: `Processing ${url}`,
         });
 
-        // 💀 REAL SIMULATION NOW
-        await simulateProcessing(url, requestId, projectId);
+        // 💀 NO AWAIT → parallel execution
+        simulateProcessing(url, requestId, projectId);
 
-      } catch (error) {
+      } catch (err) {
         logger.error({
-          message: "Kafka message processing failed",
-          error: error.message,
+          message: "Kafka processing error",
+          error: err.message,
         });
       }
-    },
+    }
   });
 };
 
