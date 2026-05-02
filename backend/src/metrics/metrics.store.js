@@ -1,83 +1,57 @@
 const { success } = require("../utils/response");
 const { getIO } = require("../websocket/socket");
-const { client: redis } = require("../config/redis");
+const { client: redis, connectRedis } = require("../config/redis");
 
 // Keys:
 // metrics:{projectId}
 // latencies:{projectId}
 
-let metrics = {};
+const MAX_LIST_SIZE=1000; //limit memory
+const TTL=3600 //1 hour
 
 const recordRequest = async (projectId, latency, isSuccess, errorType = "network") => {
-  if (!metrics[projectId]) {
-    metrics[projectId] = {
-      totalRequests: 0,
-      success: 0,
-      failure: 0,
-      totalLatency: 0,
-      latencies: [],
-      timestamps: [],
-      latencyBuckets: {
-        "0-500": 0,
-        "500-1000": 0,
-        "1000-2000": 0,
-        "2000+": 0,
-      }, // For histogram
+  await connectRedis();
 
-      errorTypes: {
-        timeout: 0,
-        network: 0,
-        server: 0,
-      },
-
-      failureTimeline: [], // For failure timeline
-    };
-  }
-
-  const m = metrics[projectId];
   const metricsKey = `metrics:${projectId}`;
   const latenciesKey = `latencies:${projectId}`;
+  const timestampsKey = `timestamps:${projectId}`;
 
-  //total
-  await redis.hincrby(metricsKey,"totalRequests",1)
+  const pipeline = redis.multi();
 
-  m.totalRequests++;
-  m.totalLatency += latency;
-  m.latencies.push(latency);
-  m.timestamps.push(Date.now());
+  pipeline.hincrby(metricsKey, "totalRequests", 1);
+  pipeline.hincrby(metricsKey, isSuccess ? "success" : "failure", 1);
+  pipeline.hincrby(metricsKey, "totalLatency", latency);
 
-  if(latency<500) m.latencyBuckets["0-500"]++;
-  else if(latency<1000) m.latencyBuckets["500-1000"]++;
-  else if(latency<2000) m.latencyBuckets["1000-2000"]++;
-  else m.latencyBuckets["2000+"]++;
+  // latency list (bounded)
+  pipeline.rpush(latenciesKey, latency);
+  pipeline.ltrim(latenciesKey, -MAX_LIST_SIZE, -1);
 
-  if (isSuccess) {
-    m.success++;
-    await redis.hincrby(metricsKey, "success", 1);
-  } else {
-    m.failure++;
-    await redis.hincrby(metricsKey, "failure", 1);
-    if (m.errorTypes[errorType] !== undefined) {
-      m.errorTypes[errorType]++;
-    }
-    // 💀 FAILURE TIMELINE
-    m.failureTimeline.push({time:Date.now()})
+  // timestamps list (bounded)
+  pipeline.rpush(timestampsKey, Date.now());
+  pipeline.ltrim(timestampsKey, -MAX_LIST_SIZE, -1);
+
+  // TTL
+  pipeline.expire(metricsKey, TTL);
+  pipeline.expire(latenciesKey, TTL);
+  pipeline.expire(timestampsKey, TTL);
+
+  // 💀 error types in Redis
+  if (!isSuccess) {
+    pipeline.hincrby(`errors:${projectId}`, errorType, 1);
+    pipeline.rpush(`failures:${projectId}`, Date.now());
+    pipeline.ltrim(`failures:${projectId}`, -MAX_LIST_SIZE, -1);
+    pipeline.expire(`errors:${projectId}`, TTL);
+    pipeline.expire(`failures:${projectId}`, TTL);
   }
 
-  // latency sum
-  await redis.hincrby(metricsKey, "totalLatency", latency);
+  await pipeline.exec();
 
-  // store latency for percentile
-  await redis.rpush(latenciesKey, latency);
-
-  // timestamps for RPS
-  await redis.rpush(`timestamps:${projectId}`, Date.now());
-  // 🔥 EMIT LIVE DATA
+  // 🔥 EMIT
   try {
     const io = getIO();
-    io.emit(`metrics-${projectId}`,  await getMetrics(projectId));
+    io.emit(`metrics-${projectId}`, await getMetrics(projectId));
   } catch (err) {
-    console.error("Error emitting metrics:", err);
+    console.error("Emit error:", err.message);
   }
 };
 
@@ -99,51 +73,55 @@ const calculateRPS = (timestamps) => {
 };
 
 const getMetrics = async (projectId) => {
-  const m = metrics[projectId];
+  await connectRedis();
+
   const metricsKey = `metrics:${projectId}`;
-  const data = await redis.hgetall(metricsKey)
 
-  const latencies = (await redis.lrange(`latencies:${projectId}`, 0, -1)).map(Number);
-  const timestamps = (await redis.lrange(`timestamps:${projectId}`, 0, -1)).map(Number);
+  const [data, latencies, timestamps, errors, failures] = await Promise.all([
+    redis.hgetall(metricsKey),
+    redis.lrange(`latencies:${projectId}`, -1000, -1),
+    redis.lrange(`timestamps:${projectId}`, -1000, -1),
+    redis.hgetall(`errors:${projectId}`),
+    redis.lrange(`failures:${projectId}`, -100, -1),
+  ]);
 
-  const totalRequests = Number(data.totalRequests) || 0;
-  const totalLatency = Number(data.totalLatency) || 0;
+  const parsedLatencies = latencies.map(Number);
+  const parsedTimestamps = timestamps.map(Number);
 
-  if (!m) {
-    return {
-      totalRequests: 0,
-      success: 0,
-      failure: 0,
-      avgLatency: 0,
-      p95Latency: 0,
-      rps: 0,
-      latencyBuckets: {
-        "0-500": 0,
-        "500-1000": 0,
-        "1000-2000": 0,
-        "2000+": 0,
-      },
-      errorTypes: {
-        timeout: 0,
-        network: 0,
-        server: 0,
-      },
-      failureTimeline: [],
-    };
-  }
+  const totalRequests = Number(data.totalRequests || 0);
+  const totalLatency = Number(data.totalLatency || 0);
+
+  // latency buckets (computed here)
+  const buckets = {
+    "0-500": 0,
+    "500-1000": 0,
+    "1000-2000": 0,
+    "2000+": 0,
+  };
+
+  parsedLatencies.forEach((lat) => {
+    if (lat < 500) buckets["0-500"]++;
+    else if (lat < 1000) buckets["500-1000"]++;
+    else if (lat < 2000) buckets["1000-2000"]++;
+    else buckets["2000+"]++;
+  });
 
   return {
     totalRequests,
-    success: Number(data.success) || 0,
-    failure: Number(data.failure) || 0,
-    avgLatency:
-      totalRequests > 0 ? Math.round(totalLatency / totalRequests) : 0,
-    p95Latency: calculateP95(latencies),
-    rps: calculateRPS(timestamps),
-    latencyBuckets: m.latencyBuckets,
-    errorTypes: m.errorTypes,
-    failureTimeline: m.failureTimeline,
+    success: Number(data.success || 0),
+    failure: Number(data.failure || 0),
+    avgLatency: totalRequests
+      ? Math.round(totalLatency / totalRequests)
+      : 0,
+    p95Latency: calculateP95(parsedLatencies),
+    rps: calculateRPS(parsedTimestamps),
+    latencyBuckets: buckets,
+    errorTypes: {
+      timeout: Number(errors.timeout || 0),
+      network: Number(errors.network || 0),
+      server: Number(errors.server || 0),
+    },
+    failureTimeline: failures.map((t) => ({ time: Number(t) })),
   };
 };
-
 module.exports = { recordRequest, getMetrics, calculateP95, calculateRPS };
