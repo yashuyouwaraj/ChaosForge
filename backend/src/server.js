@@ -4,7 +4,8 @@ const http = require("http");
 const {initSocket} = require("./websocket/socket");
 const app = require("./app");
 const runConsumer = require("./consumers/traffic.consumer");
-const connectDB= require("./config/db")
+const connectDB = require("./config/db");
+const { connectRedis } = require("./config/redis");
 const cors = require("cors");
 const errorHandler = require("./middleware/error.middleware");
 
@@ -16,17 +17,20 @@ const useKafka = process.env.USE_KAFKA === "true";
 // init socket
 initSocket(server)
 
-connectDB();
-
 app.use(errorHandler);
 
 app.use(cors({
   origin: "*"
 }));
 
+connectDB();
+
 const startServer = async () => {
+  // Connect Redis before starting server
+  await connectRedis();
+
   if (useKafka) {
-    await runConsumer();
+    runConsumer();
     console.log("Kafka consumer started.");
   } else {
     console.log("Kafka disabled in production. Skipping consumer startup.");

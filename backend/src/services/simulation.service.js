@@ -40,7 +40,7 @@ const simulateProcessing = async (url, requestId, projectId) => {
   }
 
   // 📊 Emit updated metrics
-  const metrics = getMetrics(projectId);
+  const metrics = await getMetrics(projectId);
   io.emit(`metrics-${projectId}`, metrics);
 };
 

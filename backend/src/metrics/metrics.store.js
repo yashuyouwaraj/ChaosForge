@@ -1,9 +1,14 @@
 const { success } = require("../utils/response");
 const { getIO } = require("../websocket/socket");
+const { client: redis } = require("../config/redis");
+
+// Keys:
+// metrics:{projectId}
+// latencies:{projectId}
 
 let metrics = {};
 
-const recordRequest = (projectId, latency, isSuccess, errorType = "network") => {
+const recordRequest = async (projectId, latency, isSuccess, errorType = "network") => {
   if (!metrics[projectId]) {
     metrics[projectId] = {
       totalRequests: 0,
@@ -30,6 +35,11 @@ const recordRequest = (projectId, latency, isSuccess, errorType = "network") => 
   }
 
   const m = metrics[projectId];
+  const metricsKey = `metrics:${projectId}`;
+  const latenciesKey = `latencies:${projectId}`;
+
+  //total
+  await redis.hincrby(metricsKey,"totalRequests",1)
 
   m.totalRequests++;
   m.totalLatency += latency;
@@ -43,8 +53,10 @@ const recordRequest = (projectId, latency, isSuccess, errorType = "network") => 
 
   if (isSuccess) {
     m.success++;
+    await redis.hincrby(metricsKey, "success", 1);
   } else {
     m.failure++;
+    await redis.hincrby(metricsKey, "failure", 1);
     if (m.errorTypes[errorType] !== undefined) {
       m.errorTypes[errorType]++;
     }
@@ -52,10 +64,18 @@ const recordRequest = (projectId, latency, isSuccess, errorType = "network") => 
     m.failureTimeline.push({time:Date.now()})
   }
 
+  // latency sum
+  await redis.hincrby(metricsKey, "totalLatency", latency);
+
+  // store latency for percentile
+  await redis.rpush(latenciesKey, latency);
+
+  // timestamps for RPS
+  await redis.rpush(`timestamps:${projectId}`, Date.now());
   // 🔥 EMIT LIVE DATA
   try {
     const io = getIO();
-    io.emit(`metrics-${projectId}`, getMetrics(projectId));
+    io.emit(`metrics-${projectId}`,  await getMetrics(projectId));
   } catch (err) {
     console.error("Error emitting metrics:", err);
   }
@@ -78,8 +98,16 @@ const calculateRPS = (timestamps) => {
   return duration > 0 ? Math.round(timestamps.length / duration) : 0;
 };
 
-const getMetrics = (projectId) => {
+const getMetrics = async (projectId) => {
   const m = metrics[projectId];
+  const metricsKey = `metrics:${projectId}`;
+  const data = await redis.hgetall(metricsKey)
+
+  const latencies = (await redis.lrange(`latencies:${projectId}`, 0, -1)).map(Number);
+  const timestamps = (await redis.lrange(`timestamps:${projectId}`, 0, -1)).map(Number);
+
+  const totalRequests = Number(data.totalRequests) || 0;
+  const totalLatency = Number(data.totalLatency) || 0;
 
   if (!m) {
     return {
@@ -105,13 +133,13 @@ const getMetrics = (projectId) => {
   }
 
   return {
-    totalRequests: m.totalRequests,
-    success: m.success,
-    failure: m.failure,
+    totalRequests,
+    success: Number(data.success) || 0,
+    failure: Number(data.failure) || 0,
     avgLatency:
-      m.totalRequests > 0 ? Math.round(m.totalLatency / m.totalRequests) : 0,
-    p95Latency: calculateP95(m.latencies),
-    rps: calculateRPS(m.timestamps),
+      totalRequests > 0 ? Math.round(totalLatency / totalRequests) : 0,
+    p95Latency: calculateP95(latencies),
+    rps: calculateRPS(timestamps),
     latencyBuckets: m.latencyBuckets,
     errorTypes: m.errorTypes,
     failureTimeline: m.failureTimeline,

@@ -14,9 +14,9 @@ const imageFromDataUrl = (image) => {
   return Buffer.from(image.split(",")[1], "base64");
 };
 
-const downloadCSV = (req, res) => {
+const downloadCSV = async (req, res) => {
   const projectId = req.params.projectId;
-  const metrics = getMetrics(projectId);
+  const metrics = await getMetrics(projectId);
   const csv = buildCSV(metrics);
 
   res.setHeader("Content-Type", "text/csv");
@@ -137,9 +137,9 @@ const drawErrorBreakdown = (doc, errorTypes = {}) => {
   doc.y = Math.max(doc.y, startY + radius * 2 + 24);
 };
 
-const downloadPDF = (req, res) => {
+const downloadPDF = async (req, res) => {
   const projectId = req.params.projectId;
-  const metrics = getMetrics(projectId);
+  const metrics = await getMetrics(projectId);
   const { requestsChart, latencyChart, distributionChart } = req.body || {};
 
   const doc = new PDFDocument({ margin: 42, size: "A4" });

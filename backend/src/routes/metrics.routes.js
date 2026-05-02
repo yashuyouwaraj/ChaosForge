@@ -4,8 +4,8 @@ const {getMetrics} = require("../metrics/metrics.store")
 
 const router = express.Router();
 
-router.get("/metrics/:projectId", (req, res) => {
-    res.json(getMetrics(req.params.projectId))
+router.get("/metrics/:projectId", async (req, res) => {
+    res.json(await getMetrics(req.params.projectId))
 })
 
 module.exports = router;

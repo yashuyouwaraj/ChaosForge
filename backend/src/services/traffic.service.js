@@ -3,11 +3,17 @@ const logger = require("../utils/logger");
 const { simulateProcessing } = require("./simulation.service");
 const { producer, connectProducer } = require("../config/kafka");
 const { emitBufferedLog } = require("../websocket/socket");
+const { client: redis } = require("../config/redis");
 
 const useKafka = process.env.USE_KAFKA === "true";
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const generateTraffic = async (total, projectId, url, rate = 50) => {
+  // 🧹 RESET METRICS BEFORE EACH RUN
+  await redis.del(`metrics:${projectId}`);
+  await redis.del(`latencies:${projectId}`);
+  await redis.del(`timestamps:${projectId}`);
+
   const requestCount = Number.parseInt(total, 10);
   const batchSize = Number.parseInt(rate, 10) || 50;
 
