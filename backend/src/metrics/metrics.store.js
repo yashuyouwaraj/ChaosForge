@@ -9,12 +9,12 @@ const { client: redis, connectRedis } = require("../config/redis");
 const MAX_LIST_SIZE=1000; //limit memory
 const TTL=3600 //1 hour
 
-const recordRequest = async (projectId, latency, isSuccess, errorType = "network") => {
+const recordRequest = async (projectId, runId, latency, isSuccess, errorType = "network") => {
   await connectRedis();
 
-  const metricsKey = `metrics:${projectId}`;
-  const latenciesKey = `latencies:${projectId}`;
-  const timestampsKey = `timestamps:${projectId}`;
+  const metricsKey = `metrics:${projectId}:${runId}`;
+  const latenciesKey = `latencies:${projectId}:${runId}`;
+  const timestampsKey = `timestamps:${projectId}:${runId}`;
 
   const pipeline = redis.multi();
 
@@ -37,11 +37,11 @@ const recordRequest = async (projectId, latency, isSuccess, errorType = "network
 
   // 💀 error types in Redis
   if (!isSuccess) {
-    pipeline.hincrby(`errors:${projectId}`, errorType, 1);
-    pipeline.rpush(`failures:${projectId}`, Date.now());
-    pipeline.ltrim(`failures:${projectId}`, -MAX_LIST_SIZE, -1);
-    pipeline.expire(`errors:${projectId}`, TTL);
-    pipeline.expire(`failures:${projectId}`, TTL);
+    pipeline.hincrby(`errors:${projectId}:${runId}`, errorType, 1);
+    pipeline.rpush(`failures:${projectId}:${runId}`, Date.now());
+    pipeline.ltrim(`failures:${projectId}:${runId}`, -MAX_LIST_SIZE, -1);
+    pipeline.expire(`errors:${projectId}:${runId}`, TTL);
+    pipeline.expire(`failures:${projectId}:${runId}`, TTL);
   }
 
   await pipeline.exec();
@@ -49,7 +49,7 @@ const recordRequest = async (projectId, latency, isSuccess, errorType = "network
   // 🔥 EMIT
   try {
     const io = getIO();
-    io.emit(`metrics-${projectId}`, await getMetrics(projectId));
+    io.emit(`metrics-${projectId}`, await getMetrics(projectId, runId));
   } catch (err) {
     console.error("Emit error:", err.message);
   }
@@ -72,17 +72,17 @@ const calculateRPS = (timestamps) => {
   return duration > 0 ? Math.round(timestamps.length / duration) : 0;
 };
 
-const getMetrics = async (projectId) => {
+const getMetrics = async (projectId, runId) => {
   await connectRedis();
 
-  const metricsKey = `metrics:${projectId}`;
+  const metricsKey = `metrics:${projectId}:${runId}`;
 
   const [data, latencies, timestamps, errors, failures] = await Promise.all([
     redis.hgetall(metricsKey),
-    redis.lrange(`latencies:${projectId}`, -1000, -1),
-    redis.lrange(`timestamps:${projectId}`, -1000, -1),
-    redis.hgetall(`errors:${projectId}`),
-    redis.lrange(`failures:${projectId}`, -100, -1),
+    redis.lrange(`latencies:${projectId}:${runId}`, -1000, -1),
+    redis.lrange(`timestamps:${projectId}:${runId}`, -1000, -1),
+    redis.hgetall(`errors:${projectId}:${runId}`),
+    redis.lrange(`failures:${projectId}:${runId}`, -100, -1),
   ]);
 
   const parsedLatencies = latencies.map(Number);

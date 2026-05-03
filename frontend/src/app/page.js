@@ -176,6 +176,26 @@ export default function Home() {
     clonedSvg.setAttribute("height", String(height));
     clonedSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
 
+    const inlineStyles = (source, target) => {
+      const sourceElements = source.querySelectorAll("*");
+      const targetElements = target.querySelectorAll("*");
+
+      if (sourceElements.length !== targetElements.length) {
+        return;
+      }
+
+      sourceElements.forEach((sourceEl, index) => {
+        const targetEl = targetElements[index];
+        const computed = window.getComputedStyle(sourceEl);
+        const styleText = Array.from(computed).reduce((text, property) => {
+          return `${text}${property}:${computed.getPropertyValue(property)};`;
+        }, "");
+        targetEl.setAttribute("style", styleText);
+      });
+    };
+
+    inlineStyles(svg, clonedSvg);
+
     const background = document.createElementNS(
       "http://www.w3.org/2000/svg",
       "rect",
@@ -205,7 +225,11 @@ export default function Home() {
       context.fillRect(0, 0, width, height);
       context.drawImage(image, 0, 0, width, height);
 
-      return canvas.toDataURL("image/jpeg", 0.86);
+      if (image.naturalWidth === 0 || image.naturalHeight === 0) {
+        throw new Error("Chart image failed to render");
+      }
+
+      return canvas.toDataURL("image/png");
     } catch (error) {
       console.warn(error.message);
       return null;
@@ -229,6 +253,7 @@ export default function Home() {
         captureChart(requestsChartRef),
         captureChart(latencyChartRef),
         captureChart(distributionChartRef),
+        captureChart(errorChartRef),
       ]);
       const token = localStorage.getItem("token");
       const controller = new AbortController();
@@ -246,6 +271,7 @@ export default function Home() {
             requestsChart: charts[0],
             latencyChart: charts[1],
             distributionChart: charts[2],
+            errorChart: charts[3],
           }),
         });
       } finally {

@@ -6,9 +6,10 @@ import ChartFrame from "./ChartFrame";
 const COLORS = ["#e9724d", "#72BAA9", "#3b82f6"];
 
 export default function ErrorPieChart({ errorTypes }) {
-  const data = Object.entries(errorTypes || {}).map(([name, value]) => ({
+  const orderedKeys = ["timeout", "network", "server"];
+  const data = orderedKeys.map((name) => ({
     name,
-    value,
+    value: Number(errorTypes?.[name] || 0),
   }));
 
   const total = data.reduce((sum, item) => sum + item.value, 0);

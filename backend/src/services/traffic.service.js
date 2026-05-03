@@ -4,15 +4,19 @@ const { simulateProcessing } = require("./simulation.service");
 const { producer, connectProducer } = require("../config/kafka");
 const { emitBufferedLog } = require("../websocket/socket");
 const { client: redis } = require("../config/redis");
+const { getMetrics } = require("../metrics/metrics.store");
+const { saveRun } = require("../modules/run/run.service");
 
 const useKafka = process.env.USE_KAFKA === "true";
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const generateTraffic = async (total, projectId, url, rate = 50) => {
-  // 🧹 RESET METRICS BEFORE EACH RUN
   await redis.del(`metrics:${projectId}`);
   await redis.del(`latencies:${projectId}`);
   await redis.del(`timestamps:${projectId}`);
+  await redis.del(`errors:${projectId}`);
+  await redis.del(`failures:${projectId}`);
+  const runId = uuidv4();
 
   const requestCount = Number.parseInt(total, 10);
   const batchSize = Number.parseInt(rate, 10) || 50;
@@ -37,7 +41,7 @@ const generateTraffic = async (total, projectId, url, rate = 50) => {
         i < batchSize && batch * batchSize + i < requestCount;
         i++
       ) {
-        promises.push(simulateProcessing(url, uuidv4(), projectId));
+        promises.push(simulateProcessing(url, uuidv4(), projectId, runId));
       }
 
       await Promise.all(promises);
@@ -57,6 +61,14 @@ const generateTraffic = async (total, projectId, url, rate = 50) => {
     logger.info({
       message: "Completed controlled load",
       projectId,
+    });
+
+    // 📊 Save run metrics to database
+    const finalMetrics = await getMetrics(projectId, runId);
+    await saveRun({
+      projectId,
+      runId,
+      ...finalMetrics,
     });
 
     return;
@@ -79,6 +91,7 @@ const generateTraffic = async (total, projectId, url, rate = 50) => {
         value: JSON.stringify({
           projectId,
           url,
+          runId,
           requestId: uuidv4(),
         }),
       });
@@ -105,11 +118,20 @@ const generateTraffic = async (total, projectId, url, rate = 50) => {
         value: JSON.stringify({
           type: "traffic-complete",
           projectId,
+          runId,
           total: requestCount,
           requestId: uuidv4(),
         }),
       },
     ],
+  });
+
+  // 📊 Save run metrics to database (after all traffic is processed)
+  const finalMetrics = await getMetrics(projectId, runId);
+  await saveRun({
+    projectId,
+    runId,
+    ...finalMetrics,
   });
 };
 

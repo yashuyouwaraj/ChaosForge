@@ -7,11 +7,15 @@ const authRoutes = require("./modules/auth/auth.routes");
 const projectRoutes = require("./modules/project/project.routes");
 const paymentRoutes = require("./modules/payment/payment.routes");
 const reportRoutes = require("./modules/report/report.routes");
+const runRoutes = require("./modules/run/run.routes");
 
 const app = express();
 
 app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", process.env.CORS_ORIGIN || "http://localhost:3000");
+  res.header(
+    "Access-Control-Allow-Origin",
+    process.env.CORS_ORIGIN || "http://localhost:3000",
+  );
   res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
   res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
@@ -43,5 +47,7 @@ app.use("/report", reportRoutes.router);
 app.use("/", testRoutes);
 
 app.use("/", metricsRoutes);
+
+app.use("/runs", runRoutes);
 
 module.exports = app;

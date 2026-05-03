@@ -2,7 +2,7 @@ const { recordRequest, getMetrics } = require("../metrics/metrics.store");
 const { getIO, emitBufferedLog } = require("../websocket/socket");
 const axios = require("axios");
 
-const simulateProcessing = async (url, requestId, projectId) => {
+const simulateProcessing = async (url, requestId, projectId, runId) => {
   const io = getIO();
 
   const start = Date.now();
@@ -12,7 +12,7 @@ const simulateProcessing = async (url, requestId, projectId) => {
 
     const latency = Date.now() - start;
 
-    recordRequest(projectId, latency, true);
+    recordRequest(projectId, runId, latency, true);
 
     emitBufferedLog(projectId, {
       requestId,
@@ -29,7 +29,7 @@ const simulateProcessing = async (url, requestId, projectId) => {
         ? "server"
         : "network";
 
-    recordRequest(projectId, latency, false, errorType);
+    recordRequest(projectId, runId, latency, false, errorType);
 
     emitBufferedLog(projectId, {
       requestId,
@@ -40,7 +40,7 @@ const simulateProcessing = async (url, requestId, projectId) => {
   }
 
   // 📊 Emit updated metrics
-  const metrics = await getMetrics(projectId);
+  const metrics = await getMetrics(projectId, runId);
   io.emit(`metrics-${projectId}`, metrics);
 };
 
