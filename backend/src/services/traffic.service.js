@@ -11,12 +11,14 @@ const useKafka = process.env.USE_KAFKA === "true";
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const generateTraffic = async (total, projectId, url, rate = 50) => {
-  await redis.del(`metrics:${projectId}`);
-  await redis.del(`latencies:${projectId}`);
-  await redis.del(`timestamps:${projectId}`);
-  await redis.del(`errors:${projectId}`);
-  await redis.del(`failures:${projectId}`);
   const runId = uuidv4();
+  
+  // 🧹 RESET METRICS FOR THIS RUN
+  await redis.del(`metrics:${projectId}:${runId}`);
+  await redis.del(`latencies:${projectId}:${runId}`);
+  await redis.del(`timestamps:${projectId}:${runId}`);
+  await redis.del(`errors:${projectId}:${runId}`);
+  await redis.del(`failures:${projectId}:${runId}`);
 
   const requestCount = Number.parseInt(total, 10);
   const batchSize = Number.parseInt(rate, 10) || 50;
@@ -27,10 +29,12 @@ const generateTraffic = async (total, projectId, url, rate = 50) => {
 
   if (!useKafka) {
     const totalBatches = Math.ceil(requestCount / batchSize);
+    let requestCounter = 0;
 
     logger.info({
       message: `Starting controlled load: ${requestCount} requests at ${batchSize}/sec`,
       projectId,
+      runId,
     });
 
     for (let batch = 0; batch < totalBatches; batch++) {
@@ -41,8 +45,15 @@ const generateTraffic = async (total, projectId, url, rate = 50) => {
         i < batchSize && batch * batchSize + i < requestCount;
         i++
       ) {
+        requestCounter++;
         promises.push(simulateProcessing(url, uuidv4(), projectId, runId));
       }
+
+      logger.info({
+        message: `Batch ${batch + 1}/${totalBatches}: Fired ${promises.length} requests (total: ${requestCounter}/${requestCount})`,
+        projectId,
+        runId,
+      });
 
       await Promise.all(promises);
 
@@ -59,12 +70,27 @@ const generateTraffic = async (total, projectId, url, rate = 50) => {
     });
 
     logger.info({
-      message: "Completed controlled load",
+      message: "All requests fired, waiting for processing...",
       projectId,
+      runId,
+      totalFired: requestCounter,
+      totalExpected: requestCount,
     });
 
-    // 📊 Save run metrics to database
+    // 📊 Wait a bit for all Redis operations to settle before capturing metrics
+    await delay(500);
+    
     const finalMetrics = await getMetrics(projectId, runId);
+    
+    logger.info({
+      message: "Captured metrics",
+      projectId,
+      runId,
+      requestsFired: requestCounter,
+      requestsRecorded: finalMetrics.totalRequests,
+      metrics: finalMetrics,
+    });
+    
     await saveRun({
       projectId,
       runId,
@@ -126,8 +152,24 @@ const generateTraffic = async (total, projectId, url, rate = 50) => {
     ],
   });
 
-  // 📊 Save run metrics to database (after all traffic is processed)
+  logger.info({
+    message: "Traffic generation complete, waiting for consumer processing...",
+    projectId,
+    runId,
+  });
+
+  // 📊 Wait for Kafka consumer to process all messages + Redis operations to settle
+  await delay(3000);
+  
   const finalMetrics = await getMetrics(projectId, runId);
+  
+  logger.info({
+    message: "Captured metrics from Kafka traffic",
+    projectId,
+    runId,
+    metrics: finalMetrics,
+  });
+  
   await saveRun({
     projectId,
     runId,

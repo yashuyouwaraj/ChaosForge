@@ -1,5 +1,7 @@
 const { getRunsByProject } = require("./run.service");
 const logger = require("../../utils/logger");
+const Run = require("./run.model");
+const {compareRuns} = require("./run.compare.service")
 
 const getRuns = async (req, res) => {
   try {
@@ -22,4 +24,21 @@ const getRuns = async (req, res) => {
   }
 };
 
-module.exports = { getRuns };
+const compare = async(req,res)=>{
+    const {runA, runB} = req.query;
+
+    const [A, B] = await Promise.all([
+        Run.findOne({ runId: runA }),
+        Run.findOne({ runId: runB }),
+    ])
+
+    if(!A || !B){
+        return res.status(404).json({error: "One or both runs not found"})
+    }
+
+    const comparison = compareRuns(A.toObject(), B.toObject());
+
+    return res.json(comparison);
+}
+
+module.exports = { getRuns, compare };

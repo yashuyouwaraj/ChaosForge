@@ -3,6 +3,21 @@ const logger = require("../../utils/logger");
 
 const saveRun = async (data) => {
   try {
+    logger.info({
+      message: "Saving run to database",
+      projectId: data.projectId,
+      runId: data.runId,
+      metrics: {
+        totalRequests: data.totalRequests,
+        success: data.success,
+        failure: data.failure,
+        avgLatency: data.avgLatency,
+        p95Latency: data.p95Latency,
+        rps: data.rps,
+        hasErrorTypes: !!data.errorTypes,
+        hasLatencyBuckets: !!data.latencyBuckets,
+      },
+    });
     return await Run.create(data);
   } catch (err) {
     logger.error({

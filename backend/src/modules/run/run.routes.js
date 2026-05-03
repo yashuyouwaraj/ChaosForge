@@ -1,9 +1,10 @@
-const express = require("express")
+const express = require("express");
 
-const { getRuns } = require("./run.controller");
+const { getRuns, compare } = require("./run.controller");
 
 const router = express.Router();
 
-router.get("/:projectId",getRuns);
+router.get("/compare", compare); // 👉 MUST come before /:projectId
+router.get("/:projectId", getRuns);
 
 module.exports = router;
