@@ -72,9 +72,17 @@ const runProjectTraffic = async (req, res) => {
   getIO().emit(`logs-${id}`, startLog);
   getIO().emit("project-log", startLog);
 
-  await generateTraffic(count, id, url, rate);
+  const runId = await generateTraffic(
+    {
+      pattern: "requests",
+      totalRequests: count,
+      rate: Number.parseInt(rate, 10) || 50,
+    },
+    id,
+    url,
+  );
 
-  return res.json({ message: `Traffic started for project ${id}` });
+  return res.json({ message: `Traffic completed for project ${id}`, runId });
 };
 
 module.exports = { createProject, getProjects, getProject, runProjectTraffic };

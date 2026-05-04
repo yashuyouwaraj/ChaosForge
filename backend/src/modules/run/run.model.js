@@ -3,6 +3,9 @@ const mongoose = require('mongoose');
 const runSchema = new mongoose.Schema({
     projectId: { type: String, required: true },
     runId: { type: String, required: true },
+    status: { type: String, default: 'running' },
+    config: { type: Object },
+    url: { type: String },
 
     // Core metrics
     totalRequests: Number,

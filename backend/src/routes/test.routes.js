@@ -4,6 +4,10 @@ const {sendMessage} = require('../services/producer.service');
 const {generateTraffic} = require('../services/traffic.service');
 const authMiddleware = require('../middleware/auth.middleware');
 const roleMiddleware = require('../middleware/role.middleware');
+const { runStages } = require('../services/execution.engine');
+const { getMetrics } = require('../metrics/metrics.store');
+const Run = require('../modules/run/run.model');
+const { v4: uuidv4 } = require('uuid');
 
 
 const router = express.Router();
@@ -28,5 +32,49 @@ router.get('/send',async(req,res)=>{
 router.get("/admin",authMiddleware,roleMiddleware("admin"),(req,res)=>{
     res.send("Welcome Admin! This is a protected route.")
 })
+
+router.post('/test/:projectId', authMiddleware, async (req, res) => {
+  const { projectId } = req.params;
+  const { url, config } = req.body;
+
+  if (!url || !config) {
+    return res.status(400).json({ error: 'url and config required' });
+  }
+
+  const runId = uuidv4();
+
+  // Create run entry
+  const run = new Run({
+    runId,
+    projectId,
+    config,
+    url,
+    status: 'running',
+    createdAt: new Date(),
+  });
+  await run.save();
+
+  // Start execution in background
+  runStages({ ...config, projectId, url, runId }).then(async () => {
+    // After completion, update run with metrics
+    const metrics = await getMetrics(projectId, runId);
+    await Run.findOneAndUpdate({ runId }, {
+      status: 'completed',
+      totalRequests: metrics.totalRequests,
+      success: metrics.success,
+      failure: metrics.failure,
+      avgLatency: metrics.avgLatency,
+      p95Latency: metrics.p95Latency,
+      rps: metrics.rps,
+      errorTypes: metrics.errorTypes,
+      latencyBuckets: metrics.latencyBuckets,
+    });
+  }).catch(err => {
+    logger.error('Error in runStages', err);
+    Run.findOneAndUpdate({ runId }, { status: 'failed' });
+  });
+
+  res.json({ runId, message: 'Test started' });
+});
 
 module.exports = router;

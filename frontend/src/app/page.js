@@ -12,6 +12,9 @@ import PaymentHistory from "../components/PaymentHistory";
 import MetricsChart from "../components/MetricsChart";
 import DistributionChart from "@/components/DistributionChart";
 import ErrorPieChart from "@/components/ErrorPieChart";
+import RpsChart from "@/components/RpsChart";
+
+const MAX_CHART_POINTS = 240;
 
 export default function Home() {
   const [metrics, setMetrics] = useState({
@@ -33,7 +36,10 @@ export default function Home() {
       server: 0,
     },
   });
+
+
   const [projectId, setProjectId] = useState(null);
+  const [runId, setRunId] = useState(null);
   const [graphData, setGraphData] = useState([]);
   const [status, setStatus] = useState("");
   const [isRunning, setIsRunning] = useState(false);
@@ -47,17 +53,21 @@ export default function Home() {
   const pendingLogsRef = useRef([]);
   const flushScheduledRef = useRef(false);
   const [history, setHistory] = useState([]);
-  const buffer = useRef([]);
-  const graphBuffer = useRef([]);
   const latestMetricsRef = useRef(null);
+  const chartStartTimeRef = useRef(null);
   const requestsChartRef = useRef(null);
   const latencyChartRef = useRef(null);
+  const rpsChartRef = useRef(null);
   const distributionChartRef = useRef(null);
   const errorChartRef = useRef(null);
 
+  
+
   useEffect(() => {
     const id = localStorage.getItem("projectId");
+    const currentRunId = localStorage.getItem("currentRunId");
     setProjectId(id);
+    setRunId(currentRunId);
   }, []);
 
   useEffect(() => {
@@ -78,7 +88,9 @@ export default function Home() {
         ) {
           localStorage.removeItem("token");
           localStorage.removeItem("projectId");
+          localStorage.removeItem("currentRunId");
           setProjectId(null);
+          setRunId(null);
           setPlan("free");
           shouldPoll = false;
           return;
@@ -108,36 +120,47 @@ export default function Home() {
   };
 
   const addMetricsSnapshot = (snapshot) => {
-    const time = new Date().toLocaleTimeString();
+    const timestamp = Date.now();
+    if (!chartStartTimeRef.current) {
+      chartStartTimeRef.current = timestamp;
+    }
+    const elapsedSec = Math.round((timestamp - chartStartTimeRef.current) / 1000);
+    const time = new Date(timestamp).toLocaleTimeString();
     setMetrics(snapshot);
     setHistory((prev) =>
       [
         ...prev,
         {
           time,
+          timestamp,
+          elapsedSec,
           avgLatency: snapshot.avgLatency,
           p95Latency: snapshot.p95Latency ?? 0,
-          rps: snapshot.rps,
+          rps: snapshot.currentRps ?? snapshot.rps,
         },
-      ].slice(-50),
+      ].slice(-MAX_CHART_POINTS),
     );
     setGraphData((prev) =>
       [
         ...prev,
         {
           time,
+          timestamp,
+          elapsedSec,
           requests: snapshot.totalRequests,
         },
-      ].slice(-50),
+      ].slice(-MAX_CHART_POINTS),
     );
   };
 
-  const refreshMetricsSnapshot = async () => {
+  const refreshMetricsSnapshot = async (targetRunId = runId) => {
     if (!projectId) {
       return;
     }
 
-    const snapshot = await api(`/metrics/${projectId}`);
+    const snapshot = await api(
+      `/metrics/${projectId}${targetRunId ? `?runId=${targetRunId}` : ""}`,
+    );
     addMetricsSnapshot(snapshot);
   };
 
@@ -252,6 +275,7 @@ export default function Home() {
       const charts = await Promise.all([
         captureChart(requestsChartRef),
         captureChart(latencyChartRef),
+        captureChart(rpsChartRef),
         captureChart(distributionChartRef),
         captureChart(errorChartRef),
       ]);
@@ -270,8 +294,9 @@ export default function Home() {
           body: JSON.stringify({
             requestsChart: charts[0],
             latencyChart: charts[1],
-            distributionChart: charts[2],
-            errorChart: charts[3],
+            rpsChart: charts[2],
+            distributionChart: charts[3],
+            errorChart: charts[4],
           }),
         });
       } finally {
@@ -315,11 +340,15 @@ export default function Home() {
     try {
       setIsRunning(true);
       setStatus("");
-      const startTime = new Date().toLocaleTimeString();
-      setGraphData([{ time: startTime, requests: 0 }]);
+      const startTimestamp = Date.now();
+      chartStartTimeRef.current = startTimestamp;
+      const startTime = new Date(startTimestamp).toLocaleTimeString();
+      setGraphData([{ time: startTime, timestamp: startTimestamp, elapsedSec: 0, requests: 0 }]);
       setHistory([
         {
           time: startTime,
+          timestamp: startTimestamp,
+          elapsedSec: 0,
           avgLatency: 0,
           p95Latency: 0,
           rps: 0,
@@ -329,13 +358,19 @@ export default function Home() {
         `/projects/${projectId}/traffic?count=${parsedCount}&url=${encodeURIComponent(url)}&rate=${rate}`,
         "POST",
       );
-      await refreshMetricsSnapshot();
+      if (res?.runId) {
+        localStorage.setItem("currentRunId", res.runId);
+        setRunId(res.runId);
+      }
+      await refreshMetricsSnapshot(res?.runId || runId);
       setStatus(res?.message || "Simulation started");
       setLogsFocusTrigger((current) => current + 1);
     } catch (error) {
       if (error.message === "Project not found") {
         localStorage.removeItem("projectId");
+        localStorage.removeItem("currentRunId");
         setProjectId(null);
+        setRunId(null);
       }
 
       setStatus(error.message || "Failed to run simulation");
@@ -351,47 +386,50 @@ export default function Home() {
 
     const handleMetrics = (data) => {
       latestMetricsRef.current = data;
-
-      const time = new Date().toLocaleTimeString();
-      buffer.current.push({
-        time,
-        avgLatency: data.avgLatency,
-        p95Latency: data.p95Latency ?? 0,
-        rps: data.rps,
-      });
-
-      graphBuffer.current.push({
-        time,
-        requests: data.totalRequests,
-      });
     };
 
     const metricsEvent = `metrics-${projectId}`;
     socket.on(metricsEvent, handleMetrics);
 
     const interval = setInterval(() => {
-      if (
-        !latestMetricsRef.current &&
-        buffer.current.length === 0 &&
-        graphBuffer.current.length === 0
-      ) {
+      if (!latestMetricsRef.current) {
         return;
       }
 
-      if (latestMetricsRef.current) {
-        setMetrics(latestMetricsRef.current);
-        latestMetricsRef.current = null;
+      const snapshot = latestMetricsRef.current;
+      const timestamp = Date.now();
+      if (!chartStartTimeRef.current) {
+        chartStartTimeRef.current = timestamp;
       }
+      const elapsedSec = Math.round((timestamp - chartStartTimeRef.current) / 1000);
+      const time = new Date(timestamp).toLocaleTimeString();
 
-      if (buffer.current.length > 0) {
-        setHistory((prev) => [...prev, ...buffer.current].slice(-50));
-        buffer.current = [];
-      }
-
-      if (graphBuffer.current.length > 0) {
-        setGraphData((prev) => [...prev, ...graphBuffer.current].slice(-50));
-        graphBuffer.current = [];
-      }
+      setMetrics(snapshot);
+      setHistory((prev) =>
+        [
+          ...prev,
+          {
+            time,
+            timestamp,
+            elapsedSec,
+            avgLatency: snapshot.avgLatency,
+            p95Latency: snapshot.p95Latency ?? 0,
+            rps: snapshot.currentRps ?? snapshot.rps,
+          },
+        ].slice(-MAX_CHART_POINTS),
+      );
+      setGraphData((prev) =>
+        [
+          ...prev,
+          {
+            time,
+            timestamp,
+            elapsedSec,
+            requests: snapshot.totalRequests,
+          },
+        ].slice(-MAX_CHART_POINTS),
+      );
+      latestMetricsRef.current = null;
     }, 500);
 
     return () => {
@@ -521,6 +559,9 @@ export default function Home() {
         </div>
         <div ref={latencyChartRef} className="min-w-0">
           <MetricsChart data={history} />
+        </div>
+        <div ref={rpsChartRef} className="min-w-0">
+          <RpsChart data={history} />
         </div>
         <div ref={distributionChartRef} className="min-w-0">
           <DistributionChart buckets={metrics.latencyBuckets} />

@@ -16,18 +16,21 @@ const recordRequest = async (projectId, runId, latency, isSuccess, errorType = "
   const latenciesKey = `latencies:${projectId}:${runId}`;
   const timestampsKey = `timestamps:${projectId}:${runId}`;
 
+  const recordedAt = Date.now();
   const pipeline = redis.multi();
 
   pipeline.hincrby(metricsKey, "totalRequests", 1);
   pipeline.hincrby(metricsKey, isSuccess ? "success" : "failure", 1);
   pipeline.hincrby(metricsKey, "totalLatency", latency);
+  pipeline.hsetnx(metricsKey, "startedAt", recordedAt);
+  pipeline.hset(metricsKey, "lastRequestAt", recordedAt);
 
   // latency list (bounded)
   pipeline.rpush(latenciesKey, latency);
   pipeline.ltrim(latenciesKey, -MAX_LIST_SIZE, -1);
 
   // timestamps list (bounded)
-  pipeline.rpush(timestampsKey, Date.now());
+  pipeline.rpush(timestampsKey, recordedAt);
   pipeline.ltrim(timestampsKey, -MAX_LIST_SIZE, -1);
 
   // TTL
@@ -64,12 +67,21 @@ const calculateP95 = (latencies) => {
   return sorted[index];
 };
 
-const calculateRPS = (timestamps) => {
+const calculateRPS = (timestamps, now = Date.now(), windowMs = 1000) => {
   if (timestamps.length < 2) return 0;
 
-  const duration = (timestamps[timestamps.length - 1] - timestamps[0]) / 1000; // seconds
+  const cutoff = now - windowMs;
+  const recent = timestamps.filter((timestamp) => timestamp >= cutoff);
 
-  return duration > 0 ? Math.round(timestamps.length / duration) : 0;
+  return Math.round((recent.length * 1000) / windowMs);
+};
+
+const calculateAverageRPS = (totalRequests, startedAt, lastRequestAt) => {
+  if (!totalRequests || !startedAt || !lastRequestAt) return 0;
+
+  const elapsedMs = Math.max(1000, lastRequestAt - startedAt);
+
+  return Math.round((totalRequests * 1000) / elapsedMs);
 };
 
 const getMetrics = async (projectId, runId) => {
@@ -87,9 +99,14 @@ const getMetrics = async (projectId, runId) => {
 
   const parsedLatencies = latencies.map(Number);
   const parsedTimestamps = timestamps.map(Number);
+  const now = Date.now();
 
   const totalRequests = Number(data.totalRequests || 0);
   const totalLatency = Number(data.totalLatency || 0);
+  const startedAt = Number(data.startedAt || parsedTimestamps[0] || 0);
+  const lastRequestAt = Number(
+    data.lastRequestAt || parsedTimestamps[parsedTimestamps.length - 1] || 0,
+  );
 
   // latency buckets (computed here)
   const buckets = {
@@ -114,7 +131,8 @@ const getMetrics = async (projectId, runId) => {
       ? Math.round(totalLatency / totalRequests)
       : 0,
     p95Latency: calculateP95(parsedLatencies),
-    rps: calculateRPS(parsedTimestamps),
+    rps: calculateAverageRPS(totalRequests, startedAt, lastRequestAt),
+    currentRps: calculateRPS(parsedTimestamps, now),
     latencyBuckets: buckets,
     errorTypes: {
       timeout: Number(errors.timeout || 0),
@@ -124,4 +142,4 @@ const getMetrics = async (projectId, runId) => {
     failureTimeline: failures.map((t) => ({ time: Number(t) })),
   };
 };
-module.exports = { recordRequest, getMetrics, calculateP95, calculateRPS };
+module.exports = { recordRequest, getMetrics, calculateP95, calculateRPS, calculateAverageRPS };

@@ -12,7 +12,7 @@ const simulateProcessing = async (url, requestId, projectId, runId) => {
 
     const latency = Date.now() - start;
 
-    recordRequest(projectId, runId, latency, true);
+    await recordRequest(projectId, runId, latency, true);
 
     emitBufferedLog(projectId, {
       requestId,
@@ -29,7 +29,7 @@ const simulateProcessing = async (url, requestId, projectId, runId) => {
         ? "server"
         : "network";
 
-    recordRequest(projectId, runId, latency, false, errorType);
+    await recordRequest(projectId, runId, latency, false, errorType);
 
     emitBufferedLog(projectId, {
       requestId,
