@@ -6,6 +6,7 @@ const { emitBufferedLog } = require("../websocket/socket");
 const { client: redis } = require("../config/redis");
 const { getMetrics } = require("../metrics/metrics.store");
 const { saveRun } = require("../modules/run/run.service");
+const {} = require("../control/control.store")
 
 const useKafka = process.env.USE_KAFKA === "true";
 
@@ -16,6 +17,7 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
  */
 const generateTraffic = async (config, projectId, url) => {
   const runId = uuidv4();
+  await initControl(projectId, runId);
 
   // 🧹 RESET
   await redis.del(`metrics:${projectId}:${runId}`);

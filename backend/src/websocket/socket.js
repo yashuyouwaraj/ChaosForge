@@ -1,5 +1,6 @@
 const { Server } = require("socket.io");
 const logger = require("../utils/logger");
+const { registerControlHandlers } = require("../control/control.socket");
 
 let io;
 const logBuffers = new Map();
@@ -67,7 +68,11 @@ const initSocket = (server) => {
     });
   });
 
+  registerControlHandlers(io);
+
   startLogFlushLoop();
+
+  return io;
 };
 
 module.exports = { initSocket, getIO, emitBufferedLog };
