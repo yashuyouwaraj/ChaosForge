@@ -6,7 +6,7 @@ const { emitBufferedLog } = require("../websocket/socket");
 const { client: redis } = require("../config/redis");
 const { getMetrics } = require("../metrics/metrics.store");
 const { saveRun } = require("../modules/run/run.service");
-const {} = require("../control/control.store")
+const { initControl, getControl } = require("../control/control.store");
 
 const useKafka = process.env.USE_KAFKA === "true";
 
@@ -15,9 +15,11 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 /*
  * 🔥 MAIN ENTRY
  */
-const generateTraffic = async (config, projectId, url) => {
-  const runId = uuidv4();
-  await initControl(projectId, runId);
+const generateTraffic = async (config, projectId, url, options = {}) => {
+  const runId = options.runId || uuidv4();
+  if (!options.controlInitialized) {
+    await initControl(projectId, runId);
+  }
 
   // 🧹 RESET
   await redis.del(`metrics:${projectId}:${runId}`);
@@ -69,40 +71,42 @@ const generateTraffic = async (config, projectId, url) => {
  */
 const runRequestMode = async (config, projectId, url, runId) => {
   const requestCount = Number(config.totalRequests || 0);
-  const rate = Number(config.rate || 50);
-
-  const totalBatches = Math.ceil(requestCount / rate);
+  const baseRate = Number(config.rate || 50);
+  let sent = 0;
 
   if (!useKafka) {
-    for (let batch = 0; batch < totalBatches; batch++) {
+    while (sent < requestCount) {
+      const state = await waitIfPaused(projectId, runId);
+      if (state === "stopped") return;
+
+      const rate = await getEffectiveRate(projectId, runId, baseRate);
       const promises = [];
 
-      for (
-        let i = 0;
-        i < rate && batch * rate + i < requestCount;
-        i++
-      ) {
+      for (let i = 0; i < rate && sent < requestCount; i++) {
         promises.push(
           simulateProcessing(url, uuidv4(), projectId, runId)
         );
+        sent++;
       }
 
       await Promise.all(promises);
-      await delay(1000);
+      if (sent < requestCount) {
+        await delay(1000);
+      }
     }
     return;
   }
 
   await connectProducer();
 
-  for (let batch = 0; batch < totalBatches; batch++) {
+  while (sent < requestCount) {
+    const state = await waitIfPaused(projectId, runId);
+    if (state === "stopped") return;
+
+    const rate = await getEffectiveRate(projectId, runId, baseRate);
     const messages = [];
 
-    for (
-      let i = 0;
-      i < rate && batch * rate + i < requestCount;
-      i++
-    ) {
+    for (let i = 0; i < rate && sent < requestCount; i++) {
       messages.push({
         key: projectId,
         value: JSON.stringify({
@@ -112,6 +116,7 @@ const runRequestMode = async (config, projectId, url, runId) => {
           requestId: uuidv4(),
         }),
       });
+      sent++;
     }
 
     await producer.send({
@@ -119,7 +124,9 @@ const runRequestMode = async (config, projectId, url, runId) => {
       messages,
     });
 
-    await delay(1000);
+    if (sent < requestCount) {
+      await delay(1000);
+    }
   }
 
   // completion event
@@ -155,11 +162,16 @@ const runStages = async (config, projectId, url, runId) => {
 
   if (!useKafka) {
     for (const stage of stages) {
-      const { durationSec, rate } = stage;
+      const { durationSec } = stage;
+      const baseRate = Number(stage.rate || 0);
 
       const end = Date.now() + durationSec * 1000;
 
       while (Date.now() < end) {
+        const state = await waitIfPaused(projectId, runId);
+        if (state === "stopped") return;
+
+        const rate = await getEffectiveRate(projectId, runId, baseRate);
         const promises = [];
 
         for (let i = 0; i < rate; i++) {
@@ -178,11 +190,16 @@ const runStages = async (config, projectId, url, runId) => {
   await connectProducer();
 
   for (const stage of stages) {
-    const { durationSec, rate } = stage;
+    const { durationSec } = stage;
+    const baseRate = Number(stage.rate || 0);
 
     const end = Date.now() + durationSec * 1000;
 
     while (Date.now() < end) {
+      const state = await waitIfPaused(projectId, runId);
+      if (state === "stopped") return;
+
+      const rate = await getEffectiveRate(projectId, runId, baseRate);
       const messages = [];
 
       for (let i = 0; i < rate; i++) {
@@ -221,6 +238,22 @@ const runStages = async (config, projectId, url, runId) => {
       },
     ],
   });
+};
+
+const waitIfPaused = async (projectId, runId) => {
+  while (true) {
+    const { status } = await getControl(projectId, runId);
+
+    if (status === "stopped") return "stopped";
+    if (status === "running") return "running";
+
+    await delay(300);
+  }
+};
+
+const getEffectiveRate = async (projectId, runId, baseRate) => {
+  const { rateOverride } = await getControl(projectId, runId);
+  return rateOverride && rateOverride > 0 ? rateOverride : baseRate;
 };
 
 module.exports = { generateTraffic };

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
+import socket from "../../lib/socket";
 
 export default function Projects() {
   const [projects, setProjects] = useState([]);
@@ -13,6 +14,9 @@ export default function Projects() {
   const [comparison, setComparison] = useState(null);
   const [selectedRuns, setSelectedRuns] = useState({ runA: null, runB: null });
   const [testUrl, setTestUrl] = useState("");
+  const [isTestRunning, setIsTestRunning] = useState(false);
+  const [currentTestProjectId, setCurrentTestProjectId] = useState(null);
+  const [currentTestRunId, setCurrentTestRunId] = useState(null);
   const [testConfig, setTestConfig] = useState({
     pattern: "stages",
     concurrency: 20,
@@ -93,16 +97,26 @@ export default function Projects() {
 
     setError("");
     setLoading(true);
+    setIsTestRunning(true);
+    setCurrentTestProjectId(projectId);
+    setCurrentTestRunId(null);
 
     try {
       const data = await api(`/test/${projectId}`, "POST", {
         url: testUrl,
         config: testConfig,
       });
+      setCurrentTestProjectId(projectId);
+      setCurrentTestRunId(data.runId);
+      setIsTestRunning(true);
+
       await fetchRuns(projectId);
       openDashboard(projectId, data.runId);
     } catch (err) {
       setError(err.message || "Failed to start test");
+      setIsTestRunning(false);
+      setCurrentTestProjectId(null);
+      setCurrentTestRunId(null);
     } finally {
       setLoading(false);
     }
@@ -298,6 +312,57 @@ export default function Projects() {
                       >
                         {loading ? "Starting Test..." : "Start Test"}
                       </button>
+
+                      {isTestRunning && currentTestProjectId === projectId && (
+                        <div className="mt-4 p-4 bg-slate-700/30 border border-slate-600 rounded-md">
+                          <div className="flex gap-3 flex-wrap">
+                            <button
+                              onClick={() => currentTestRunId && socket.emit("pause", { projectId, runId: currentTestRunId })}
+                              disabled={!currentTestRunId}
+                              className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg transition disabled:opacity-60"
+                            >
+                              ⏸ Pause
+                            </button>
+
+                            <button
+                              onClick={() => currentTestRunId && socket.emit("resume", { projectId, runId: currentTestRunId })}
+                              disabled={!currentTestRunId}
+                              className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition disabled:opacity-60"
+                            >
+                              ▶ Resume
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                if (!currentTestRunId) return;
+                                socket.emit("stop", { projectId, runId: currentTestRunId });
+                                setIsTestRunning(false);
+                                setCurrentTestProjectId(null);
+                                setCurrentTestRunId(null);
+                              }}
+                              disabled={!currentTestRunId}
+                              className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition disabled:opacity-60"
+                            >
+                              🛑 Stop
+                            </button>
+
+                            <input
+                              type="number"
+                              placeholder="Change RPS"
+                              onChange={(e) =>
+                                currentTestRunId &&
+                                socket.emit("set-rate", {
+                                  projectId,
+                                  runId: currentTestRunId,
+                                  rate: Number(e.target.value),
+                                })
+                              }
+                              disabled={!currentTestRunId}
+                              className="px-3 py-2 rounded-lg border border-white/20 bg-white/5 disabled:opacity-60"
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 

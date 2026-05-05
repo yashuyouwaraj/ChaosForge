@@ -1,22 +1,14 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { api } from "../../lib/api";
 
 function SuccessContent() {
-  const [status, setStatus] = useState("Payment successful!");
   const searchParams = useSearchParams();
-
-  useEffect(() => {
-    const sessionId = searchParams.get("session_id");
-
-    if (sessionId) {
-      setStatus(`Payment successful! Session ID: ${sessionId}`);
-    } else {
-      setStatus("Payment successful!");
-    }
-  }, [searchParams]);
+  const sessionId = searchParams.get("session_id");
+  const status = sessionId
+    ? `Payment successful! Session ID: ${sessionId}`
+    : "Payment successful!";
 
   return (
     <div className="p-10">

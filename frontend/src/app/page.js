@@ -43,16 +43,19 @@ export default function Home() {
   const [graphData, setGraphData] = useState([]);
   const [status, setStatus] = useState("");
   const [isRunning, setIsRunning] = useState(false);
+  const [simulationState, setSimulationState] = useState("idle"); // idle, running, paused, stopped
   const [count, setCount] = useState("50");
   const [url, setUrl] = useState("");
   const [plan, setPlan] = useState("free");
   const [logs, setLogs] = useState([]);
-  const [rate, setRate] = useState("50");
+  const [rate, setRate] = useState("5");
+  const [controlRate, setControlRate] = useState("5");
+  const [isApplyingRate, setIsApplyingRate] = useState(false);
   const [logsFocusTrigger, setLogsFocusTrigger] = useState(0);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [history, setHistory] = useState([]);
   const pendingLogsRef = useRef([]);
   const flushScheduledRef = useRef(false);
-  const [history, setHistory] = useState([]);
   const latestMetricsRef = useRef(null);
   const chartStartTimeRef = useRef(null);
   const requestsChartRef = useRef(null);
@@ -60,14 +63,18 @@ export default function Home() {
   const rpsChartRef = useRef(null);
   const distributionChartRef = useRef(null);
   const errorChartRef = useRef(null);
+  const stoppedRunIdRef = useRef(null);
 
   
 
   useEffect(() => {
     const id = localStorage.getItem("projectId");
-    const currentRunId = localStorage.getItem("currentRunId");
+
     setProjectId(id);
-    setRunId(currentRunId);
+    setRunId(null);
+    setSimulationState("idle");
+    setIsRunning(false);
+    localStorage.removeItem("currentRunId");
   }, []);
 
   useEffect(() => {
@@ -339,7 +346,11 @@ export default function Home() {
 
     try {
       setIsRunning(true);
-      setStatus("");
+      setRunId(null);
+      stoppedRunIdRef.current = null;
+      setSimulationState("running");
+      setStatus("Starting simulation...");
+      setControlRate(rate);
       const startTimestamp = Date.now();
       chartStartTimeRef.current = startTimestamp;
       const startTime = new Date(startTimestamp).toLocaleTimeString();
@@ -374,10 +385,113 @@ export default function Home() {
       }
 
       setStatus(error.message || "Failed to run simulation");
-    } finally {
+      setSimulationState("idle");
       setIsRunning(false);
     }
   };
+
+  const pauseSimulation = () => {
+    if (!runId) return;
+
+    socket.emit("pause", { projectId, runId });
+    setSimulationState("paused");
+    setStatus("Simulation paused");
+  };
+
+  const resumeSimulation = () => {
+    if (!runId) return;
+
+    socket.emit("resume", { projectId, runId });
+    setSimulationState("running");
+    setStatus("Simulation resumed");
+  };
+
+  const stopSimulation = () => {
+    if (!runId) return;
+
+    socket.emit("stop", { projectId, runId });
+    stoppedRunIdRef.current = runId;
+    setSimulationState("stopped");
+    setIsRunning(false);
+    setStatus("Simulation stopped");
+    setRunId(null);
+    localStorage.removeItem("currentRunId");
+  };
+
+  const changeSimulationRate = (value) => {
+    setControlRate(value);
+  };
+
+  const applySimulationRate = () => {
+    const nextRate = Number(controlRate);
+    if (!runId || !Number.isFinite(nextRate) || nextRate <= 0) {
+      setStatus("Enter a valid RPS greater than 0");
+      return;
+    }
+
+    setIsApplyingRate(true);
+    socket.timeout(3000).emit(
+      "set-rate",
+      {
+        projectId,
+        runId,
+        rate: nextRate,
+      },
+      (error, response) => {
+        setIsApplyingRate(false);
+
+        if (error) {
+          setStatus("RPS change timed out. Check the backend/socket connection.");
+          return;
+        }
+
+        if (!response?.ok) {
+          setStatus(response?.message || "Failed to change RPS");
+          return;
+        }
+
+        setStatus(`RPS changed to ${response.rate}. It applies on the next batch.`);
+      },
+    );
+  };
+
+  useEffect(() => {
+    const handleControlError = (error) => {
+      setStatus(error?.message || "Simulation control failed");
+    };
+
+    socket.on("control-error", handleControlError);
+
+    return () => {
+      socket.off("control-error", handleControlError);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!projectId || !runId) {
+      return;
+    }
+
+    const handleComplete = () => {
+      if (stoppedRunIdRef.current === runId) {
+        stoppedRunIdRef.current = null;
+        return;
+      }
+
+      setSimulationState("idle");
+      setIsRunning(false);
+      setRunId(null);
+      setStatus("Simulation completed");
+      localStorage.removeItem("currentRunId");
+    };
+
+    const completeEvent = `complete-${projectId}-${runId}`;
+    socket.on(completeEvent, handleComplete);
+
+    return () => {
+      socket.off(completeEvent, handleComplete);
+    };
+  }, [projectId, runId]);
 
   useEffect(() => {
     if (!projectId) {
@@ -490,6 +604,8 @@ export default function Home() {
     );
   }
 
+  const hasActiveSimulation = isRunning || Boolean(runId);
+
   return (
     <div className="p-10 max-w-7xl mx-auto">
       <h1 className="text-3xl font-bold mb-6">ChaosForge Dashboard</h1>
@@ -536,12 +652,67 @@ export default function Home() {
         <PremiumGate plan={plan} required="pro" onUpgrade={upgrade}>
           <button
             onClick={runSimulation}
-            disabled={isRunning}
-            className="bg-blue-500 px-4 py-2 rounded-lg disabled:opacity-60"
+            disabled={hasActiveSimulation}
+            className="bg-blue-500 px-4 py-2 rounded-lg hover:bg-blue-600 transition font-medium mb-4 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {isRunning ? "Running..." : "Run High Traffic Simulation"}
+            {hasActiveSimulation ? "Simulation Running" : "Run High Traffic Simulation"}
           </button>
         </PremiumGate>
+
+        {hasActiveSimulation && (
+          <div className="mb-4 p-4 bg-white/5 border border-white/20 rounded-lg">
+            <div className="flex gap-3 flex-wrap items-center">
+              <button
+                onClick={pauseSimulation}
+                disabled={!runId || simulationState !== "running"}
+                className="bg-yellow-500 px-4 py-2 rounded-lg disabled:opacity-60 hover:bg-yellow-600 transition font-medium"
+              >
+                ⏸ Pause
+              </button>
+
+              <button
+                onClick={resumeSimulation}
+                disabled={!runId || simulationState !== "paused"}
+                className="bg-green-500 px-4 py-2 rounded-lg disabled:opacity-60 hover:bg-green-600 transition font-medium"
+              >
+                ▶ Resume
+              </button>
+
+              <button
+                onClick={stopSimulation}
+                disabled={!runId || simulationState === "stopped"}
+                className="bg-red-500 px-4 py-2 rounded-lg disabled:opacity-60 hover:bg-red-600 transition font-medium"
+              >
+                🛑 Stop
+              </button>
+
+              <input
+                type="number"
+                min="1"
+                placeholder="Change RPS"
+                value={controlRate}
+                onChange={(e) => changeSimulationRate(e.target.value)}
+                disabled={!runId || simulationState === "stopped"}
+                className="px-3 py-2 rounded-lg border border-white/20 bg-white/5 disabled:opacity-60"
+              />
+
+              <button
+                onClick={applySimulationRate}
+                disabled={!runId || simulationState === "stopped" || isApplyingRate}
+                className="bg-cyan-500 px-4 py-2 rounded-lg disabled:opacity-60 hover:bg-cyan-600 transition font-medium"
+              >
+                {isApplyingRate ? "Applying..." : "Apply RPS"}
+              </button>
+
+              <span className="text-sm font-semibold px-3 py-2 rounded-lg bg-white/10">
+                {!runId && simulationState === "running" && "Starting..."}
+                {runId && simulationState === "running" && "🟢 Running"}
+                {simulationState === "paused" && "⏸️ Paused"}
+                {simulationState === "stopped" && "🛑 Stopped"}
+              </span>
+            </div>
+          </div>
+        )}
 
         <PremiumGate plan={plan} required="premium" onUpgrade={upgrade}>
           <div className="bg-purple-900 p-6 rounded-xl mt-6">
@@ -549,7 +720,12 @@ export default function Home() {
           </div>
         </PremiumGate>
 
-        {status ? <p className="mt-3 text-sm text-gray-300">{status}</p> : null}
+        <div className="mt-3">
+          <p className="text-sm text-gray-300">
+            Status: {simulationState === "idle" ? "Ready" : simulationState.charAt(0).toUpperCase() + simulationState.slice(1)}
+            {status && ` - ${status}`}
+          </p>
+        </div>
       </div>
 
       <MetricsGrid metrics={metrics} />

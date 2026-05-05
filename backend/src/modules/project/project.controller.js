@@ -3,6 +3,9 @@ const { generateTraffic } = require("../../services/traffic.service");
 const { getIO } = require("../../websocket/socket");
 const User = require("../user/user.model");
 const { success, error } = require("../../utils/response");
+const logger = require("../../utils/logger");
+const { v4: uuidv4 } = require("uuid");
+const { initControl } = require("../../control/control.store");
 
 const createProject = async (req, res) => {
   const { name } = req.body;
@@ -72,7 +75,10 @@ const runProjectTraffic = async (req, res) => {
   getIO().emit(`logs-${id}`, startLog);
   getIO().emit("project-log", startLog);
 
-  const runId = await generateTraffic(
+  const runId = uuidv4();
+  await initControl(id, runId);
+
+  generateTraffic(
     {
       pattern: "requests",
       totalRequests: count,
@@ -80,9 +86,29 @@ const runProjectTraffic = async (req, res) => {
     },
     id,
     url,
-  );
+    { runId, controlInitialized: true },
+  )
+    .then(() => {
+      getIO().emit(`complete-${id}-${runId}`);
+    })
+    .catch((err) => {
+      logger.error({
+        message: "Traffic simulation failed",
+        projectId: id,
+        runId,
+        error: err.message,
+      });
 
-  return res.json({ message: `Traffic completed for project ${id}`, runId });
+      getIO().emit(`logs-${id}`, {
+        projectId: id,
+        requestId: req.requestId,
+        message: err.message || "Traffic simulation failed",
+        type: "error",
+        time: new Date().toLocaleTimeString(),
+      });
+    });
+
+  return res.json({ message: `Traffic started for project ${id}`, runId });
 };
 
 module.exports = { createProject, getProjects, getProject, runProjectTraffic };

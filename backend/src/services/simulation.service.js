@@ -2,44 +2,66 @@ const { recordRequest, getMetrics } = require("../metrics/metrics.store");
 const { getIO, emitBufferedLog } = require("../websocket/socket");
 const axios = require("axios");
 
+const MAX_RETRIES = 3;
+const delay = (ms) => new Promise((res) => setTimeout(res, ms));
+
 const simulateProcessing = async (url, requestId, projectId, runId) => {
   const io = getIO();
 
-  const start = Date.now();
+  let attempt = 0;
+  let success = false;
+  let finalLatency = 0;
+  let finalErrorType = "network";
 
-  try {
-    const res = await axios.get(url, { timeout: 3000 });
+  while (attempt <= MAX_RETRIES && !success) {
+    const start = Date.now(); // ✅ per-attempt timing
 
-    const latency = Date.now() - start;
+    try {
+      const res = await axios.get(url, { timeout: 3000 });
 
-    await recordRequest(projectId, runId, latency, true);
+      finalLatency = Date.now() - start;
+      success = true;
 
-    emitBufferedLog(projectId, {
-      requestId,
-      message: `✅ ${url} - ${res.status}`,
-      type: "success",
-      time: new Date().toLocaleTimeString(),
-    });
-  } catch (err) {
-    const latency = Date.now() - start;
+      await recordRequest(projectId, runId, finalLatency, true);
 
-    const errorType = err.code === "ECONNABORTED"
-      ? "timeout"
-      : err.response
-        ? "server"
-        : "network";
+      emitBufferedLog(projectId, {
+        requestId,
+        message: `✅ ${url} - ${res.status} (attempt ${attempt + 1})`,
+        type: "success",
+        time: new Date().toLocaleTimeString(),
+      });
 
-    await recordRequest(projectId, runId, latency, false, errorType);
+    } catch (err) {
+      finalLatency = Date.now() - start;
 
-    emitBufferedLog(projectId, {
-      requestId,
-      message: `❌ ${url} - ${err.message}`,
-      type: "error",
-      time: new Date().toLocaleTimeString(),
-    });
+      // classify error
+      finalErrorType =
+        err.code === "ECONNABORTED"
+          ? "timeout"
+          : err.response
+          ? "server"
+          : "network";
+
+      if (attempt === MAX_RETRIES) {
+        // ❌ final failure
+        await recordRequest(projectId, runId, finalLatency, false, finalErrorType);
+
+        emitBufferedLog(projectId, {
+          requestId,
+          message: `❌ ${url} - ${err.message} (after ${MAX_RETRIES + 1} attempts)`,
+          type: "error",
+          time: new Date().toLocaleTimeString(),
+        });
+      } else {
+        // 🔥 exponential backoff
+        await delay(100 * Math.pow(2, attempt));
+      }
+    }
+
+    attempt++; // ✅ always increment
   }
 
-  // 📊 Emit updated metrics
+  // 📊 Emit metrics (optional: throttle later)
   const metrics = await getMetrics(projectId, runId);
   io.emit(`metrics-${projectId}`, metrics);
 };
