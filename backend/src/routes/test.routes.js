@@ -8,6 +8,8 @@ const { runStages } = require('../services/execution.engine');
 const { getMetrics } = require('../metrics/metrics.store');
 const Run = require('../modules/run/run.model');
 const { v4: uuidv4 } = require('uuid');
+const { getControl, initControl } = require('../control/control.store');
+const { getIO } = require('../websocket/socket');
 
 
 const router = express.Router();
@@ -42,6 +44,7 @@ router.post('/test/:projectId', authMiddleware, async (req, res) => {
   }
 
   const runId = uuidv4();
+  await initControl(projectId, runId);
 
   // Create run entry
   const run = new Run({
@@ -58,8 +61,12 @@ router.post('/test/:projectId', authMiddleware, async (req, res) => {
   runStages({ ...config, projectId, url, runId }).then(async () => {
     // After completion, update run with metrics
     const metrics = await getMetrics(projectId, runId);
-    await Run.findOneAndUpdate({ runId }, {
-      status: 'completed',
+    const finalControl = await getControl(projectId, runId);
+    const finalStatus =
+      finalControl.status === 'stopped' ? 'stopped' : 'completed';
+
+    await Run.findOneAndUpdate({ projectId, runId }, {
+      status: finalStatus,
       totalRequests: metrics.totalRequests,
       success: metrics.success,
       failure: metrics.failure,
@@ -68,10 +75,19 @@ router.post('/test/:projectId', authMiddleware, async (req, res) => {
       rps: metrics.rps,
       errorTypes: metrics.errorTypes,
       latencyBuckets: metrics.latencyBuckets,
+      failureTimeline: metrics.failureTimeline,
     });
-  }).catch(err => {
+    getIO().emit(`complete-${projectId}-${runId}`);
+  }).catch(async (err) => {
     logger.error('Error in runStages', err);
-    Run.findOneAndUpdate({ runId }, { status: 'failed' });
+    await Run.findOneAndUpdate({ projectId, runId }, { status: 'failed' }).catch((error) => {
+      logger.error({
+        message: 'Failed to mark run as failed',
+        runId,
+        error: error.message,
+      });
+    });
+    getIO().emit(`complete-${projectId}-${runId}`);
   });
 
   res.json({ runId, message: 'Test started' });

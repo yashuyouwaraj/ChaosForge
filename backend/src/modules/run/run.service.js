@@ -7,6 +7,7 @@ const saveRun = async (data) => {
       message: "Saving run to database",
       projectId: data.projectId,
       runId: data.runId,
+      status: data.status,
       metrics: {
         totalRequests: data.totalRequests,
         success: data.success,
@@ -18,7 +19,11 @@ const saveRun = async (data) => {
         hasLatencyBuckets: !!data.latencyBuckets,
       },
     });
-    return await Run.create(data);
+    return await Run.findOneAndUpdate(
+      { projectId: data.projectId, runId: data.runId },
+      { $set: data },
+      { new: true, upsert: true, setDefaultsOnInsert: true },
+    );
   } catch (err) {
     logger.error({
       message: "Error saving run",

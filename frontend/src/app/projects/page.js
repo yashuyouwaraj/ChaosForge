@@ -79,13 +79,20 @@ export default function Projects() {
     }
   };
 
-  const openDashboard = (projectId, runId = "") => {
+  const openDashboard = (projectId, runId = "", options = {}) => {
     localStorage.setItem("projectId", projectId);
     if (runId) {
       localStorage.setItem("currentRunId", runId);
     } else {
       localStorage.removeItem("currentRunId");
     }
+
+    if (options.active) {
+      localStorage.setItem("currentRunActive", "true");
+    } else {
+      localStorage.removeItem("currentRunActive");
+    }
+
     window.location.href = "/";
   };
 
@@ -111,7 +118,7 @@ export default function Projects() {
       setIsTestRunning(true);
 
       await fetchRuns(projectId);
-      openDashboard(projectId, data.runId);
+      openDashboard(projectId, data.runId, { active: true });
     } catch (err) {
       setError(err.message || "Failed to start test");
       setIsTestRunning(false);

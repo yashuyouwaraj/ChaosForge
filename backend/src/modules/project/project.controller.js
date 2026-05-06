@@ -69,6 +69,7 @@ const runProjectTraffic = async (req, res) => {
     requestId: req.requestId,
     message: `Starting ${count} requests`,
     type: "info",
+    level: "info",
     time: new Date().toLocaleTimeString(),
   };
 
@@ -104,6 +105,7 @@ const runProjectTraffic = async (req, res) => {
         requestId: req.requestId,
         message: err.message || "Traffic simulation failed",
         type: "error",
+        level: "error",
         time: new Date().toLocaleTimeString(),
       });
     });

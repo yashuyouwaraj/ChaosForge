@@ -11,6 +11,8 @@ const { initControl, getControl } = require("../control/control.store");
 const useKafka = process.env.USE_KAFKA === "true";
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const FINAL_METRICS_POLL_MS = 1000;
+const FINAL_METRICS_MAX_WAIT_MS = 120000;
 
 /*
  * 🔥 MAIN ENTRY
@@ -36,29 +38,43 @@ const generateTraffic = async (config, projectId, url, options = {}) => {
   });
 
   // 🟩 STAGES MODE (DAY 41)
+  let expectedRequests = 0;
+
   if (config.pattern === "stages") {
-    await runStages(config, projectId, url, runId);
+    expectedRequests = await runStages(config, projectId, url, runId);
   } 
   // 🟦 DEFAULT REQUEST MODE (BACKWARD COMPATIBLE)
   else {
-    await runRequestMode(config, projectId, url, runId);
+    expectedRequests = await runRequestMode(config, projectId, url, runId);
   }
 
   // ⏳ wait for processing
-  await delay(useKafka ? 3000 : 500);
+  if (useKafka) {
+    await waitForFinalMetrics(projectId, runId, expectedRequests);
+  } else {
+    await delay(500);
+  }
 
   const finalMetrics = await getMetrics(projectId, runId);
+  const finalControl = await getControl(projectId, runId);
+  const finalStatus =
+    finalControl.status === "stopped" ? "stopped" : "completed";
 
   logger.info({
     message: "Captured metrics",
     projectId,
     runId,
+    status: finalStatus,
+    expectedRequests,
     metrics: finalMetrics,
   });
 
   await saveRun({
     projectId,
     runId,
+    status: finalStatus,
+    config,
+    url,
     ...finalMetrics,
   });
 
@@ -77,7 +93,7 @@ const runRequestMode = async (config, projectId, url, runId) => {
   if (!useKafka) {
     while (sent < requestCount) {
       const state = await waitIfPaused(projectId, runId);
-      if (state === "stopped") return;
+      if (state === "stopped") return sent;
 
       const rate = await getEffectiveRate(projectId, runId, baseRate);
       const promises = [];
@@ -94,14 +110,14 @@ const runRequestMode = async (config, projectId, url, runId) => {
         await delay(1000);
       }
     }
-    return;
+    return sent;
   }
 
   await connectProducer();
 
   while (sent < requestCount) {
     const state = await waitIfPaused(projectId, runId);
-    if (state === "stopped") return;
+    if (state === "stopped") return sent;
 
     const rate = await getEffectiveRate(projectId, runId, baseRate);
     const messages = [];
@@ -144,6 +160,8 @@ const runRequestMode = async (config, projectId, url, runId) => {
       },
     ],
   });
+
+  return sent;
 };
 
 
@@ -152,6 +170,7 @@ const runRequestMode = async (config, projectId, url, runId) => {
  */
 const runStages = async (config, projectId, url, runId) => {
   const stages = config.stages || [];
+  let sent = 0;
 
   logger.info({
     message: "Running staged load",
@@ -169,7 +188,7 @@ const runStages = async (config, projectId, url, runId) => {
 
       while (Date.now() < end) {
         const state = await waitIfPaused(projectId, runId);
-        if (state === "stopped") return;
+        if (state === "stopped") return sent;
 
         const rate = await getEffectiveRate(projectId, runId, baseRate);
         const promises = [];
@@ -178,13 +197,14 @@ const runStages = async (config, projectId, url, runId) => {
           promises.push(
             simulateProcessing(url, uuidv4(), projectId, runId)
           );
+          sent++;
         }
 
         await Promise.all(promises);
         await delay(1000);
       }
     }
-    return;
+    return sent;
   }
 
   await connectProducer();
@@ -197,7 +217,7 @@ const runStages = async (config, projectId, url, runId) => {
 
     while (Date.now() < end) {
       const state = await waitIfPaused(projectId, runId);
-      if (state === "stopped") return;
+      if (state === "stopped") return sent;
 
       const rate = await getEffectiveRate(projectId, runId, baseRate);
       const messages = [];
@@ -212,6 +232,7 @@ const runStages = async (config, projectId, url, runId) => {
             requestId: uuidv4(),
           }),
         });
+        sent++;
       }
 
       await producer.send({
@@ -238,6 +259,8 @@ const runStages = async (config, projectId, url, runId) => {
       },
     ],
   });
+
+  return sent;
 };
 
 const waitIfPaused = async (projectId, runId) => {
@@ -254,6 +277,39 @@ const waitIfPaused = async (projectId, runId) => {
 const getEffectiveRate = async (projectId, runId, baseRate) => {
   const { rateOverride } = await getControl(projectId, runId);
   return rateOverride && rateOverride > 0 ? rateOverride : baseRate;
+};
+
+const waitForFinalMetrics = async (projectId, runId, expectedRequests) => {
+  if (!expectedRequests || expectedRequests <= 0) {
+    return;
+  }
+
+  const startedAt = Date.now();
+  let metrics = await getMetrics(projectId, runId);
+
+  while (
+    metrics.totalRequests < expectedRequests &&
+    Date.now() - startedAt < FINAL_METRICS_MAX_WAIT_MS
+  ) {
+    const control = await getControl(projectId, runId);
+
+    if (control.status === "stopped") {
+      return;
+    }
+
+    await delay(FINAL_METRICS_POLL_MS);
+    metrics = await getMetrics(projectId, runId);
+  }
+
+  if (metrics.totalRequests < expectedRequests) {
+    logger.warn({
+      message: "Final metrics saved before all expected requests were recorded",
+      projectId,
+      runId,
+      expectedRequests,
+      recordedRequests: metrics.totalRequests,
+    });
+  }
 };
 
 module.exports = { generateTraffic };

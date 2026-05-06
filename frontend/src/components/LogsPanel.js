@@ -2,6 +2,22 @@
 
 import { useEffect, useRef } from "react";
 
+const getColor = (type) => {
+  switch (type) {
+    case "success":
+      return "text-green-500";
+
+    case "retry":
+      return "text-yellow-500";
+
+    case "error":
+      return "text-red-500";
+
+    default:
+      return "text-gray-300";
+  }
+};
+
 export default function LogsPanel({ projectId, logs = [], focusTrigger = 0 }) {
   const panelRef = useRef(null);
 
@@ -45,15 +61,7 @@ export default function LogsPanel({ projectId, logs = [], focusTrigger = 0 }) {
           <span className="text-purple-400">
             [{(log?.requestId || "local").slice(0, 5)}]
           </span>{" "}
-          <span
-            className={
-              log?.type === "error"
-                ? "text-red-400"
-                : log?.type === "success"
-                  ? "text-green-400"
-                  : "text-gray-300"
-            }
-          >
+          <span className={getColor(log?.type)}>
             {log?.message || "No log message"}
           </span>
         </div>

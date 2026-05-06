@@ -6,6 +6,12 @@ let io;
 const logBuffers = new Map();
 const LOG_FLUSH_INTERVAL_MS = 100;
 const MAX_LOG_BATCH = 100;
+const LOG_LEVEL_BY_TYPE = {
+  error: "error",
+  retry: "warn",
+  success: "info",
+  info: "info",
+};
 
 const getIO = () => {
   if (!io) {
@@ -45,8 +51,13 @@ const emitBufferedLog = (projectId, log) => {
     logBuffers.set(projectId, []);
   }
 
+  const normalizedLog = {
+    ...log,
+    level: log.level || LOG_LEVEL_BY_TYPE[log.type] || "info",
+  };
+
   const buffer = logBuffers.get(projectId);
-  buffer.push(log);
+  buffer.push(normalizedLog);
 
   if (buffer.length >= MAX_LOG_BATCH) {
     flushLogBuffer(projectId);

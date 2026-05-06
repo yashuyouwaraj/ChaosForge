@@ -69,12 +69,39 @@ export default function Home() {
 
   useEffect(() => {
     const id = localStorage.getItem("projectId");
+    const activeRunId = localStorage.getItem("currentRunId");
+    const hasActiveRun = localStorage.getItem("currentRunActive") === "true";
 
     setProjectId(id);
+    if (activeRunId && hasActiveRun) {
+      setRunId(activeRunId);
+      setSimulationState("running");
+      setIsRunning(true);
+      setStatus("Simulation running");
+      const startTimestamp = Date.now();
+      chartStartTimeRef.current = startTimestamp;
+      const startTime = new Date(startTimestamp).toLocaleTimeString();
+      setGraphData([
+        { time: startTime, timestamp: startTimestamp, elapsedSec: 0, requests: 0 },
+      ]);
+      setHistory([
+        {
+          time: startTime,
+          timestamp: startTimestamp,
+          elapsedSec: 0,
+          avgLatency: 0,
+          p95Latency: 0,
+          rps: 0,
+        },
+      ]);
+      return;
+    }
+
     setRunId(null);
     setSimulationState("idle");
     setIsRunning(false);
     localStorage.removeItem("currentRunId");
+    localStorage.removeItem("currentRunActive");
   }, []);
 
   useEffect(() => {
@@ -371,6 +398,7 @@ export default function Home() {
       );
       if (res?.runId) {
         localStorage.setItem("currentRunId", res.runId);
+        localStorage.setItem("currentRunActive", "true");
         setRunId(res.runId);
       }
       await refreshMetricsSnapshot(res?.runId || runId);
@@ -380,6 +408,7 @@ export default function Home() {
       if (error.message === "Project not found") {
         localStorage.removeItem("projectId");
         localStorage.removeItem("currentRunId");
+        localStorage.removeItem("currentRunActive");
         setProjectId(null);
         setRunId(null);
       }
@@ -416,6 +445,7 @@ export default function Home() {
     setStatus("Simulation stopped");
     setRunId(null);
     localStorage.removeItem("currentRunId");
+    localStorage.removeItem("currentRunActive");
   };
 
   const changeSimulationRate = (value) => {
@@ -483,6 +513,7 @@ export default function Home() {
       setRunId(null);
       setStatus("Simulation completed");
       localStorage.removeItem("currentRunId");
+      localStorage.removeItem("currentRunActive");
     };
 
     const completeEvent = `complete-${projectId}-${runId}`;
