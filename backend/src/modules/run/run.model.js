@@ -7,6 +7,12 @@ const runSchema = new mongoose.Schema({
     config: { type: Object },
     url: { type: String },
 
+    owner:{
+      type:mongoose.Schema.Types.ObjectId,
+      ref:"User",
+      required:true,
+    },
+
     // Core metrics
     totalRequests: Number,
     success: Number,

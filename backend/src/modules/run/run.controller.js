@@ -11,7 +11,7 @@ const getRuns = async (req, res) => {
       return res.status(400).json({ error: "projectId is required" });
     }
 
-    const runs = await getRunsByProject(projectId);
+    const runs = await getRunsByProject(projectId, req.user.id);
     
     return res.json(runs);
   } catch (err) {
@@ -34,6 +34,10 @@ const compare = async(req,res)=>{
 
     if(!A || !B){
         return res.status(404).json({error: "One or both runs not found"})
+    }
+
+    if (A.owner.toString() !== req.user.id || B.owner.toString() !== req.user.id) {
+        return res.status(403).json({ message: "Access denied. You do not own this project." });
     }
 
     const comparison = compareRuns(A.toObject(), B.toObject());

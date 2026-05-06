@@ -2,10 +2,12 @@ const express = require("express");
 
 const {getMetrics} = require("../metrics/metrics.store")
 const Run = require("../modules/run/run.model");
+const authMiddleware = require("../middleware/auth.middleware");
+const { verifyProjectOwnership } = require("../middleware/ownership.middleware");
 
 const router = express.Router();
 
-router.get("/metrics/:projectId", async (req, res) => {
+router.get("/metrics/:projectId", authMiddleware, verifyProjectOwnership, async (req, res) => {
     const { projectId } = req.params;
     const savedRun = req.query.runId
         ? await Run.findOne({ projectId, runId: req.query.runId })

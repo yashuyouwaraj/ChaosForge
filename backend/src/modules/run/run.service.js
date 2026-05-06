@@ -34,9 +34,9 @@ const saveRun = async (data) => {
   }
 };
 
-const getRunsByProject = async (projectId) => {
+const getRunsByProject = async (projectId, userId) => {
   try {
-    return await Run.find({ projectId }).sort({ createdAt: -1 });
+    return await Run.find({ projectId,owner: userId }).sort({ createdAt: -1 });
   } catch (err) {
     logger.error({
       message: "Error fetching runs",

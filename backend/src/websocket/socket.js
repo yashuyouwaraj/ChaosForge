@@ -1,6 +1,7 @@
 const { Server } = require("socket.io");
 const logger = require("../utils/logger");
 const { registerControlHandlers } = require("../control/control.socket");
+const Run = require("../modules/run/run.model");
 
 let io;
 const logBuffers = new Map();

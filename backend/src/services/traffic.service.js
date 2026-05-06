@@ -70,6 +70,7 @@ const generateTraffic = async (config, projectId, url, options = {}) => {
   });
 
   await saveRun({
+    owner: options.owner,
     projectId,
     runId,
     status: finalStatus,

@@ -3,7 +3,9 @@ const mongoose = require("mongoose");
 const projectSchema = new mongoose.Schema({
   name: String,
   owner: {
-    type: String,
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
     index: true,
   }, //email
   createdAt: {

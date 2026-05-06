@@ -6,6 +6,7 @@ const User = require("../user/user.model");
 const createAuthToken = (user) => {
   return jwt.sign(
     {
+      id: user._id.toString(),
       email: user.email,
       role: user.role,
       plan: user.plan,

@@ -9,27 +9,23 @@ const { initControl } = require("../../control/control.store");
 
 const createProject = async (req, res) => {
   const { name } = req.body;
-  const project = await projectService.create(name, req.user.email);
+  const project = await projectService.create(name, req.user.id);
 
   return res.json(project);
 };
 
 const getProjects = async (req, res) => {
-  const projects = await projectService.getAll(req.user.email);
+  const projects = await projectService.getAll(req.user.id);
 
   res.json(projects);
 };
 
 const getProject = async (req, res) => {
-  const project = await projectService.getOne(req.params.id);
+  const project = req.project || (await projectService.getOne(req.params.id));
 
   if (!project) {
     return error(res, "Project not found", 404);
   }
-  if (project.owner !== req.user.email) {
-    return res.status(403).json({ message: "Forbidden" });
-  }
-
   return success(res, project);
 };
 
@@ -54,13 +50,13 @@ const runProjectTraffic = async (req, res) => {
     });
   }
 
-  const project = await projectService.getOne(id);
+  const project = req.project || (await projectService.getOne(id));
 
   if (!project) {
     return res.status(404).json({ message: "Project not found" });
   }
 
-  if (project.owner !== req.user.email) {
+  if (project.owner.toString() !== req.user.id) {
     return res.status(403).json({ message: "Not your project" });
   }
 
@@ -87,7 +83,7 @@ const runProjectTraffic = async (req, res) => {
     },
     id,
     url,
-    { runId, controlInitialized: true },
+    { runId, controlInitialized: true, owner: req.user.id },
   )
     .then(() => {
       getIO().emit(`complete-${id}-${runId}`);
