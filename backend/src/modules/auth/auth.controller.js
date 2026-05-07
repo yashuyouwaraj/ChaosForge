@@ -26,9 +26,9 @@ const loginHandler = async (req, res) => {
   }
 };
 
-const upgradeHandler = (req, res) => {
+const upgradeHandler = async (req, res) => {
   const { plan } = req.body;
-  const user = upgradePlan(req.user.email, plan);
+  const user = await upgradePlan(req.user.email, plan);
   const token = createAuthToken(user);
 
   res.json({

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
-import socket from "../../lib/socket";
+import socket, { joinRun, leaveRun } from "../../lib/socket";
 
 export default function Projects() {
   const [projects, setProjects] = useState([]);
@@ -28,6 +28,14 @@ export default function Projects() {
       { durationSec: 10, rate: 10 },
     ],
   });
+
+  const logout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("projectId");
+    localStorage.removeItem("currentRunId");
+    localStorage.removeItem("currentRunActive");
+    window.location.href = "/login";
+  };
 
   const createProject = async () => {
     if (!name.trim()) {
@@ -81,19 +89,23 @@ export default function Projects() {
 
   const openDashboard = (projectId, runId = "", options = {}) => {
     localStorage.setItem("projectId", projectId);
+    const params = new URLSearchParams({ projectId });
+
     if (runId) {
       localStorage.setItem("currentRunId", runId);
+      params.set("runId", runId);
     } else {
       localStorage.removeItem("currentRunId");
     }
 
     if (options.active) {
       localStorage.setItem("currentRunActive", "true");
+      params.set("active", "true");
     } else {
       localStorage.removeItem("currentRunActive");
     }
 
-    window.location.href = "/";
+    window.location.href = `/?${params.toString()}`;
   };
 
   const runTest = async (projectId) => {
@@ -162,10 +174,31 @@ export default function Projects() {
     let ignore = false;
 
     const loadProjects = async () => {
-      const data = await api("/projects");
+      if (!localStorage.getItem("token")) {
+        window.location.href = "/login";
+        return;
+      }
 
-      if (!ignore) {
-        setProjects(data);
+      try {
+        const data = await api("/projects");
+
+        if (!ignore) {
+          setProjects(data);
+        }
+      } catch (err) {
+        if (
+          err.message === "Invalid token" ||
+          err.message === "No token provided" ||
+          err.message === "User not found"
+        ) {
+          localStorage.removeItem("token");
+          window.location.href = "/login";
+          return;
+        }
+
+        if (!ignore) {
+          setError(err.message || "Unable to load projects.");
+        }
       }
     };
 
@@ -176,10 +209,48 @@ export default function Projects() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!currentTestRunId || !currentTestProjectId) return;
+
+  // 💀 JOIN ROOM
+    joinRun(currentTestProjectId, currentTestRunId);
+
+    const metricsEvent = `metrics-${currentTestProjectId}-${currentTestRunId}`;
+    const logsEvent = `logs-${currentTestProjectId}-${currentTestRunId}`;
+
+    const handleMetrics = (data) => {
+      console.log("Metrics:", data);
+    };
+
+    const handleLogs = (log) => {
+      console.log("Log:", log);
+    };
+
+    socket.on(metricsEvent, handleMetrics);
+    socket.on(logsEvent, handleLogs);
+
+    return () => {
+    // 💀 CLEANUP
+      leaveRun(currentTestRunId);
+
+      socket.off(metricsEvent, handleMetrics);
+      socket.off(logsEvent, handleLogs);
+    };
+  }, [currentTestRunId, currentTestProjectId]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-4xl font-bold mb-8 text-slate-100">My Projects</h1>
+        <div className="mb-8 flex items-center justify-between gap-4">
+          <h1 className="text-4xl font-bold text-slate-100">My Projects</h1>
+          <button
+            type="button"
+            onClick={logout}
+            className="rounded-md border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-red-400 hover:text-red-200"
+          >
+            Logout
+          </button>
+        </div>
 
         <div className="flex gap-3 mb-8">
           <input

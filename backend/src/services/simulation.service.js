@@ -43,7 +43,7 @@ const simulateProcessing = async (url, requestId, projectId, runId) => {
 
       await recordRequest(projectId, runId, finalLatency, true);
 
-      emitBufferedLog(projectId, {
+      emitBufferedLog(projectId, runId, {
         requestId,
         message: `✅ ${url} - ${res.status} (try ${attempt + 1}/${MAX_RETRIES + 1})`,
         type: "success",
@@ -80,7 +80,7 @@ const simulateProcessing = async (url, requestId, projectId, runId) => {
           finalErrorType,
         );
 
-        emitBufferedLog(projectId, {
+        emitBufferedLog(projectId, runId, {
           requestId,
           message: `❌ ${url} - ${err.message} (after ${MAX_RETRIES + 1} attempts)`,
           type: "error",
@@ -101,7 +101,7 @@ const simulateProcessing = async (url, requestId, projectId, runId) => {
           retryInMs,
         });
 
-        emitBufferedLog(projectId, {
+        emitBufferedLog(projectId, runId, {
           requestId,
           message: `Retrying ${url} after ${err.message} (try ${attempt + 1}/${MAX_RETRIES + 1})`,
           type: "retry",
@@ -118,7 +118,7 @@ const simulateProcessing = async (url, requestId, projectId, runId) => {
 
   // 📊 Emit metrics (optional: throttle later)
   const metrics = await getMetrics(projectId, runId);
-  io.emit(`metrics-${projectId}`, metrics);
+  io.emit(`metrics-${projectId}-${runId}`, metrics);
 };
 
 module.exports = { simulateProcessing };

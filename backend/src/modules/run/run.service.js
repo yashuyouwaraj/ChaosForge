@@ -22,7 +22,7 @@ const saveRun = async (data) => {
     return await Run.findOneAndUpdate(
       { projectId: data.projectId, runId: data.runId },
       { $set: data },
-      { new: true, upsert: true, setDefaultsOnInsert: true },
+      { returnDocument: "after", upsert: true, setDefaultsOnInsert: true },
     );
   } catch (err) {
     logger.error({

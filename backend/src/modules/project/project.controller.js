@@ -2,6 +2,7 @@ const projectService = require("./project.service");
 const { generateTraffic } = require("../../services/traffic.service");
 const { getIO } = require("../../websocket/socket");
 const User = require("../user/user.model");
+const Run = require("../run/run.model");
 const { success, error } = require("../../utils/response");
 const logger = require("../../utils/logger");
 const { v4: uuidv4 } = require("uuid");
@@ -74,13 +75,23 @@ const runProjectTraffic = async (req, res) => {
 
   const runId = uuidv4();
   await initControl(id, runId);
+  const runConfig = {
+    pattern: "requests",
+    totalRequests: count,
+    rate: Number.parseInt(rate, 10) || 50,
+  };
+
+  await Run.create({
+    owner: req.user.id,
+    projectId: id,
+    runId,
+    status: "running",
+    config: runConfig,
+    url,
+  });
 
   generateTraffic(
-    {
-      pattern: "requests",
-      totalRequests: count,
-      rate: Number.parseInt(rate, 10) || 50,
-    },
+    runConfig,
     id,
     url,
     { runId, controlInitialized: true, owner: req.user.id },

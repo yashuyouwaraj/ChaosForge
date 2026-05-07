@@ -6,10 +6,16 @@ const { client: redis, connectRedis } = require("../config/redis");
 // metrics:{projectId}
 // latencies:{projectId}
 
-const MAX_LIST_SIZE=1000; //limit memory
-const TTL=3600 //1 hour
+const MAX_LIST_SIZE = 1000; //limit memory
+const TTL = 3600; //1 hour
 
-const recordRequest = async (projectId, runId, latency, isSuccess, errorType = "network") => {
+const recordRequest = async (
+  projectId,
+  runId,
+  latency,
+  isSuccess,
+  errorType = "network",
+) => {
   await connectRedis();
 
   const metricsKey = `metrics:${projectId}:${runId}`;
@@ -52,7 +58,10 @@ const recordRequest = async (projectId, runId, latency, isSuccess, errorType = "
   // 🔥 EMIT
   try {
     const io = getIO();
-    io.emit(`metrics-${projectId}`, await getMetrics(projectId, runId));
+    io.to(`run-${runId}`).emit(
+      `metrics-${projectId}-${runId}`,
+      await getMetrics(projectId, runId),
+    );
   } catch (err) {
     console.error("Emit error:", err.message);
   }
@@ -127,9 +136,7 @@ const getMetrics = async (projectId, runId) => {
     totalRequests,
     success: Number(data.success || 0),
     failure: Number(data.failure || 0),
-    avgLatency: totalRequests
-      ? Math.round(totalLatency / totalRequests)
-      : 0,
+    avgLatency: totalRequests ? Math.round(totalLatency / totalRequests) : 0,
     p95Latency: calculateP95(parsedLatencies),
     rps: calculateAverageRPS(totalRequests, startedAt, lastRequestAt),
     currentRps: calculateRPS(parsedTimestamps, now),
@@ -142,4 +149,10 @@ const getMetrics = async (projectId, runId) => {
     failureTimeline: failures.map((t) => ({ time: Number(t) })),
   };
 };
-module.exports = { recordRequest, getMetrics, calculateP95, calculateRPS, calculateAverageRPS };
+module.exports = {
+  recordRequest,
+  getMetrics,
+  calculateP95,
+  calculateRPS,
+  calculateAverageRPS,
+};

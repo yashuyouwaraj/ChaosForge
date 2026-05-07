@@ -6,6 +6,7 @@ const jwt = require("jsonwebtoken");
 const getSocketUserId = async (socket) => {
   const authToken = socket.handshake.auth?.token;
   const authHeader = socket.handshake.headers?.authorization;
+
   const token = authToken || authHeader?.split(" ")[1];
 
   if (!token) {
@@ -15,12 +16,17 @@ const getSocketUserId = async (socket) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
+    // JWT contains user id
     if (decoded.id) {
       return decoded.id;
     }
 
+    // fallback using email
     if (decoded.email) {
-      const user = await User.findOne({ email: decoded.email }).select("_id");
+      const user = await User.findOne({
+        email: decoded.email,
+      }).select("_id");
+
       return user?._id.toString() || null;
     }
 
@@ -37,22 +43,89 @@ const ownsRun = async (socket, projectId, runId) => {
     return false;
   }
 
-  const run = await Run.findOne({ projectId, runId }).select("owner");
+  const run = await Run.findOne({
+    projectId,
+    runId,
+  }).select("owner");
+
   return !!run && run.owner.toString() === userId;
 };
 
 const registerControlHandlers = (io) => {
   io.on("connection", (socket) => {
+
+    /**
+     * 💀 JOIN RUN ROOM
+     */
+    socket.on("join-run", async ({ projectId, runId }, ack) => {
+      try {
+        const allowed = await ownsRun(socket, projectId, runId);
+
+        if (!allowed) {
+          return ack?.({
+            ok: false,
+            message: "Unauthorized",
+          });
+        }
+
+        socket.join(`run-${runId}`);
+
+        ack?.({
+          ok: true,
+          room: `run-${runId}`,
+        });
+
+      } catch (error) {
+        ack?.({
+          ok: false,
+          message: error.message,
+        });
+      }
+    });
+
+    /**
+     * 💀 LEAVE RUN ROOM
+     */
+    socket.on("leave-run", ({ runId }, ack) => {
+      socket.leave(`run-${runId}`);
+
+      ack?.({
+        ok: true,
+      });
+    });
+
+    /**
+     * 💀 PAUSE
+     */
     socket.on("pause", async ({ projectId, runId }, ack) => {
       try {
-        if (!(await ownsRun(socket, projectId, runId))) {
-          return;
+        const allowed = await ownsRun(socket, projectId, runId);
+
+        if (!allowed) {
+          return ack?.({
+            ok: false,
+            message: "Unauthorized",
+          });
         }
 
         await setStatus(projectId, runId, "paused");
-        ack?.({ ok: true, status: "paused" });
+
+        io.to(`run-${runId}`).emit("run-status", {
+          runId,
+          status: "paused",
+        });
+
+        ack?.({
+          ok: true,
+          status: "paused",
+        });
+
       } catch (error) {
-        ack?.({ ok: false, message: error.message });
+        ack?.({
+          ok: false,
+          message: error.message,
+        });
+
         socket.emit("control-error", {
           action: "pause",
           message: error.message,
@@ -60,16 +133,38 @@ const registerControlHandlers = (io) => {
       }
     });
 
+    /**
+     * 💀 RESUME
+     */
     socket.on("resume", async ({ projectId, runId }, ack) => {
       try {
-        if (!(await ownsRun(socket, projectId, runId))) {
-          return;
+        const allowed = await ownsRun(socket, projectId, runId);
+
+        if (!allowed) {
+          return ack?.({
+            ok: false,
+            message: "Unauthorized",
+          });
         }
 
         await setStatus(projectId, runId, "running");
-        ack?.({ ok: true, status: "running" });
+
+        io.to(`run-${runId}`).emit("run-status", {
+          runId,
+          status: "running",
+        });
+
+        ack?.({
+          ok: true,
+          status: "running",
+        });
+
       } catch (error) {
-        ack?.({ ok: false, message: error.message });
+        ack?.({
+          ok: false,
+          message: error.message,
+        });
+
         socket.emit("control-error", {
           action: "resume",
           message: error.message,
@@ -77,16 +172,38 @@ const registerControlHandlers = (io) => {
       }
     });
 
+    /**
+     * 💀 STOP
+     */
     socket.on("stop", async ({ projectId, runId }, ack) => {
       try {
-        if (!(await ownsRun(socket, projectId, runId))) {
-          return;
+        const allowed = await ownsRun(socket, projectId, runId);
+
+        if (!allowed) {
+          return ack?.({
+            ok: false,
+            message: "Unauthorized",
+          });
         }
 
         await setStatus(projectId, runId, "stopped");
-        ack?.({ ok: true, status: "stopped" });
+
+        io.to(`run-${runId}`).emit("run-status", {
+          runId,
+          status: "stopped",
+        });
+
+        ack?.({
+          ok: true,
+          status: "stopped",
+        });
+
       } catch (error) {
-        ack?.({ ok: false, message: error.message });
+        ack?.({
+          ok: false,
+          message: error.message,
+        });
+
         socket.emit("control-error", {
           action: "stop",
           message: error.message,
@@ -94,10 +211,18 @@ const registerControlHandlers = (io) => {
       }
     });
 
+    /**
+     * 💀 LIVE RATE CHANGE
+     */
     socket.on("set-rate", async ({ projectId, runId, rate }, ack) => {
       try {
-        if (!(await ownsRun(socket, projectId, runId))) {
-          return;
+        const allowed = await ownsRun(socket, projectId, runId);
+
+        if (!allowed) {
+          return ack?.({
+            ok: false,
+            message: "Unauthorized",
+          });
         }
 
         const parsedRate = Number(rate);
@@ -107,15 +232,37 @@ const registerControlHandlers = (io) => {
         }
 
         await setRate(projectId, runId, parsedRate);
-        ack?.({ ok: true, rate: parsedRate });
+
+        io.to(`run-${runId}`).emit("rate-updated", {
+          runId,
+          rate: parsedRate,
+        });
+
+        ack?.({
+          ok: true,
+          rate: parsedRate,
+        });
+
       } catch (error) {
-        ack?.({ ok: false, message: error.message });
+        ack?.({
+          ok: false,
+          message: error.message,
+        });
+
         socket.emit("control-error", {
           action: "set-rate",
           message: error.message,
         });
       }
     });
+
+    /**
+     * 💀 DISCONNECT
+     */
+    socket.on("disconnect", () => {
+      console.log(`Socket disconnected: ${socket.id}`);
+    });
+
   });
 };
 

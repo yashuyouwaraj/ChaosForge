@@ -50,6 +50,7 @@ router.post('/test/:projectId', authMiddleware, async (req, res) => {
   const run = new Run({
     runId,
     projectId,
+    owner: req.user.id,
     config,
     url,
     status: 'running',

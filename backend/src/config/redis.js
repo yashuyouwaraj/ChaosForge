@@ -5,31 +5,56 @@ const client = new Redis({
   port: process.env.REDIS_PORT || 6379,
 });
 
+let isVerified = false;
+let verifyPromise = null;
+
 client.on("connect", () => {
-  console.log("✅ Redis connecting...");
+  console.log("Redis connecting...");
 });
 
 client.on("ready", () => {
-  console.log("🔥 Redis ready");
+  isVerified = true;
+  console.log("Redis ready");
 });
 
 client.on("error", (err) => {
-  console.error("❌ Redis error:", err.message);
+  isVerified = false;
+  console.error("Redis error:", err.message);
 });
 
 client.on("close", () => {
-  console.log("⚠️ Redis connection closed");
+  isVerified = false;
+  console.log("Redis connection closed");
 });
 
-// 🚀 Connect is automatic with ioredis
 const connectRedis = async () => {
-  // ioredis connects automatically, just verify connection
+  if (isVerified && client.status === "ready") {
+    return client;
+  }
+
+  if (verifyPromise) {
+    return verifyPromise;
+  }
+
+  // ioredis connects automatically; ping only when the connection is not verified.
+  verifyPromise = client.ping().then(() => {
+    isVerified = true;
+
+    if (process.env.DEBUG === "true") {
+      console.log("Redis ping successful");
+    }
+
+    return client;
+  });
+
   try {
-    await client.ping();
-    console.log("✅ Redis ping successful");
+    return await verifyPromise;
   } catch (err) {
-    console.error("❌ Redis connection failed:", err.message);
+    isVerified = false;
+    console.error("Redis connection failed:", err.message);
     throw err;
+  } finally {
+    verifyPromise = null;
   }
 };
 

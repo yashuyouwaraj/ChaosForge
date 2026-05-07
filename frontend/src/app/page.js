@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import socket from "../lib/socket";
+import { useCallback, useEffect, useRef, useState } from "react";
+import socket, { joinRun, leaveRun } from "../lib/socket";
 import MetricsGrid from "../components/MetricsGrid";
 import GraphSection from "../components/GraphSection";
 import LogsPanel from "../components/LogsPanel";
@@ -15,6 +15,42 @@ import ErrorPieChart from "@/components/ErrorPieChart";
 import RpsChart from "@/components/RpsChart";
 
 const MAX_CHART_POINTS = 240;
+const MAX_LOGS = 100;
+
+const getRunLogCacheKey = (projectId, runId) => {
+  return projectId && runId ? `logs:${projectId}:${runId}` : null;
+};
+
+const readCachedLogs = (projectId, runId) => {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  const key = getRunLogCacheKey(projectId, runId);
+  if (!key) {
+    return [];
+  }
+
+  try {
+    const cached = JSON.parse(sessionStorage.getItem(key) || "[]");
+    return Array.isArray(cached) ? cached.slice(-MAX_LOGS) : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeCachedLogs = (projectId, runId, nextLogs) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const key = getRunLogCacheKey(projectId, runId);
+  if (!key) {
+    return;
+  }
+
+  sessionStorage.setItem(key, JSON.stringify(nextLogs.slice(-MAX_LOGS)));
+};
 
 export default function Home() {
   const [metrics, setMetrics] = useState({
@@ -68,16 +104,34 @@ export default function Home() {
   
 
   useEffect(() => {
-    const id = localStorage.getItem("projectId");
-    const activeRunId = localStorage.getItem("currentRunId");
-    const hasActiveRun = localStorage.getItem("currentRunActive") === "true";
+    if (!localStorage.getItem("token")) {
+      window.location.href = "/login";
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("projectId") || localStorage.getItem("projectId");
+    const activeRunId = params.get("runId") || localStorage.getItem("currentRunId");
+    const hasActiveRun =
+      params.get("active") === "true" ||
+      localStorage.getItem("currentRunActive") === "true";
 
     setProjectId(id);
-    if (activeRunId && hasActiveRun) {
+    if (id) {
+      localStorage.setItem("projectId", id);
+    }
+
+    if (activeRunId) {
+      localStorage.setItem("currentRunId", activeRunId);
+      if (hasActiveRun) {
+        localStorage.setItem("currentRunActive", "true");
+      } else {
+        localStorage.removeItem("currentRunActive");
+      }
       setRunId(activeRunId);
-      setSimulationState("running");
-      setIsRunning(true);
-      setStatus("Simulation running");
+      setSimulationState(hasActiveRun ? "running" : "idle");
+      setIsRunning(hasActiveRun);
+      setStatus(hasActiveRun ? "Simulation running" : "Viewing selected run");
       const startTimestamp = Date.now();
       chartStartTimeRef.current = startTimestamp;
       const startTime = new Date(startTimestamp).toLocaleTimeString();
@@ -94,6 +148,7 @@ export default function Home() {
           rps: 0,
         },
       ]);
+      setLogs(readCachedLogs(id, activeRunId));
       return;
     }
 
@@ -153,7 +208,7 @@ export default function Home() {
     }
   };
 
-  const addMetricsSnapshot = (snapshot) => {
+  const addMetricsSnapshot = useCallback((snapshot) => {
     const timestamp = Date.now();
     if (!chartStartTimeRef.current) {
       chartStartTimeRef.current = timestamp;
@@ -185,9 +240,9 @@ export default function Home() {
         },
       ].slice(-MAX_CHART_POINTS),
     );
-  };
+  }, []);
 
-  const refreshMetricsSnapshot = async (targetRunId = runId) => {
+  const refreshMetricsSnapshot = useCallback(async (targetRunId = runId) => {
     if (!projectId) {
       return;
     }
@@ -196,7 +251,7 @@ export default function Home() {
       `/metrics/${projectId}${targetRunId ? `?runId=${targetRunId}` : ""}`,
     );
     addMetricsSnapshot(snapshot);
-  };
+  }, [addMetricsSnapshot, projectId, runId]);
 
   const imageToDataUrl = (image, timeoutMs = 4000) =>
     new Promise((resolve, reject) => {
@@ -399,6 +454,11 @@ export default function Home() {
       if (res?.runId) {
         localStorage.setItem("currentRunId", res.runId);
         localStorage.setItem("currentRunActive", "true");
+        const params = new URLSearchParams(window.location.search);
+        params.set("projectId", projectId);
+        params.set("runId", res.runId);
+        params.set("active", "true");
+        window.history.replaceState(null, "", `/?${params.toString()}`);
         setRunId(res.runId);
       }
       await refreshMetricsSnapshot(res?.runId || runId);
@@ -443,9 +503,22 @@ export default function Home() {
     setSimulationState("stopped");
     setIsRunning(false);
     setStatus("Simulation stopped");
-    setRunId(null);
+    localStorage.removeItem("currentRunActive");
+    const params = new URLSearchParams(window.location.search);
+    params.delete("active");
+    window.history.replaceState(
+      null,
+      "",
+      params.toString() ? `/?${params.toString()}` : "/",
+    );
+  };
+
+  const logout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("projectId");
     localStorage.removeItem("currentRunId");
     localStorage.removeItem("currentRunActive");
+    window.location.href = "/login";
   };
 
   const changeSimulationRate = (value) => {
@@ -508,12 +581,16 @@ export default function Home() {
         return;
       }
 
+      refreshMetricsSnapshot(runId).catch((error) => {
+        setStatus(error.message || "Failed to load final metrics");
+      });
       setSimulationState("idle");
       setIsRunning(false);
-      setRunId(null);
       setStatus("Simulation completed");
-      localStorage.removeItem("currentRunId");
       localStorage.removeItem("currentRunActive");
+      const params = new URLSearchParams(window.location.search);
+      params.delete("active");
+      window.history.replaceState(null, "", `/?${params.toString()}`);
     };
 
     const completeEvent = `complete-${projectId}-${runId}`;
@@ -522,10 +599,10 @@ export default function Home() {
     return () => {
       socket.off(completeEvent, handleComplete);
     };
-  }, [projectId, runId]);
+  }, [projectId, refreshMetricsSnapshot, runId]);
 
   useEffect(() => {
-    if (!projectId) {
+    if (!projectId || !runId) {
       return;
     }
 
@@ -533,8 +610,17 @@ export default function Home() {
       latestMetricsRef.current = data;
     };
 
-    const metricsEvent = `metrics-${projectId}`;
+    joinRun(projectId, runId, (response) => {
+      if (response && !response.ok) {
+        setStatus(response.message || "Unable to join live run updates");
+      }
+    });
+
+    const metricsEvent = `metrics-${projectId}-${runId}`;
     socket.on(metricsEvent, handleMetrics);
+    refreshMetricsSnapshot(runId).catch((error) => {
+      setStatus(error.message || "Failed to load current metrics");
+    });
 
     const interval = setInterval(() => {
       if (!latestMetricsRef.current) {
@@ -579,17 +665,18 @@ export default function Home() {
 
     return () => {
       clearInterval(interval);
+      leaveRun(runId);
       socket.off(metricsEvent, handleMetrics);
     };
-  }, [projectId]);
+  }, [projectId, refreshMetricsSnapshot, runId]);
 
   useEffect(() => {
     pendingLogsRef.current = [];
-    setLogs([]);
-  }, [projectId]);
+    setLogs(readCachedLogs(projectId, runId));
+  }, [projectId, runId]);
 
   useEffect(() => {
-    if (!projectId) {
+    if (!projectId || !runId) {
       return;
     }
 
@@ -601,7 +688,11 @@ export default function Home() {
       }
 
       pendingLogsRef.current = [];
-      setLogs((prev) => [...prev, ...incomingLogs].slice(-100));
+      setLogs((prev) => {
+        const nextLogs = [...prev, ...incomingLogs].slice(-MAX_LOGS);
+        writeCachedLogs(projectId, runId, nextLogs);
+        return nextLogs;
+      });
       flushScheduledRef.current = false;
     };
 
@@ -619,13 +710,13 @@ export default function Home() {
       scheduleFlush();
     };
 
-    const projectLogEvent = `logs-${projectId}`;
+    const projectLogEvent = `logs-${projectId}-${runId}`;
     socket.on(projectLogEvent, handleLogEvent);
 
     return () => {
       socket.off(projectLogEvent, handleLogEvent);
     };
-  }, [projectId]);
+  }, [projectId, runId]);
 
   if (!projectId) {
     return (
@@ -635,15 +726,24 @@ export default function Home() {
     );
   }
 
-  const hasActiveSimulation = isRunning || Boolean(runId);
+  const hasActiveSimulation = isRunning;
 
   return (
     <div className="p-10 max-w-7xl mx-auto">
       <h1 className="text-3xl font-bold mb-6">ChaosForge Dashboard</h1>
       <div className="mb-4">
-        <div className="flex justify-between mb-6">
+        <div className="flex justify-between mb-6 gap-4">
           <h1 className="text-2xl">ChaosForge</h1>
-          <PlanBadge plan={plan} />
+          <div className="flex items-center gap-3">
+            <PlanBadge plan={plan} />
+            <button
+              type="button"
+              onClick={logout}
+              className="rounded-md border border-white/20 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-red-400 hover:text-red-200"
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </div>
 
@@ -751,14 +851,37 @@ export default function Home() {
           </div>
         </PremiumGate>
 
-        <div className="mt-3">
-          <p className="text-sm text-gray-300">
+      <div className="mt-3">
+          <p className="text-sm text-gray-300" data-testid="simulation-status">
             Status: {simulationState === "idle" ? "Ready" : simulationState.charAt(0).toUpperCase() + simulationState.slice(1)}
             {status && ` - ${status}`}
           </p>
+          {runId ? (
+            <p className="mt-1 text-xs text-slate-500" data-testid="active-run-id">
+              Run: {runId}
+            </p>
+          ) : null}
         </div>
       </div>
 
+      <div data-testid="metrics-total-requests" className="sr-only">
+        {metrics.totalRequests}
+      </div>
+      <div data-testid="metrics-success" className="sr-only">
+        {metrics.success}
+      </div>
+      <div data-testid="chart-point-count" className="sr-only">
+        {graphData.length}
+      </div>
+      <div data-testid="log-count" className="sr-only">
+        {logs.length}
+      </div>
+      <div data-testid="chart-latest-requests" className="sr-only">
+        {graphData.at(-1)?.requests || 0}
+      </div>
+      <div data-testid="active-project-id" className="sr-only">
+        {projectId || ""}
+      </div>
       <MetricsGrid metrics={metrics} />
       <div className="grid min-w-0 grid-cols-1 xl:grid-cols-2 gap-6 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6">
         <div ref={requestsChartRef} className="min-w-0">
