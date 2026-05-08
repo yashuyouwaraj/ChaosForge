@@ -21,6 +21,7 @@ const getToken = () => {
 };
 
 const socket = io(getSocketUrl(), {
+  transports: ["websocket", "polling"],
   auth: {
     token: getToken(),
   },
