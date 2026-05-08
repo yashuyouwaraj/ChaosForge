@@ -1,9 +1,35 @@
 const redis = require("redis");
 
+// Handle different Redis URL formats (Upstash, Render, etc.)
+const getRedisUrl = () => {
+  // If REDIS_URL is provided, use it directly (but fix protocol if needed)
+  if (process.env.REDIS_URL) {
+    let url = process.env.REDIS_URL;
+    // Convert https:// to rediss:// for Upstash
+    if (url.startsWith("https://")) {
+      url = url.replace("https://", "rediss://");
+    }
+    // Ensure it has redis:// or rediss:// protocol
+    if (!url.startsWith("redis://") && !url.startsWith("rediss://")) {
+      url = `redis://${url}`;
+    }
+    return url;
+  }
+
+  // Fallback to host/port
+  const host = process.env.REDIS_HOST || "127.0.0.1";
+  const port = process.env.REDIS_PORT || 6379;
+
+  // If host already includes protocol, use it as-is
+  if (host.startsWith("redis://") || host.startsWith("rediss://")) {
+    return host;
+  }
+
+  return `redis://${host}:${port}`;
+};
+
 const client = redis.createClient({
-  url:
-    process.env.REDIS_URL ||
-    `redis://${process.env.REDIS_HOST || "127.0.0.1"}:${process.env.REDIS_PORT || 6379}`,
+  url: getRedisUrl(),
 });
 
 let isVerified = false;
