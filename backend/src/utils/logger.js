@@ -1,9 +1,9 @@
 const winston = require("winston");
 
-const isDebug = process.env.DEBUG === "true";
+const isProd = process.env.NODE_ENV === "production";
 
 const logger = winston.createLogger({
-  level: isDebug ? "debug" : "info",
+  level: isProd ? "warn" : "debug",
 
   format: winston.format.combine(
     winston.format.timestamp(),

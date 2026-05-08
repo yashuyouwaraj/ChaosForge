@@ -6,12 +6,14 @@ let io;
 
 /**
  * 💀 KEY:
- * projectId-runId
+ * projectId:runId
  */
 const logBuffers = new Map();
 
 const LOG_FLUSH_INTERVAL_MS = 100;
 const MAX_LOG_BATCH = 100;
+
+let flushLoopStarted = false;
 
 const LOG_LEVEL_BY_TYPE = {
   error: "error",
@@ -53,19 +55,31 @@ const flushLogBuffer = (projectId, runId) => {
     `logs-${projectId}-${runId}`,
     logsToSend
   );
+
+  // 💀 CLEAN EMPTY BUFFER
+  if (buffer.length === 0) {
+    logBuffers.delete(key);
+  }
 };
 
 /**
  * 💀 GLOBAL FLUSH LOOP
  */
 const startLogFlushLoop = () => {
+  if (flushLoopStarted) {
+    return;
+  }
+
+  flushLoopStarted = true;
+
   setInterval(() => {
     if (!io) {
       return;
     }
 
     for (const [key, buffer] of logBuffers.entries()) {
-      if (buffer.length === 0) {
+      if (!buffer || buffer.length === 0) {
+        logBuffers.delete(key);
         continue;
       }
 
@@ -77,14 +91,23 @@ const startLogFlushLoop = () => {
         `logs-${projectId}-${runId}`,
         logsToSend
       );
+
+      // 💀 CLEANUP
+      if (buffer.length === 0) {
+        logBuffers.delete(key);
+      }
     }
   }, LOG_FLUSH_INTERVAL_MS);
 };
 
 /**
- * 💀 ISOLATED LOG EMIT
+ * 💀 ISOLATED BUFFERED LOG EMIT
  */
 const emitBufferedLog = (projectId, runId, log) => {
+  if (!io) {
+    return;
+  }
+
   const key = getBufferKey(projectId, runId);
 
   if (!logBuffers.has(key)) {
@@ -94,12 +117,14 @@ const emitBufferedLog = (projectId, runId, log) => {
   const normalizedLog = {
     ...log,
     level: log.level || LOG_LEVEL_BY_TYPE[log.type] || "info",
+    timestamp: log.timestamp || Date.now(),
   };
 
   const buffer = logBuffers.get(key);
 
   buffer.push(normalizedLog);
 
+  // 💀 FORCE FLUSH IF BUFFER LARGE
   if (buffer.length >= MAX_LOG_BATCH) {
     flushLogBuffer(projectId, runId);
   }
@@ -119,6 +144,32 @@ const initSocket = (server) => {
     logger.info({
       message: "socket_connected",
       socketId: socket.id,
+    });
+
+    /**
+     * 💀 JOIN RUN ROOM
+     */
+    socket.on("join-run", ({ runId }) => {
+      socket.join(`run-${runId}`);
+
+      logger.info({
+        message: "socket_joined_run",
+        socketId: socket.id,
+        runId,
+      });
+    });
+
+    /**
+     * 💀 LEAVE RUN ROOM
+     */
+    socket.on("leave-run", ({ runId }) => {
+      socket.leave(`run-${runId}`);
+
+      logger.info({
+        message: "socket_left_run",
+        socketId: socket.id,
+        runId,
+      });
     });
 
     socket.on("disconnect", () => {

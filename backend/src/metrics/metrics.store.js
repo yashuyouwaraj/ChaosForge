@@ -1,4 +1,3 @@
-const { success } = require("../utils/response");
 const { getIO } = require("../websocket/socket");
 const { client: redis, connectRedis } = require("../config/redis");
 
@@ -8,6 +7,7 @@ const { client: redis, connectRedis } = require("../config/redis");
 
 const MAX_LIST_SIZE = 1000; //limit memory
 const TTL = 3600; //1 hour
+const metricsBuffer = {};
 
 const recordRequest = async (
   projectId,
@@ -56,15 +56,7 @@ const recordRequest = async (
   await pipeline.exec();
 
   // 🔥 EMIT
-  try {
-    const io = getIO();
-    io.to(`run-${runId}`).emit(
-      `metrics-${projectId}-${runId}`,
-      await getMetrics(projectId, runId),
-    );
-  } catch (err) {
-    console.error("Emit error:", err.message);
-  }
+  metricsBuffer[runId] = projectId;
 };
 
 const calculateP95 = (latencies) => {
@@ -149,6 +141,27 @@ const getMetrics = async (projectId, runId) => {
     failureTimeline: failures.map((t) => ({ time: Number(t) })),
   };
 };
+
+setInterval(async () => {
+  const io = getIO();
+
+  for (const runId of Object.keys(metricsBuffer)) {
+    try {
+      const projectId = metricsBuffer[runId];
+      const metrics = await getMetrics(projectId, runId);
+
+      io.to(`run-${runId}`).emit(`metrics-${projectId}-${runId}`, metrics);
+
+      // 💀 cleanup completed runs
+      if (metrics.totalRequests === metrics.success + metrics.failure) {
+        delete metricsBuffer[runId];
+      }
+    } catch (err) {
+      console.log("Metrics flush error:", err.message);
+    }
+  }
+}, 500);
+
 module.exports = {
   recordRequest,
   getMetrics,
