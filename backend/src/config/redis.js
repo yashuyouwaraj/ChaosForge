@@ -1,8 +1,9 @@
-const Redis = require("ioredis");
+const redis = require("redis");
 
-const client = new Redis({
-  host: process.env.REDIS_HOST || "127.0.0.1",
-  port: process.env.REDIS_PORT || 6379,
+const client = redis.createClient({
+  url:
+    process.env.REDIS_URL ||
+    `redis://${process.env.REDIS_HOST || "127.0.0.1"}:${process.env.REDIS_PORT || 6379}`,
 });
 
 let isVerified = false;
@@ -22,13 +23,13 @@ client.on("error", (err) => {
   console.error("Redis error:", err.message);
 });
 
-client.on("close", () => {
+client.on("end", () => {
   isVerified = false;
   console.log("Redis connection closed");
 });
 
 const connectRedis = async () => {
-  if (isVerified && client.status === "ready") {
+  if (isVerified && client.isOpen) {
     return client;
   }
 
@@ -36,8 +37,12 @@ const connectRedis = async () => {
     return verifyPromise;
   }
 
-  // ioredis connects automatically; ping only when the connection is not verified.
-  verifyPromise = client.ping().then(() => {
+  verifyPromise = (async () => {
+    if (!client.isOpen) {
+      await client.connect();
+    }
+
+    await client.ping();
     isVerified = true;
 
     if (process.env.DEBUG === "true") {
@@ -45,7 +50,7 @@ const connectRedis = async () => {
     }
 
     return client;
-  });
+  })();
 
   try {
     return await verifyPromise;
