@@ -3,8 +3,8 @@ const logger = require("../utils/logger");
 const { simulateProcessing } = require("./simulation.service");
 const { producer, connectProducer } = require("../config/kafka");
 const { emitBufferedLog } = require("../websocket/socket");
-const { client: redis } = require("../config/redis");
-const { getMetrics } = require("../metrics/metrics.store");
+const { client: redis, connectRedis } = require("../config/redis");
+const { getMetrics, markRunActive } = require("../metrics/metrics.store");
 const { saveRun } = require("../modules/run/run.service");
 const { initControl, getControl } = require("../control/control.store");
 
@@ -19,6 +19,8 @@ const FINAL_METRICS_MAX_WAIT_MS = 120000;
  */
 const generateTraffic = async (config, projectId, url, options = {}) => {
   const runId = options.runId || uuidv4();
+  markRunActive(projectId, runId);
+
   if (!options.controlInitialized) {
     await initControl(projectId, runId);
   }

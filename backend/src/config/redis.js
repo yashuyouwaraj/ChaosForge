@@ -18,7 +18,7 @@ const getRedisUrl = () => {
 
   // Fallback to host/port
   const host = process.env.REDIS_HOST || "127.0.0.1";
-  const port = process.env.REDIS_PORT || 6379;
+  const port = parseInt(process.env.REDIS_PORT, 10) || 6379;
 
   // If host already includes protocol, use it as-is
   if (host.startsWith("redis://") || host.startsWith("rediss://")) {

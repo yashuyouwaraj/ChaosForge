@@ -9,6 +9,10 @@ const MAX_LIST_SIZE = 1000; //limit memory
 const TTL = 3600; //1 hour
 const metricsBuffer = {};
 
+const markRunActive = (projectId, runId) => {
+  metricsBuffer[runId] = projectId;
+};
+
 const recordRequest = async (
   projectId,
   runId,
@@ -28,16 +32,16 @@ const recordRequest = async (
   const multi = redis.multi();
   multi.hIncrBy(metricsKey, "totalRequests", 1);
   multi.hIncrBy(metricsKey, isSuccess ? "success" : "failure", 1);
-  multi.hIncrBy(metricsKey, "totalLatency", latency);
-  multi.hSetNX(metricsKey, "startedAt", recordedAt);
-  multi.hSet(metricsKey, "lastRequestAt", recordedAt);
+  multi.hIncrBy(metricsKey, "totalLatency", String(latency));
+  multi.hSetNX(metricsKey, "startedAt", String(recordedAt));
+  multi.hSet(metricsKey, "lastRequestAt", String(recordedAt));
 
   // latency list (bounded)
-  multi.rPush(latenciesKey, latency);
+  multi.rPush(latenciesKey, String(latency));
   multi.lTrim(latenciesKey, -MAX_LIST_SIZE, -1);
 
   // timestamps list (bounded)
-  multi.rPush(timestampsKey, recordedAt);
+  multi.rPush(timestampsKey, String(recordedAt));
   multi.lTrim(timestampsKey, -MAX_LIST_SIZE, -1);
 
   // TTL
@@ -48,7 +52,7 @@ const recordRequest = async (
   // 💀 error types in Redis
   if (!isSuccess) {
     multi.hIncrBy(`errors:${projectId}:${runId}`, errorType, 1);
-    multi.rPush(`failures:${projectId}:${runId}`, Date.now());
+    multi.rPush(`failures:${projectId}:${runId}`, String(Date.now()));
     multi.lTrim(`failures:${projectId}:${runId}`, -MAX_LIST_SIZE, -1);
     multi.expire(`errors:${projectId}:${runId}`, TTL);
     multi.expire(`failures:${projectId}:${runId}`, TTL);
@@ -144,27 +148,33 @@ const getMetrics = async (projectId, runId) => {
 };
 
 setInterval(async () => {
-  const io = getIO();
+  try {
+    const io = getIO();
 
-  for (const runId of Object.keys(metricsBuffer)) {
-    try {
-      const projectId = metricsBuffer[runId];
-      const metrics = await getMetrics(projectId, runId);
+    for (const runId of Object.keys(metricsBuffer)) {
+      try {
+        const projectId = metricsBuffer[runId];
+        const metrics = await getMetrics(projectId, runId);
 
-      io.to(`run-${runId}`).emit(`metrics-${projectId}-${runId}`, metrics);
+        io.to(`run-${runId}`).emit(`metrics-${projectId}-${runId}`, metrics);
 
-      // 💀 cleanup completed runs
-      if (metrics.totalRequests === metrics.success + metrics.failure) {
-        delete metricsBuffer[runId];
+        // 💀 cleanup completed runs
+        if (metrics.totalRequests === metrics.success + metrics.failure) {
+          delete metricsBuffer[runId];
+        }
+      } catch (err) {
+        console.log("Metrics flush error:", err.message);
       }
-    } catch (err) {
-      console.log("Metrics flush error:", err.message);
     }
+  } catch (err) {
+    // Socket.io not initialized in this process (worker), skip emitting
+    return;
   }
 }, 500);
 
 module.exports = {
   recordRequest,
+  markRunActive,
   getMetrics,
   calculateP95,
   calculateRPS,

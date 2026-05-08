@@ -1,5 +1,5 @@
 const { recordRequest, getMetrics } = require("../metrics/metrics.store");
-const { getIO, emitBufferedLog } = require("../websocket/socket");
+const { getIOIfReady, emitBufferedLog } = require("../websocket/socket");
 const axios = require("axios");
 const logger = require("../utils/logger");
 
@@ -7,7 +7,7 @@ const MAX_RETRIES = 3;
 const delay = (ms) => new Promise((res) => setTimeout(res, ms));
 
 const simulateProcessing = async (url, requestId, projectId, runId) => {
-  const io = getIO();
+  const io = getIOIfReady();
 
   let attempt = 0;
   let success = false;
@@ -27,7 +27,9 @@ const simulateProcessing = async (url, requestId, projectId, runId) => {
         url,
       });
 
-      const res = await axios.get(url, { timeout: 3000 });
+      const res = await axios.get(url,{
+        timeout: 5000, // 5s timeout to trigger retries
+      });
 
       finalLatency = Date.now() - start;
       success = true;
@@ -118,7 +120,9 @@ const simulateProcessing = async (url, requestId, projectId, runId) => {
 
   // 📊 Emit metrics (optional: throttle later)
   const metrics = await getMetrics(projectId, runId);
-  io.emit(`metrics-${projectId}-${runId}`, metrics);
+  if (io) {
+    io.emit(`metrics-${projectId}-${runId}`, metrics);
+  }
 };
 
 module.exports = { simulateProcessing };

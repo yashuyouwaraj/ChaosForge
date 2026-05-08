@@ -1,6 +1,9 @@
 const { Server } = require("socket.io");
 const logger = require("../utils/logger");
 const { registerControlHandlers } = require("../control/control.socket");
+const { connectRedis } = require("../config/redis");
+
+const LOG_QUEUE_KEY = "socket:logs:queue";
 
 let io;
 
@@ -28,6 +31,12 @@ const getIO = () => {
   }
 
   return io;
+};
+
+const getIOIfReady = () => io || null;
+
+const queueLogInRedis = async () => {
+  // No-op: disable worker-side log queueing to avoid excessive Redis requests.
 };
 
 /**
@@ -72,7 +81,7 @@ const startLogFlushLoop = () => {
 
   flushLoopStarted = true;
 
-  setInterval(() => {
+  const flushLoop = async () => {
     if (!io) {
       return;
     }
@@ -89,7 +98,7 @@ const startLogFlushLoop = () => {
 
       io.to(`run-${runId}`).emit(
         `logs-${projectId}-${runId}`,
-        logsToSend
+        logsToSend,
       );
 
       // 💀 CLEANUP
@@ -97,6 +106,12 @@ const startLogFlushLoop = () => {
         logBuffers.delete(key);
       }
     }
+  };
+
+  setInterval(() => {
+    flushLoop().catch((err) => {
+      console.error("Socket log flush failed:", err.message);
+    });
   }, LOG_FLUSH_INTERVAL_MS);
 };
 
@@ -104,7 +119,14 @@ const startLogFlushLoop = () => {
  * 💀 ISOLATED BUFFERED LOG EMIT
  */
 const emitBufferedLog = (projectId, runId, log) => {
+  const normalizedLog = {
+    ...log,
+    level: log.level || LOG_LEVEL_BY_TYPE[log.type] || "info",
+    timestamp: log.timestamp || Date.now(),
+  };
+
   if (!io) {
+    // Do not queue logs when no socket server is available.
     return;
   }
 
@@ -113,12 +135,6 @@ const emitBufferedLog = (projectId, runId, log) => {
   if (!logBuffers.has(key)) {
     logBuffers.set(key, []);
   }
-
-  const normalizedLog = {
-    ...log,
-    level: log.level || LOG_LEVEL_BY_TYPE[log.type] || "info",
-    timestamp: log.timestamp || Date.now(),
-  };
 
   const buffer = logBuffers.get(key);
 
@@ -191,5 +207,6 @@ const initSocket = (server) => {
 module.exports = {
   initSocket,
   getIO,
+  getIOIfReady,
   emitBufferedLog,
 };

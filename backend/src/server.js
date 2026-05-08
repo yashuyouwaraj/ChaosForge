@@ -23,7 +23,7 @@ app.use(errorHandler);
 
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || "*",
+    origin: "*",
   }),
 );
 

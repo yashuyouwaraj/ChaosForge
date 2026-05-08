@@ -1,3 +1,4 @@
+require("dotenv").config();
 const runConsumer = require("./consumers/traffic.consumer");
 
 const startWorkers = async () => {

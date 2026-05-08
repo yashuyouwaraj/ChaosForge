@@ -1,3 +1,4 @@
+require("dotenv").config();
 const { Kafka } = require("kafkajs");
 const { simulateProcessing } = require("../services/simulation.service");
 const { getMetrics } = require("../metrics/metrics.store");
