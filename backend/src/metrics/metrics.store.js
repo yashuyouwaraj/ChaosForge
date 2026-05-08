@@ -16,44 +16,45 @@ const recordRequest = async (
   isSuccess,
   errorType = "network",
 ) => {
-  await connectRedis();
+  const redis = await connectRedis();
 
   const metricsKey = `metrics:${projectId}:${runId}`;
   const latenciesKey = `latencies:${projectId}:${runId}`;
   const timestampsKey = `timestamps:${projectId}:${runId}`;
 
   const recordedAt = Date.now();
-  const pipeline = redis.multi();
 
-  pipeline.hincrby(metricsKey, "totalRequests", 1);
-  pipeline.hincrby(metricsKey, isSuccess ? "success" : "failure", 1);
-  pipeline.hincrby(metricsKey, "totalLatency", latency);
-  pipeline.hsetnx(metricsKey, "startedAt", recordedAt);
-  pipeline.hset(metricsKey, "lastRequestAt", recordedAt);
+  // Use multi() for atomic operations
+  const multi = redis.multi();
+  multi.hIncrBy(metricsKey, "totalRequests", 1);
+  multi.hIncrBy(metricsKey, isSuccess ? "success" : "failure", 1);
+  multi.hIncrBy(metricsKey, "totalLatency", latency);
+  multi.hSetNX(metricsKey, "startedAt", recordedAt);
+  multi.hSet(metricsKey, "lastRequestAt", recordedAt);
 
   // latency list (bounded)
-  pipeline.rpush(latenciesKey, latency);
-  pipeline.ltrim(latenciesKey, -MAX_LIST_SIZE, -1);
+  multi.rPush(latenciesKey, latency);
+  multi.lTrim(latenciesKey, -MAX_LIST_SIZE, -1);
 
   // timestamps list (bounded)
-  pipeline.rpush(timestampsKey, recordedAt);
-  pipeline.ltrim(timestampsKey, -MAX_LIST_SIZE, -1);
+  multi.rPush(timestampsKey, recordedAt);
+  multi.lTrim(timestampsKey, -MAX_LIST_SIZE, -1);
 
   // TTL
-  pipeline.expire(metricsKey, TTL);
-  pipeline.expire(latenciesKey, TTL);
-  pipeline.expire(timestampsKey, TTL);
+  multi.expire(metricsKey, TTL);
+  multi.expire(latenciesKey, TTL);
+  multi.expire(timestampsKey, TTL);
 
   // 💀 error types in Redis
   if (!isSuccess) {
-    pipeline.hincrby(`errors:${projectId}:${runId}`, errorType, 1);
-    pipeline.rpush(`failures:${projectId}:${runId}`, Date.now());
-    pipeline.ltrim(`failures:${projectId}:${runId}`, -MAX_LIST_SIZE, -1);
-    pipeline.expire(`errors:${projectId}:${runId}`, TTL);
-    pipeline.expire(`failures:${projectId}:${runId}`, TTL);
+    multi.hIncrBy(`errors:${projectId}:${runId}`, errorType, 1);
+    multi.rPush(`failures:${projectId}:${runId}`, Date.now());
+    multi.lTrim(`failures:${projectId}:${runId}`, -MAX_LIST_SIZE, -1);
+    multi.expire(`errors:${projectId}:${runId}`, TTL);
+    multi.expire(`failures:${projectId}:${runId}`, TTL);
   }
 
-  await pipeline.exec();
+  await multi.exec();
 
   // 🔥 EMIT
   metricsBuffer[runId] = projectId;
@@ -86,16 +87,16 @@ const calculateAverageRPS = (totalRequests, startedAt, lastRequestAt) => {
 };
 
 const getMetrics = async (projectId, runId) => {
-  await connectRedis();
+  const redis = await connectRedis();
 
   const metricsKey = `metrics:${projectId}:${runId}`;
 
   const [data, latencies, timestamps, errors, failures] = await Promise.all([
-    redis.hgetall(metricsKey),
-    redis.lrange(`latencies:${projectId}:${runId}`, -1000, -1),
-    redis.lrange(`timestamps:${projectId}:${runId}`, -1000, -1),
-    redis.hgetall(`errors:${projectId}:${runId}`),
-    redis.lrange(`failures:${projectId}:${runId}`, -100, -1),
+    redis.hGetAll(metricsKey),
+    redis.lRange(`latencies:${projectId}:${runId}`, -1000, -1),
+    redis.lRange(`timestamps:${projectId}:${runId}`, -1000, -1),
+    redis.hGetAll(`errors:${projectId}:${runId}`),
+    redis.lRange(`failures:${projectId}:${runId}`, -100, -1),
   ]);
 
   const parsedLatencies = latencies.map(Number);

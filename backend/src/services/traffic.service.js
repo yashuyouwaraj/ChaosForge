@@ -23,6 +23,8 @@ const generateTraffic = async (config, projectId, url, options = {}) => {
     await initControl(projectId, runId);
   }
 
+  const redis = await connectRedis();
+
   // 🧹 RESET
   await redis.del(`metrics:${projectId}:${runId}`);
   await redis.del(`latencies:${projectId}:${runId}`);
