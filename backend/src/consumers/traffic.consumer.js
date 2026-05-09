@@ -1,5 +1,9 @@
 require("dotenv").config();
 const { Kafka } = require("kafkajs");
+const {
+  ensureKafkaTopics,
+  TRAFFIC_TOPIC,
+} = require("../config/kafka");
 const { simulateProcessing } = require("../services/simulation.service");
 const { getMetrics } = require("../metrics/metrics.store");
 const { emitBufferedLog, getIO } = require("../websocket/socket");
@@ -20,10 +24,12 @@ const runConsumer = async () => {
     return;
   }
 
+  await ensureKafkaTopics();
+
   await consumer.connect();
 
   await consumer.subscribe({
-    topic: "traffic-topic",
+    topic: TRAFFIC_TOPIC,
     fromBeginning: false,
   });
 

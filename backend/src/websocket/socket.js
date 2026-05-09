@@ -2,23 +2,20 @@ const { Server } = require("socket.io");
 const logger = require("../utils/logger");
 const { registerControlHandlers } = require("../control/control.socket");
 const { connectRedis } = require("../config/redis");
+const {
+  activeWebSocketClients,
+} = require("../metrics/prometheus");
 
 const LOG_QUEUE_KEY = "socket:logs:queue";
-
-let io;
-
-/**
- * 💀 KEY:
- * projectId:runId
- */
-const logBuffers = new Map();
-
-let connectedClients = 0;
-
 const LOG_FLUSH_INTERVAL_MS = 100;
 const MAX_LOG_BATCH = 100;
+const MAX_REDIS_LOG_BATCH = 500;
 
+let io;
+let connectedClients = 0;
 let flushLoopStarted = false;
+
+const logBuffers = new Map();
 
 const LOG_LEVEL_BY_TYPE = {
   error: "error",
@@ -37,23 +34,32 @@ const getIO = () => {
 
 const getIOIfReady = () => io || null;
 
-const queueLogInRedis = async () => {
-  // No-op: disable worker-side log queueing to avoid excessive Redis requests.
+const getBufferKey = (projectId, runId) => `${projectId}:${runId}`;
+
+const queueLogInRedis = async (projectId, runId, log) => {
+  try {
+    const redis = await connectRedis();
+
+    await redis.rPush(
+      LOG_QUEUE_KEY,
+      JSON.stringify({
+        projectId,
+        runId,
+        log,
+      }),
+    );
+  } catch (err) {
+    logger.warn({
+      message: "socket_log_queue_failed",
+      error: err.message,
+      projectId,
+      runId,
+    });
+  }
 };
 
-/**
- * 💀 UNIQUE BUFFER KEY
- */
-const getBufferKey = (projectId, runId) => {
-  return `${projectId}:${runId}`;
-};
-
-/**
- * 💀 FLUSH SINGLE RUN BUFFER
- */
 const flushLogBuffer = (projectId, runId) => {
   const key = getBufferKey(projectId, runId);
-
   const buffer = logBuffers.get(key);
 
   if (!buffer || buffer.length === 0 || !io) {
@@ -64,18 +70,54 @@ const flushLogBuffer = (projectId, runId) => {
 
   io.to(`run-${runId}`).emit(
     `logs-${projectId}-${runId}`,
-    logsToSend
+    logsToSend,
   );
 
-  // 💀 CLEAN EMPTY BUFFER
   if (buffer.length === 0) {
     logBuffers.delete(key);
   }
 };
 
-/**
- * 💀 GLOBAL FLUSH LOOP
- */
+const bufferLog = (projectId, runId, log) => {
+  const key = getBufferKey(projectId, runId);
+
+  if (!logBuffers.has(key)) {
+    logBuffers.set(key, []);
+  }
+
+  const buffer = logBuffers.get(key);
+  buffer.push(log);
+
+  if (buffer.length >= MAX_LOG_BATCH) {
+    flushLogBuffer(projectId, runId);
+  }
+};
+
+const drainRedisLogQueue = async () => {
+  const redis = await connectRedis();
+
+  for (let i = 0; i < MAX_REDIS_LOG_BATCH; i++) {
+    const item = await redis.lPop(LOG_QUEUE_KEY);
+
+    if (!item) {
+      return;
+    }
+
+    try {
+      const { projectId, runId, log } = JSON.parse(item);
+
+      if (projectId && runId && log) {
+        bufferLog(projectId, runId, log);
+      }
+    } catch (err) {
+      logger.warn({
+        message: "socket_log_queue_parse_failed",
+        error: err.message,
+      });
+    }
+  }
+};
+
 const startLogFlushLoop = () => {
   if (flushLoopStarted) {
     return;
@@ -88,6 +130,8 @@ const startLogFlushLoop = () => {
       return;
     }
 
+    await drainRedisLogQueue();
+
     for (const [key, buffer] of logBuffers.entries()) {
       if (!buffer || buffer.length === 0) {
         logBuffers.delete(key);
@@ -95,7 +139,6 @@ const startLogFlushLoop = () => {
       }
 
       const [projectId, runId] = key.split(":");
-
       const logsToSend = buffer.splice(0, buffer.length);
 
       io.to(`run-${runId}`).emit(
@@ -103,7 +146,6 @@ const startLogFlushLoop = () => {
         logsToSend,
       );
 
-      // 💀 CLEANUP
       if (buffer.length === 0) {
         logBuffers.delete(key);
       }
@@ -117,9 +159,6 @@ const startLogFlushLoop = () => {
   }, LOG_FLUSH_INTERVAL_MS);
 };
 
-/**
- * 💀 ISOLATED BUFFERED LOG EMIT
- */
 const emitBufferedLog = (projectId, runId, log) => {
   const normalizedLog = {
     ...log,
@@ -128,29 +167,13 @@ const emitBufferedLog = (projectId, runId, log) => {
   };
 
   if (!io) {
-    // Do not queue logs when no socket server is available.
+    queueLogInRedis(projectId, runId, normalizedLog).catch(() => {});
     return;
   }
 
-  const key = getBufferKey(projectId, runId);
-
-  if (!logBuffers.has(key)) {
-    logBuffers.set(key, []);
-  }
-
-  const buffer = logBuffers.get(key);
-
-  buffer.push(normalizedLog);
-
-  // 💀 FORCE FLUSH IF BUFFER LARGE
-  if (buffer.length >= MAX_LOG_BATCH) {
-    flushLogBuffer(projectId, runId);
-  }
+  bufferLog(projectId, runId, normalizedLog);
 };
 
-/**
- * 💀 SOCKET INIT
- */
 const initSocket = (server) => {
   io = new Server(server, {
     cors: {
@@ -160,6 +183,7 @@ const initSocket = (server) => {
   });
 
   io.on("connection", (socket) => {
+    activeWebSocketClients.inc();
     connectedClients++;
     logger.info({
       message: "socket_connected",
@@ -167,9 +191,6 @@ const initSocket = (server) => {
       connectedClients,
     });
 
-    /**
-     * 💀 JOIN RUN ROOM
-     */
     socket.on("join-run", ({ runId }) => {
       socket.join(`run-${runId}`);
 
@@ -180,9 +201,6 @@ const initSocket = (server) => {
       });
     });
 
-    /**
-     * 💀 LEAVE RUN ROOM
-     */
     socket.on("leave-run", ({ runId }) => {
       socket.leave(`run-${runId}`);
 
@@ -194,6 +212,7 @@ const initSocket = (server) => {
     });
 
     socket.on("disconnect", () => {
+      activeWebSocketClients.dec();
       connectedClients--;
       logger.info({
         message: "socket_disconnected",
@@ -204,7 +223,6 @@ const initSocket = (server) => {
   });
 
   registerControlHandlers(io);
-
   startLogFlushLoop();
 
   return io;

@@ -1,21 +1,36 @@
-const { recordRequest, getMetrics } = require("../metrics/metrics.store");
-const { getIOIfReady, emitBufferedLog } = require("../websocket/socket");
+const { recordRequest } = require("../metrics/metrics.store");
+const { emitBufferedLog } = require("../websocket/socket");
+
+const {
+  simulationRequestsTotal,
+  requestLatency,
+  simulationFailuresTotal,
+} = require("../metrics/prometheus");
+
 const axios = require("axios");
 const logger = require("../utils/logger");
 
 const MAX_RETRIES = 3;
-const delay = (ms) => new Promise((res) => setTimeout(res, ms));
 
-const simulateProcessing = async (url, requestId, projectId, runId) => {
-  const io = getIOIfReady();
+const delay = (ms) =>
+  new Promise((res) => setTimeout(res, ms));
 
+const simulateProcessing = async (
+  url,
+  requestId,
+  projectId,
+  runId,
+) => {
   let attempt = 0;
+
   let success = false;
+
   let finalLatency = 0;
+
   let finalErrorType = "network";
 
   while (attempt <= MAX_RETRIES && !success) {
-    const start = Date.now(); // ✅ per-attempt timing
+    const start = Date.now();
 
     try {
       logger.info({
@@ -27,11 +42,12 @@ const simulateProcessing = async (url, requestId, projectId, runId) => {
         url,
       });
 
-      const res = await axios.get(url,{
-        timeout: 5000, // 5s timeout to trigger retries
+      const res = await axios.get(url, {
+        timeout: 5000,
       });
 
       finalLatency = Date.now() - start;
+
       success = true;
 
       logger.info({
@@ -43,19 +59,46 @@ const simulateProcessing = async (url, requestId, projectId, runId) => {
         attempts: attempt + 1,
       });
 
-      await recordRequest(projectId, runId, finalLatency, true);
+      /**
+       * 💀 STORE METRICS
+       */
+      await recordRequest(
+        projectId,
+        runId,
+        finalLatency,
+        true,
+      );
 
+      /**
+       * 💀 PROMETHEUS METRICS
+       */
+      simulationRequestsTotal.inc();
+
+      requestLatency.observe(finalLatency);
+
+      /**
+       * 💀 BUFFERED LOGS
+       */
       emitBufferedLog(projectId, runId, {
         requestId,
-        message: `✅ ${url} - ${res.status} (try ${attempt + 1}/${MAX_RETRIES + 1})`,
+
+        message:
+          `✅ ${url} - ${res.status} ` +
+          `(try ${attempt + 1}/${MAX_RETRIES + 1})`,
+
         type: "success",
+
         level: "info",
+
         time: new Date().toLocaleTimeString(),
       });
+
     } catch (err) {
       finalLatency = Date.now() - start;
 
-      // classify error
+      /**
+       * 💀 ERROR CLASSIFICATION
+       */
       finalErrorType =
         err.code === "ECONNABORTED"
           ? "timeout"
@@ -63,6 +106,9 @@ const simulateProcessing = async (url, requestId, projectId, runId) => {
             ? "server"
             : "network";
 
+      /**
+       * 💀 FINAL FAILURE
+       */
       if (attempt === MAX_RETRIES) {
         logger.error({
           message: "request_failed",
@@ -73,7 +119,7 @@ const simulateProcessing = async (url, requestId, projectId, runId) => {
           attempts: attempt + 1,
           errorType: finalErrorType,
         });
-        // ❌ final failure
+
         await recordRequest(
           projectId,
           runId,
@@ -82,16 +128,35 @@ const simulateProcessing = async (url, requestId, projectId, runId) => {
           finalErrorType,
         );
 
+        /**
+         * 💀 PROMETHEUS FAILURE METRIC
+         */
+        simulationRequestsTotal.inc();
+
+        simulationFailuresTotal.inc();
+
+        requestLatency.observe(finalLatency);
+
         emitBufferedLog(projectId, runId, {
           requestId,
-          message: `❌ ${url} - ${err.message} (after ${MAX_RETRIES + 1} attempts)`,
+
+          message:
+            `❌ ${url} - ${err.message} ` +
+            `(after ${MAX_RETRIES + 1} attempts)`,
+
           type: "error",
+
           level: "error",
+
           time: new Date().toLocaleTimeString(),
         });
+
       } else {
-        // 🔥 exponential backoff
-        const retryInMs = 100 * Math.pow(2, attempt);
+        /**
+         * 💀 EXPONENTIAL BACKOFF
+         */
+        const retryInMs =
+          100 * Math.pow(2, attempt);
 
         logger.warn({
           message: "request_retry",
@@ -105,9 +170,15 @@ const simulateProcessing = async (url, requestId, projectId, runId) => {
 
         emitBufferedLog(projectId, runId, {
           requestId,
-          message: `Retrying ${url} after ${err.message} (try ${attempt + 1}/${MAX_RETRIES + 1})`,
+
+          message:
+            `Retrying ${url} after ${err.message} ` +
+            `(try ${attempt + 1}/${MAX_RETRIES + 1})`,
+
           type: "retry",
+
           level: "warn",
+
           time: new Date().toLocaleTimeString(),
         });
 
@@ -115,14 +186,13 @@ const simulateProcessing = async (url, requestId, projectId, runId) => {
       }
     }
 
-    attempt++; // ✅ always increment
-  }
-
-  // 📊 Emit metrics (optional: throttle later)
-  const metrics = await getMetrics(projectId, runId);
-  if (io) {
-    io.emit(`metrics-${projectId}-${runId}`, metrics);
+    /**
+     * 💀 ALWAYS INCREMENT ATTEMPT
+     */
+    attempt++;
   }
 };
 
-module.exports = { simulateProcessing };
+module.exports = {
+  simulateProcessing,
+};

@@ -1,4 +1,8 @@
-const { producer, connectProducer } = require("../config/kafka");
+const {
+  producer,
+  connectProducer,
+  TEST_TOPIC,
+} = require("../config/kafka");
 
 const sendMessage = async () => {
   if (process.env.USE_KAFKA !== "true") {
@@ -9,7 +13,7 @@ const sendMessage = async () => {
   await connectProducer();
 
   await producer.send({
-    topic: "test-topic",
+    topic: TEST_TOPIC,
     messages: [
       {
         value: JSON.stringify({

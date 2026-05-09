@@ -17,11 +17,13 @@ const startWorker = async () => {
     await connectRedis();
 
     if (useKafka) {
-      await connectProducer();
-
-      await runConsumer();
-
-      console.log("Kafka worker started.");
+      try {
+        await connectProducer();
+        await runConsumer();
+        console.log("Kafka worker started.");
+      } catch (kafkaErr) {
+        console.warn("Kafka connection failed, continuing without Kafka:", kafkaErr.message);
+      }
     } else {
       console.log("Kafka disabled.");
     }

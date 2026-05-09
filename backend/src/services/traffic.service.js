@@ -1,10 +1,18 @@
 const { v4: uuidv4 } = require("uuid");
 const logger = require("../utils/logger");
 const { simulateProcessing } = require("./simulation.service");
-const { producer, connectProducer } = require("../config/kafka");
+const {
+  producer,
+  connectProducer,
+  TRAFFIC_TOPIC,
+} = require("../config/kafka");
 const { emitBufferedLog } = require("../websocket/socket");
 const { client: redis, connectRedis } = require("../config/redis");
-const { getMetrics, markRunActive } = require("../metrics/metrics.store");
+const {
+  getMetrics,
+  markRunActive,
+  markRunComplete,
+} = require("../metrics/metrics.store");
 const { saveRun } = require("../modules/run/run.service");
 const { initControl, getControl } = require("../control/control.store");
 
@@ -83,6 +91,8 @@ const generateTraffic = async (config, projectId, url, options = {}) => {
     ...finalMetrics,
   });
 
+  markRunComplete(runId);
+
   return runId;
 };
 
@@ -141,7 +151,7 @@ const runRequestMode = async (config, projectId, url, runId) => {
     }
 
     await producer.send({
-      topic: "traffic-topic",
+      topic: TRAFFIC_TOPIC,
       messages,
     });
 
@@ -152,7 +162,7 @@ const runRequestMode = async (config, projectId, url, runId) => {
 
   // completion event
   await producer.send({
-    topic: "traffic-topic",
+    topic: TRAFFIC_TOPIC,
     messages: [
       {
         key: projectId,
@@ -241,7 +251,7 @@ const runStages = async (config, projectId, url, runId) => {
       }
 
       await producer.send({
-        topic: "traffic-topic",
+        topic: TRAFFIC_TOPIC,
         messages,
       });
 
@@ -251,7 +261,7 @@ const runStages = async (config, projectId, url, runId) => {
 
   // completion event
   await producer.send({
-    topic: "traffic-topic",
+    topic: TRAFFIC_TOPIC,
     messages: [
       {
         key: projectId,

@@ -8,9 +8,34 @@ const { client: redis, connectRedis } = require("../config/redis");
 const MAX_LIST_SIZE = 1000; //limit memory
 const TTL = 3600; //1 hour
 const metricsBuffer = {};
+const completedRuns = new Set();
+const PROMETHEUS_METRICS_KEY = "prometheus:simulation";
+const PROMETHEUS_LATENCY_BUCKETS = [50, 100, 200, 500, 1000, 2000, 5000];
 
 const markRunActive = (projectId, runId) => {
   metricsBuffer[runId] = projectId;
+  completedRuns.delete(runId);
+};
+
+const markRunComplete = (runId) => {
+  completedRuns.add(runId);
+};
+
+const recordPrometheusMetrics = (multi, latency, isSuccess) => {
+  multi.hIncrBy(PROMETHEUS_METRICS_KEY, "requests_total", 1);
+
+  if (!isSuccess) {
+    multi.hIncrBy(PROMETHEUS_METRICS_KEY, "failures_total", 1);
+  }
+
+  multi.hIncrBy(PROMETHEUS_METRICS_KEY, "latency_count", 1);
+  multi.hIncrBy(PROMETHEUS_METRICS_KEY, "latency_sum", Math.round(latency));
+
+  for (const bucket of PROMETHEUS_LATENCY_BUCKETS) {
+    if (latency <= bucket) {
+      multi.hIncrBy(PROMETHEUS_METRICS_KEY, `latency_bucket_${bucket}`, 1);
+    }
+  }
 };
 
 const recordRequest = async (
@@ -48,6 +73,7 @@ const recordRequest = async (
   multi.expire(metricsKey, TTL);
   multi.expire(latenciesKey, TTL);
   multi.expire(timestampsKey, TTL);
+  recordPrometheusMetrics(multi, latency, isSuccess);
 
   // 💀 error types in Redis
   if (!isSuccess) {
@@ -147,6 +173,41 @@ const getMetrics = async (projectId, runId) => {
   };
 };
 
+const getPrometheusSimulationMetrics = async () => {
+  const redis = await connectRedis();
+  const data = await redis.hGetAll(PROMETHEUS_METRICS_KEY);
+
+  const requestsTotal = Number(data.requests_total || 0);
+  const failuresTotal = Number(data.failures_total || 0);
+  const latencyCount = Number(data.latency_count || 0);
+  const latencySum = Number(data.latency_sum || 0);
+
+  const lines = [
+    "# HELP chaosforge_simulation_requests_total Total simulation requests processed",
+    "# TYPE chaosforge_simulation_requests_total counter",
+    `chaosforge_simulation_requests_total ${requestsTotal}`,
+    "# HELP chaosforge_simulation_failures_total Total simulation request failures",
+    "# TYPE chaosforge_simulation_failures_total counter",
+    `chaosforge_simulation_failures_total ${failuresTotal}`,
+    "# HELP chaosforge_request_latency_ms Simulation request latency",
+    "# TYPE chaosforge_request_latency_ms histogram",
+  ];
+
+  for (const bucket of PROMETHEUS_LATENCY_BUCKETS) {
+    lines.push(
+      `chaosforge_request_latency_ms_bucket{le="${bucket}"} ${Number(
+        data[`latency_bucket_${bucket}`] || 0,
+      )}`,
+    );
+  }
+
+  lines.push(`chaosforge_request_latency_ms_bucket{le="+Inf"} ${latencyCount}`);
+  lines.push(`chaosforge_request_latency_ms_sum ${latencySum}`);
+  lines.push(`chaosforge_request_latency_ms_count ${latencyCount}`);
+
+  return `${lines.join("\n")}\n`;
+};
+
 setInterval(async () => {
   try {
     const io = getIO();
@@ -159,8 +220,12 @@ setInterval(async () => {
         io.to(`run-${runId}`).emit(`metrics-${projectId}-${runId}`, metrics);
 
         // 💀 cleanup completed runs
-        if (metrics.totalRequests === metrics.success + metrics.failure) {
+        if (
+          completedRuns.has(runId) &&
+          metrics.totalRequests === metrics.success + metrics.failure
+        ) {
           delete metricsBuffer[runId];
+          completedRuns.delete(runId);
         }
       } catch (err) {
         console.log("Metrics flush error:", err.message);
@@ -175,7 +240,9 @@ setInterval(async () => {
 module.exports = {
   recordRequest,
   markRunActive,
+  markRunComplete,
   getMetrics,
+  getPrometheusSimulationMetrics,
   calculateP95,
   calculateRPS,
   calculateAverageRPS,

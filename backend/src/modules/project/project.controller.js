@@ -1,6 +1,9 @@
 const projectService = require("./project.service");
 const { generateTraffic } = require("../../services/traffic.service");
-const { getIO } = require("../../websocket/socket");
+const {
+  emitBufferedLog,
+  getIO,
+} = require("../../websocket/socket");
 const User = require("../user/user.model");
 const Run = require("../run/run.model");
 const { success, error } = require("../../utils/response");
@@ -61,18 +64,6 @@ const runProjectTraffic = async (req, res) => {
     return res.status(403).json({ message: "Not your project" });
   }
 
-  const startLog = {
-    projectId: id,
-    requestId: req.requestId,
-    message: `Starting ${count} requests`,
-    type: "info",
-    level: "info",
-    time: new Date().toLocaleTimeString(),
-  };
-
-  getIO().emit(`logs-${id}`, startLog);
-  getIO().emit("project-log", startLog);
-
   const runId = uuidv4();
   await initControl(id, runId);
   const runConfig = {
@@ -89,6 +80,18 @@ const runProjectTraffic = async (req, res) => {
     config: runConfig,
     url,
   });
+
+  const startLog = {
+    projectId: id,
+    requestId: req.requestId,
+    message: `Starting ${count} requests`,
+    type: "info",
+    level: "info",
+    time: new Date().toLocaleTimeString(),
+  };
+
+  emitBufferedLog(id, runId, startLog);
+  getIO().emit("project-log", startLog);
 
   generateTraffic(
     runConfig,
@@ -107,7 +110,7 @@ const runProjectTraffic = async (req, res) => {
         error: err.message,
       });
 
-      getIO().emit(`logs-${id}`, {
+      emitBufferedLog(id, runId, {
         projectId: id,
         requestId: req.requestId,
         message: err.message || "Traffic simulation failed",
