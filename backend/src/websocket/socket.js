@@ -13,6 +13,8 @@ let io;
  */
 const logBuffers = new Map();
 
+let connectedClients = 0;
+
 const LOG_FLUSH_INTERVAL_MS = 100;
 const MAX_LOG_BATCH = 100;
 
@@ -158,9 +160,11 @@ const initSocket = (server) => {
   });
 
   io.on("connection", (socket) => {
+    connectedClients++;
     logger.info({
       message: "socket_connected",
       socketId: socket.id,
+      connectedClients,
     });
 
     /**
@@ -190,9 +194,11 @@ const initSocket = (server) => {
     });
 
     socket.on("disconnect", () => {
+      connectedClients--;
       logger.info({
         message: "socket_disconnected",
         socketId: socket.id,
+        connectedClients,
       });
     });
   });
@@ -204,9 +210,12 @@ const initSocket = (server) => {
   return io;
 };
 
+const getConnectedClients = () => connectedClients;
+
 module.exports = {
   initSocket,
   getIO,
   getIOIfReady,
   emitBufferedLog,
+  getConnectedClients,
 };

@@ -1,4 +1,5 @@
 const express = require("express");
+const cors = require("cors");
 
 const metricsRoutes = require("./routes/metrics.routes");
 const testRoutes = require("./routes/test.routes");
@@ -8,8 +9,16 @@ const projectRoutes = require("./modules/project/project.routes");
 const paymentRoutes = require("./modules/payment/payment.routes");
 const reportRoutes = require("./modules/report/report.routes");
 const runRoutes = require("./modules/run/run.routes");
+const healthRoutes = require("./routes/health.routes");
 
 const app = express();
+
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL,
+    credentials: true,
+  }),
+);
 
 app.use((req, res, next) => {
   res.header(
@@ -49,5 +58,7 @@ app.use("/", testRoutes);
 app.use("/", metricsRoutes);
 
 app.use("/runs", runRoutes);
+
+app.use("/health", healthRoutes);
 
 module.exports = app;
