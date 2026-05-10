@@ -2,17 +2,17 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import socket, { joinRun, leaveRun } from "../lib/socket";
-import MetricsGrid from "../components/MetricsGrid";
-import GraphSection from "../components/GraphSection";
-import LogsPanel from "../components/LogsPanel";
+import MetricsGrid from "../components/dashboard/MetricsGrid";
+import GraphSection from "../components/charts/GraphSection";
+import LogsPanel from "../components/dashboard/LogsPanel";
 import { api, getBaseUrl } from "../lib/api";
-import PremiumGate from "../components/PremiumGate";
-import PlanBadge from "../components/PlanBadge";
-import PaymentHistory from "../components/PaymentHistory";
-import MetricsChart from "../components/MetricsChart";
-import DistributionChart from "@/components/DistributionChart";
-import ErrorPieChart from "@/components/ErrorPieChart";
-import RpsChart from "@/components/RpsChart";
+import PremiumGate from "../components/billing/PremiumGate";
+import PlanBadge from "../components/billing/PlanBadge";
+import PaymentHistory from "../components/billing/PaymentHistory";
+import MetricsChart from "../components/charts/MetricsChart";
+import DistributionChart from "@/components/charts/DistributionChart";
+import ErrorPieChart from "@/components/charts/ErrorPieChart";
+import RpsChart from "@/components/charts/RpsChart";
 
 const MAX_CHART_POINTS = 240;
 const MAX_LOGS = 100;
