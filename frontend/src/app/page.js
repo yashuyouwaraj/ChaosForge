@@ -1,931 +1,459 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import socket, { joinRun, leaveRun } from "../lib/socket";
-import MetricsGrid from "../components/dashboard/MetricsGrid";
-import GraphSection from "../components/charts/GraphSection";
-import LogsPanel from "../components/dashboard/LogsPanel";
-import { api, getBaseUrl } from "../lib/api";
-import PremiumGate from "../components/billing/PremiumGate";
-import PlanBadge from "../components/billing/PlanBadge";
-import PaymentHistory from "../components/billing/PaymentHistory";
-import MetricsChart from "../components/charts/MetricsChart";
-import DistributionChart from "@/components/charts/DistributionChart";
-import ErrorPieChart from "@/components/charts/ErrorPieChart";
-import RpsChart from "@/components/charts/RpsChart";
+import { useEffect, useRef } from "react";
 
-const MAX_CHART_POINTS = 240;
-const MAX_LOGS = 100;
+const metrics = [
+  ["10B+", "Events Processed Daily"],
+  ["99.999%", "System Resilience"],
+  ["<5ms", "P99 Latency"],
+];
 
-const getRunLogCacheKey = (projectId, runId) => {
-  return projectId && runId ? `logs:${projectId}:${runId}` : null;
-};
+const features = [
+  {
+    title: "Distributed Load Testing",
+    description:
+      "Simulate global traffic patterns and uncover pressure points before they cascade into incidents.",
+  },
+  {
+    title: "Realtime Telemetry",
+    description:
+      "Stream high-frequency signals through live dashboards that keep operators close to system truth.",
+  },
+  {
+    title: "Kafka Event Streaming",
+    description:
+      "Coordinate traffic, event fan-out, and durable pipelines across modern distributed services.",
+  },
+  {
+    title: "Prometheus + Grafana",
+    description:
+      "Connect production-grade monitoring workflows to the same intelligence layer as your runtime data.",
+  },
+  {
+    title: "AI Infrastructure Insights",
+    description:
+      "Turn logs, metrics, and traces into guided operational context instead of disconnected fragments.",
+  },
+  {
+    title: "Distributed Intelligence",
+    description:
+      "Give teams a control surface for resilient systems with observability designed for motion and scale.",
+  },
+];
 
-const readCachedLogs = (projectId, runId) => {
-  if (typeof window === "undefined") {
-    return [];
-  }
+const pricingPlans = [
+  {
+    name: "Developer",
+    price: "Free",
+    subtitle: "For exploring the platform.",
+    cta: "Start Building",
+    highlighted: false,
+    features: [
+      "1M Events / Month",
+      "7-Day Retention",
+      "Community Support",
+    ],
+  },
+  {
+    name: "Production",
+    price: "$299",
+    suffix: "/mo",
+    subtitle: "For scaling distributed teams.",
+    cta: "Start Free Trial",
+    highlighted: true,
+    badge: "Most Popular",
+    features: [
+      "100M Events / Month",
+      "30-Day Retention",
+      "AI Anomaly Detection",
+      "Priority Support",
+    ],
+  },
+  {
+    name: "Enterprise",
+    price: "Custom",
+    subtitle: "For mission-critical infrastructure.",
+    cta: "Contact Sales",
+    highlighted: false,
+    features: [
+      "Unlimited Events",
+      "Custom Retention",
+      "Dedicated Success Manager",
+      "SOC2 & HIPAA Compliance",
+    ],
+  },
+];
 
-  const key = getRunLogCacheKey(projectId, runId);
-  if (!key) {
-    return [];
-  }
+const footerGroups = [
+  {
+    title: "Product",
+    links: ["Platform", "Infrastructure", "Intelligence", "Pricing"],
+  },
+  {
+    title: "Resources",
+    links: ["Docs", "API Reference", "Status", "Open Source"],
+  },
+  {
+    title: "Company",
+    links: ["About", "Blog", "Careers", "Community"],
+  },
+  {
+    title: "Legal",
+    links: ["Privacy Policy", "Terms of Service", "Security"],
+  },
+];
 
-  try {
-    const cached = JSON.parse(sessionStorage.getItem(key) || "[]");
-    return Array.isArray(cached) ? cached.slice(-MAX_LOGS) : [];
-  } catch {
-    return [];
-  }
-};
-
-const writeCachedLogs = (projectId, runId, nextLogs) => {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  const key = getRunLogCacheKey(projectId, runId);
-  if (!key) {
-    return;
-  }
-
-  sessionStorage.setItem(key, JSON.stringify(nextLogs.slice(-MAX_LOGS)));
-};
-
-export default function Home() {
-  const [metrics, setMetrics] = useState({
-    totalRequests: 0,
-    success: 0,
-    failure: 0,
-    avgLatency: 0,
-    p95Latency: 0,
-    rps: 0,
-    latencyBuckets: {
-      "0-500": 0,
-      "500-1000": 0,
-      "1000-2000": 0,
-      "2000+": 0,
-    },
-    errorTypes: {
-      timeout: 0,
-      network: 0,
-      server: 0,
-    },
-  });
-
-
-  const [projectId, setProjectId] = useState(null);
-  const [runId, setRunId] = useState(null);
-  const [graphData, setGraphData] = useState([]);
-  const [status, setStatus] = useState("");
-  const [isRunning, setIsRunning] = useState(false);
-  const [simulationState, setSimulationState] = useState("idle"); // idle, running, paused, stopped
-  const [count, setCount] = useState("50");
-  const [url, setUrl] = useState("");
-  const [plan, setPlan] = useState("free");
-  const [logs, setLogs] = useState([]);
-  const [rate, setRate] = useState("5");
-  const [controlRate, setControlRate] = useState("5");
-  const [isApplyingRate, setIsApplyingRate] = useState(false);
-  const [logsFocusTrigger, setLogsFocusTrigger] = useState(0);
-  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
-  const [history, setHistory] = useState([]);
-  const pendingLogsRef = useRef([]);
-  const flushScheduledRef = useRef(false);
-  const latestMetricsRef = useRef(null);
-  const chartStartTimeRef = useRef(null);
-  const requestsChartRef = useRef(null);
-  const latencyChartRef = useRef(null);
-  const rpsChartRef = useRef(null);
-  const distributionChartRef = useRef(null);
-  const errorChartRef = useRef(null);
-  const stoppedRunIdRef = useRef(null);
-
-  
-
-  useEffect(() => {
-    if (!localStorage.getItem("token")) {
-      window.location.href = "/login";
-      return;
-    }
-
-    const params = new URLSearchParams(window.location.search);
-    const id = params.get("projectId") || localStorage.getItem("projectId");
-    const activeRunId = params.get("runId") || localStorage.getItem("currentRunId");
-    const hasActiveRun =
-      params.get("active") === "true" ||
-      localStorage.getItem("currentRunActive") === "true";
-
-    setProjectId(id);
-    if (id) {
-      localStorage.setItem("projectId", id);
-    }
-
-    if (activeRunId) {
-      localStorage.setItem("currentRunId", activeRunId);
-      if (hasActiveRun) {
-        localStorage.setItem("currentRunActive", "true");
-      } else {
-        localStorage.removeItem("currentRunActive");
-      }
-      setRunId(activeRunId);
-      setSimulationState(hasActiveRun ? "running" : "idle");
-      setIsRunning(hasActiveRun);
-      setStatus(hasActiveRun ? "Simulation running" : "Viewing selected run");
-      const startTimestamp = Date.now();
-      chartStartTimeRef.current = startTimestamp;
-      const startTime = new Date(startTimestamp).toLocaleTimeString();
-      setGraphData([
-        { time: startTime, timestamp: startTimestamp, elapsedSec: 0, requests: 0 },
-      ]);
-      setHistory([
-        {
-          time: startTime,
-          timestamp: startTimestamp,
-          elapsedSec: 0,
-          avgLatency: 0,
-          p95Latency: 0,
-          rps: 0,
-        },
-      ]);
-      setLogs(readCachedLogs(id, activeRunId));
-      return;
-    }
-
-    setRunId(null);
-    setSimulationState("idle");
-    setIsRunning(false);
-    localStorage.removeItem("currentRunId");
-    localStorage.removeItem("currentRunActive");
-  }, []);
+export default function HomePage() {
+  const videoRef = useRef(null);
 
   useEffect(() => {
-    let shouldPoll = true;
+    const video = videoRef.current;
 
-    const fetchUser = async () => {
-      try {
-        const data = await api("/auth/me");
+    if (!video) {
+      return undefined;
+    }
 
-        if (shouldPoll) {
-          setPlan(data.plan || "free");
-        }
-      } catch (error) {
-        if (
-          error.message === "User not found" ||
-          error.message === "Invalid token" ||
-          error.message === "No token provided"
-        ) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("projectId");
-          localStorage.removeItem("currentRunId");
-          setProjectId(null);
-          setRunId(null);
-          setPlan("free");
-          shouldPoll = false;
-          return;
-        }
+    video.muted = true;
+    video.defaultMuted = true;
+    video.playsInline = true;
+    video.loop = true;
 
-        console.warn("Failed to fetch user:", error.message);
+    const ensurePlayback = () => {
+      const playPromise = video.play();
+
+      if (playPromise && typeof playPromise.catch === "function") {
+        playPromise.catch(() => {});
       }
     };
 
-    fetchUser();
+    const handleCanPlay = () => {
+      ensurePlayback();
+    };
 
-    const interval = setInterval(fetchUser, 3000);
+    video.addEventListener("canplay", handleCanPlay, { once: true });
+    ensurePlayback();
 
     return () => {
-      shouldPoll = false;
-      clearInterval(interval);
+      video.removeEventListener("canplay", handleCanPlay);
     };
   }, []);
-
-  const upgrade = async () => {
-    try {
-      const res = await api("/payment/checkout", "POST");
-      window.location.href = res.url;
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const addMetricsSnapshot = useCallback((snapshot) => {
-    const timestamp = Date.now();
-    if (!chartStartTimeRef.current) {
-      chartStartTimeRef.current = timestamp;
-    }
-    const elapsedSec = Math.round((timestamp - chartStartTimeRef.current) / 1000);
-    const time = new Date(timestamp).toLocaleTimeString();
-    setMetrics(snapshot);
-    setHistory((prev) =>
-      [
-        ...prev,
-        {
-          time,
-          timestamp,
-          elapsedSec,
-          avgLatency: snapshot.avgLatency,
-          p95Latency: snapshot.p95Latency ?? 0,
-          rps: snapshot.currentRps ?? snapshot.rps,
-        },
-      ].slice(-MAX_CHART_POINTS),
-    );
-    setGraphData((prev) =>
-      [
-        ...prev,
-        {
-          time,
-          timestamp,
-          elapsedSec,
-          requests: snapshot.totalRequests,
-        },
-      ].slice(-MAX_CHART_POINTS),
-    );
-  }, []);
-
-  const refreshMetricsSnapshot = useCallback(async (targetRunId = runId) => {
-    if (!projectId) {
-      return;
-    }
-
-    const snapshot = await api(
-      `/metrics/${projectId}${targetRunId ? `?runId=${targetRunId}` : ""}`,
-    );
-    addMetricsSnapshot(snapshot);
-  }, [addMetricsSnapshot, projectId, runId]);
-
-  const imageToDataUrl = (image, timeoutMs = 4000) =>
-    new Promise((resolve, reject) => {
-      const timeout = window.setTimeout(() => {
-        reject(new Error("Chart capture timed out"));
-      }, timeoutMs);
-
-      image.onload = () => {
-        window.clearTimeout(timeout);
-        resolve();
-      };
-
-      image.onerror = () => {
-        window.clearTimeout(timeout);
-        reject(new Error("Chart capture failed"));
-      };
-    });
-
-  const captureChart = async (ref) => {
-    if (!ref.current) {
-      return null;
-    }
-
-    const svg = ref.current.querySelector("svg");
-    if (!svg) {
-      return null;
-    }
-
-    const rect = svg.getBoundingClientRect();
-    const width = Math.max(1, Math.round(rect.width));
-    const height = Math.max(1, Math.round(rect.height));
-    const clonedSvg = svg.cloneNode(true);
-    clonedSvg.setAttribute("width", String(width));
-    clonedSvg.setAttribute("height", String(height));
-    clonedSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-
-    const inlineStyles = (source, target) => {
-      const sourceElements = source.querySelectorAll("*");
-      const targetElements = target.querySelectorAll("*");
-
-      if (sourceElements.length !== targetElements.length) {
-        return;
-      }
-
-      sourceElements.forEach((sourceEl, index) => {
-        const targetEl = targetElements[index];
-        const computed = window.getComputedStyle(sourceEl);
-        const styleText = Array.from(computed).reduce((text, property) => {
-          return `${text}${property}:${computed.getPropertyValue(property)};`;
-        }, "");
-        targetEl.setAttribute("style", styleText);
-      });
-    };
-
-    inlineStyles(svg, clonedSvg);
-
-    const background = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "rect",
-    );
-    background.setAttribute("width", "100%");
-    background.setAttribute("height", "100%");
-    background.setAttribute("fill", "#0f172a");
-    clonedSvg.insertBefore(background, clonedSvg.firstChild);
-
-    const svgText = new XMLSerializer().serializeToString(clonedSvg);
-    const svgBlob = new Blob([svgText], {
-      type: "image/svg+xml;charset=utf-8",
-    });
-    const svgUrl = URL.createObjectURL(svgBlob);
-    const image = new Image();
-
-    try {
-      const imageLoaded = imageToDataUrl(image);
-      image.src = svgUrl;
-      await imageLoaded;
-
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const context = canvas.getContext("2d");
-      context.fillStyle = "#0f172a";
-      context.fillRect(0, 0, width, height);
-      context.drawImage(image, 0, 0, width, height);
-
-      if (image.naturalWidth === 0 || image.naturalHeight === 0) {
-        throw new Error("Chart image failed to render");
-      }
-
-      return canvas.toDataURL("image/png");
-    } catch (error) {
-      console.warn(error.message);
-      return null;
-    } finally {
-      URL.revokeObjectURL(svgUrl);
-    }
-  };
-
-  const downloadPdf = async () => {
-    if (!projectId || isDownloadingPdf) {
-      return;
-    }
-
-    try {
-      setIsDownloadingPdf(true);
-      await refreshMetricsSnapshot();
-      await new Promise((resolve) => requestAnimationFrame(resolve));
-      await new Promise((resolve) => requestAnimationFrame(resolve));
-
-      const charts = await Promise.all([
-        captureChart(requestsChartRef),
-        captureChart(latencyChartRef),
-        captureChart(rpsChartRef),
-        captureChart(distributionChartRef),
-        captureChart(errorChartRef),
-      ]);
-      const token = localStorage.getItem("token");
-      const controller = new AbortController();
-      const timeout = window.setTimeout(() => controller.abort(), 20000);
-      let res;
-      try {
-        res = await fetch(`${getBaseUrl()}/report/pdf/${projectId}`, {
-          method: "POST",
-          signal: controller.signal,
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: token ? `Bearer ${token}` : "",
-          },
-          body: JSON.stringify({
-            requestsChart: charts[0],
-            latencyChart: charts[1],
-            rpsChart: charts[2],
-            distributionChart: charts[3],
-            errorChart: charts[4],
-          }),
-        });
-      } finally {
-        window.clearTimeout(timeout);
-      }
-
-      if (!res.ok) {
-        const message = await res.text();
-        throw new Error(message || "Failed to download PDF");
-      }
-
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `report-${projectId}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      setStatus(error.message || "Failed to download PDF");
-    } finally {
-      setIsDownloadingPdf(false);
-    }
-  };
-
-  const runSimulation = async () => {
-    if (!projectId) {
-      setStatus("No project selected");
-      return;
-    }
-
-    const parsedCount = Number.parseInt(count, 10);
-
-    if (!Number.isInteger(parsedCount) || parsedCount <= 0) {
-      setStatus("Enter a valid request count greater than 0");
-      return;
-    }
-
-    try {
-      setIsRunning(true);
-      setRunId(null);
-      stoppedRunIdRef.current = null;
-      setSimulationState("running");
-      setStatus("Starting simulation...");
-      setControlRate(rate);
-      const startTimestamp = Date.now();
-      chartStartTimeRef.current = startTimestamp;
-      const startTime = new Date(startTimestamp).toLocaleTimeString();
-      setGraphData([{ time: startTime, timestamp: startTimestamp, elapsedSec: 0, requests: 0 }]);
-      setHistory([
-        {
-          time: startTime,
-          timestamp: startTimestamp,
-          elapsedSec: 0,
-          avgLatency: 0,
-          p95Latency: 0,
-          rps: 0,
-        },
-      ]);
-      const res = await api(
-        `/projects/${projectId}/traffic?count=${parsedCount}&url=${encodeURIComponent(url)}&rate=${rate}`,
-        "POST",
-      );
-      if (res?.runId) {
-        localStorage.setItem("currentRunId", res.runId);
-        localStorage.setItem("currentRunActive", "true");
-        const params = new URLSearchParams(window.location.search);
-        params.set("projectId", projectId);
-        params.set("runId", res.runId);
-        params.set("active", "true");
-        window.history.replaceState(null, "", `/?${params.toString()}`);
-        setRunId(res.runId);
-      }
-      await refreshMetricsSnapshot(res?.runId || runId);
-      setStatus(res?.message || "Simulation started");
-      setLogsFocusTrigger((current) => current + 1);
-    } catch (error) {
-      if (error.message === "Project not found") {
-        localStorage.removeItem("projectId");
-        localStorage.removeItem("currentRunId");
-        localStorage.removeItem("currentRunActive");
-        setProjectId(null);
-        setRunId(null);
-      }
-
-      setStatus(error.message || "Failed to run simulation");
-      setSimulationState("idle");
-      setIsRunning(false);
-    }
-  };
-
-  const pauseSimulation = () => {
-    if (!runId) return;
-
-    socket.emit("pause", { projectId, runId });
-    setSimulationState("paused");
-    setStatus("Simulation paused");
-  };
-
-  const resumeSimulation = () => {
-    if (!runId) return;
-
-    socket.emit("resume", { projectId, runId });
-    setSimulationState("running");
-    setStatus("Simulation resumed");
-  };
-
-  const stopSimulation = () => {
-    if (!runId) return;
-
-    socket.emit("stop", { projectId, runId });
-    stoppedRunIdRef.current = runId;
-    setSimulationState("stopped");
-    setIsRunning(false);
-    setStatus("Simulation stopped");
-    localStorage.removeItem("currentRunActive");
-    const params = new URLSearchParams(window.location.search);
-    params.delete("active");
-    window.history.replaceState(
-      null,
-      "",
-      params.toString() ? `/?${params.toString()}` : "/",
-    );
-  };
-
-  const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("projectId");
-    localStorage.removeItem("currentRunId");
-    localStorage.removeItem("currentRunActive");
-    window.location.href = "/login";
-  };
-
-  const changeSimulationRate = (value) => {
-    setControlRate(value);
-  };
-
-  const applySimulationRate = () => {
-    const nextRate = Number(controlRate);
-    if (!runId || !Number.isFinite(nextRate) || nextRate <= 0) {
-      setStatus("Enter a valid RPS greater than 0");
-      return;
-    }
-
-    setIsApplyingRate(true);
-    socket.timeout(3000).emit(
-      "set-rate",
-      {
-        projectId,
-        runId,
-        rate: nextRate,
-      },
-      (error, response) => {
-        setIsApplyingRate(false);
-
-        if (error) {
-          setStatus("RPS change timed out. Check the backend/socket connection.");
-          return;
-        }
-
-        if (!response?.ok) {
-          setStatus(response?.message || "Failed to change RPS");
-          return;
-        }
-
-        setStatus(`RPS changed to ${response.rate}. It applies on the next batch.`);
-      },
-    );
-  };
-
-  useEffect(() => {
-    const handleControlError = (error) => {
-      setStatus(error?.message || "Simulation control failed");
-    };
-
-    socket.on("control-error", handleControlError);
-
-    return () => {
-      socket.off("control-error", handleControlError);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!projectId || !runId) {
-      return;
-    }
-
-    const handleComplete = () => {
-      if (stoppedRunIdRef.current === runId) {
-        stoppedRunIdRef.current = null;
-        return;
-      }
-
-      refreshMetricsSnapshot(runId).catch((error) => {
-        setStatus(error.message || "Failed to load final metrics");
-      });
-      setSimulationState("idle");
-      setIsRunning(false);
-      setStatus("Simulation completed");
-      localStorage.removeItem("currentRunActive");
-      const params = new URLSearchParams(window.location.search);
-      params.delete("active");
-      window.history.replaceState(null, "", `/?${params.toString()}`);
-    };
-
-    const completeEvent = `complete-${projectId}-${runId}`;
-    socket.on(completeEvent, handleComplete);
-
-    return () => {
-      socket.off(completeEvent, handleComplete);
-    };
-  }, [projectId, refreshMetricsSnapshot, runId]);
-
-  useEffect(() => {
-    if (!projectId || !runId) {
-      return;
-    }
-
-    const handleMetrics = (data) => {
-      latestMetricsRef.current = data;
-    };
-
-    joinRun(projectId, runId, (response) => {
-      if (response && !response.ok) {
-        setStatus(response.message || "Unable to join live run updates");
-      }
-    });
-
-    const metricsEvent = `metrics-${projectId}-${runId}`;
-    socket.on(metricsEvent, handleMetrics);
-    refreshMetricsSnapshot(runId).catch((error) => {
-      setStatus(error.message || "Failed to load current metrics");
-    });
-
-    const interval = setInterval(() => {
-      if (!latestMetricsRef.current) {
-        return;
-      }
-
-      const snapshot = latestMetricsRef.current;
-      const timestamp = Date.now();
-      if (!chartStartTimeRef.current) {
-        chartStartTimeRef.current = timestamp;
-      }
-      const elapsedSec = Math.round((timestamp - chartStartTimeRef.current) / 1000);
-      const time = new Date(timestamp).toLocaleTimeString();
-
-      setMetrics(snapshot);
-      setHistory((prev) =>
-        [
-          ...prev,
-          {
-            time,
-            timestamp,
-            elapsedSec,
-            avgLatency: snapshot.avgLatency,
-            p95Latency: snapshot.p95Latency ?? 0,
-            rps: snapshot.currentRps ?? snapshot.rps,
-          },
-        ].slice(-MAX_CHART_POINTS),
-      );
-      setGraphData((prev) =>
-        [
-          ...prev,
-          {
-            time,
-            timestamp,
-            elapsedSec,
-            requests: snapshot.totalRequests,
-          },
-        ].slice(-MAX_CHART_POINTS),
-      );
-      latestMetricsRef.current = null;
-    }, 500);
-
-    return () => {
-      clearInterval(interval);
-      leaveRun(runId);
-      socket.off(metricsEvent, handleMetrics);
-    };
-  }, [projectId, refreshMetricsSnapshot, runId]);
-
-  useEffect(() => {
-    pendingLogsRef.current = [];
-    setLogs(readCachedLogs(projectId, runId));
-  }, [projectId, runId]);
-
-  useEffect(() => {
-    if (!projectId || !runId) {
-      return;
-    }
-
-    const flushLogs = () => {
-      const incomingLogs = pendingLogsRef.current;
-      if (incomingLogs.length === 0) {
-        flushScheduledRef.current = false;
-        return;
-      }
-
-      pendingLogsRef.current = [];
-      setLogs((prev) => {
-        const nextLogs = [...prev, ...incomingLogs].slice(-MAX_LOGS);
-        writeCachedLogs(projectId, runId, nextLogs);
-        return nextLogs;
-      });
-      flushScheduledRef.current = false;
-    };
-
-    const scheduleFlush = () => {
-      if (flushScheduledRef.current) {
-        return;
-      }
-      flushScheduledRef.current = true;
-      requestAnimationFrame(flushLogs);
-    };
-
-    const handleLogEvent = (incoming) => {
-      const incomingLogs = Array.isArray(incoming) ? incoming : [incoming];
-      pendingLogsRef.current.push(...incomingLogs);
-      scheduleFlush();
-    };
-
-    const projectLogEvent = `logs-${projectId}-${runId}`;
-    socket.on(projectLogEvent, handleLogEvent);
-
-    return () => {
-      socket.off(projectLogEvent, handleLogEvent);
-    };
-  }, [projectId, runId]);
-
-  if (!projectId) {
-    return (
-      <div className="p-10">
-        No project selected. Open Projects and choose one again.
-      </div>
-    );
-  }
-
-  const hasActiveSimulation = isRunning;
 
   return (
-    <div className="p-10 max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">ChaosForge Dashboard</h1>
-      <div className="mb-4">
-        <div className="flex justify-between mb-6 gap-4">
-          <h1 className="text-2xl">ChaosForge</h1>
-          <div className="flex items-center gap-3">
-            <PlanBadge plan={plan} />
-            <button
-              type="button"
-              onClick={logout}
-              className="rounded-md border border-white/20 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-red-400 hover:text-red-200"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <button
-        onClick={upgrade}
-        className="bg-purple-500 px-4 py-2 rounded-lg mb-4"
+    <main className="overflow-hidden bg-background text-foreground">
+      <header
+        className="hero-parallax relative isolate flex min-h-screen flex-col overflow-hidden px-6 pb-20 pt-28 text-center"
       >
-        Upgrade to Pro
-      </button>
-
-      <PaymentHistory />
-
-      <div className="mb-6">
-        <div className="mb-3">
-          <input
-            placeholder="Enter API URL"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            className="p-2 mr-2"
-          />
-          <input
-            placeholder="Requests per second"
-            value={rate}
-            onChange={(e) => setRate(e.target.value)}
-            className="p-2 mr-2"
-          />
-          <input
-            type="number"
-            min="1"
-            value={count}
-            onChange={(e) => setCount(e.target.value)}
-            className="w-40 rounded-lg border border-white/20 bg-white/5 px-3 py-2"
-            placeholder="Request count"
-          />
+        <div className="hero-media">
+          <video
+            ref={videoRef}
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+            aria-hidden="true"
+            disablePictureInPicture
+            className="hero-video absolute inset-0 h-full w-full object-cover"
+          >
+            <source src="/video/ChaosVid.mp4" type="video/mp4" />
+          </video>
+          <div className="hero-video-overlay" />
+          <div className="hero-video-sheen" />
         </div>
 
-        <PremiumGate plan={plan} required="pro" onUpgrade={upgrade}>
-          <button
-            onClick={runSimulation}
-            disabled={hasActiveSimulation}
-            className="bg-blue-500 px-4 py-2 rounded-lg hover:bg-blue-600 transition font-medium mb-4 disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {hasActiveSimulation ? "Simulation Running" : "Run High Traffic Simulation"}
-          </button>
-        </PremiumGate>
+        <div className="hero-backdrop" />
+        <div className="hero-vignette" />
+        <div className="hero-noise" />
+        <div className="cyber-grid hero-grid opacity-40" />
+        <div className="hero-orb hero-orb-left" />
+        <div className="hero-orb hero-orb-right" />
+        <div className="hero-orb hero-orb-core" />
 
-        {hasActiveSimulation && (
-          <div className="mb-4 p-4 bg-white/5 border border-white/20 rounded-lg">
-            <div className="flex gap-3 flex-wrap items-center">
-              <button
-                onClick={pauseSimulation}
-                disabled={!runId || simulationState !== "running"}
-                className="bg-yellow-500 px-4 py-2 rounded-lg disabled:opacity-60 hover:bg-yellow-600 transition font-medium"
-              >
-                ⏸ Pause
+        <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 flex-col items-center justify-center">
+          <div className="hero-copy max-w-6xl">
+            <div className="hero-pill mb-8 inline-flex items-center gap-3 px-6 py-3 text-sm text-cyan-200 backdrop-blur-xl">
+              <div className="h-2.5 w-2.5 rounded-full bg-cyan-400 shadow-[0_0_18px_rgba(34,211,238,0.95)]" />
+              AI-native observability infrastructure
+            </div>
+
+            <h1 className="hero-title text-6xl font-black leading-[0.92] tracking-tight text-white md:text-7xl xl:text-[8.5rem]">
+              Infrastructure
+              <br />
+              Intelligence
+              <br />
+              <span className="hero-accent">for the Distributed Era.</span>
+            </h1>
+
+            <p className="mx-auto mt-10 max-w-4xl text-lg leading-8 text-slate-300 md:text-2xl md:leading-10">
+              The operating system for intelligent distributed infrastructure.
+              Realtime observability, Kafka event streaming, websocket telemetry,
+              and AI-native infrastructure insights.
+            </p>
+
+            <div className="mt-12 flex flex-wrap items-center justify-center gap-5">
+              <button className="hero-cta-primary rounded-2xl px-8 py-4 text-lg font-semibold text-slate-950 transition hover:scale-[1.03]">
+                Start Free Trial
               </button>
 
-              <button
-                onClick={resumeSimulation}
-                disabled={!runId || simulationState !== "paused"}
-                className="bg-green-500 px-4 py-2 rounded-lg disabled:opacity-60 hover:bg-green-600 transition font-medium"
-              >
-                ▶ Resume
+              <button className="hero-cta-secondary rounded-2xl px-8 py-4 text-lg font-semibold text-cyan-100 transition hover:bg-white/8">
+                Book Technical Demo
               </button>
-
-              <button
-                onClick={stopSimulation}
-                disabled={!runId || simulationState === "stopped"}
-                className="bg-red-500 px-4 py-2 rounded-lg disabled:opacity-60 hover:bg-red-600 transition font-medium"
-              >
-                🛑 Stop
-              </button>
-
-              <input
-                type="number"
-                min="1"
-                placeholder="Change RPS"
-                value={controlRate}
-                onChange={(e) => changeSimulationRate(e.target.value)}
-                disabled={!runId || simulationState === "stopped"}
-                className="px-3 py-2 rounded-lg border border-white/20 bg-white/5 disabled:opacity-60"
-              />
-
-              <button
-                onClick={applySimulationRate}
-                disabled={!runId || simulationState === "stopped" || isApplyingRate}
-                className="bg-cyan-500 px-4 py-2 rounded-lg disabled:opacity-60 hover:bg-cyan-600 transition font-medium"
-              >
-                {isApplyingRate ? "Applying..." : "Apply RPS"}
-              </button>
-
-              <span className="text-sm font-semibold px-3 py-2 rounded-lg bg-white/10">
-                {!runId && simulationState === "running" && "Starting..."}
-                {runId && simulationState === "running" && "🟢 Running"}
-                {simulationState === "paused" && "⏸️ Paused"}
-                {simulationState === "stopped" && "🛑 Stopped"}
-              </span>
             </div>
           </div>
-        )}
+        </div>
 
-        <PremiumGate plan={plan} required="premium" onUpgrade={upgrade}>
-          <div className="bg-purple-900 p-6 rounded-xl mt-6">
-            Chaos Engine (Advanced Failure Simulation)
+        <div className="hero-status-panel hero-status-panel-bottom absolute bottom-8 left-6 z-10 rounded-3xl px-5 py-4 backdrop-blur-xl md:bottom-10 md:left-10 md:px-6 md:py-5">
+          <div className="flex items-center gap-4">
+            <div className="h-3 w-3 rounded-full bg-cyan-400 shadow-[0_0_24px_rgba(34,211,238,0.9)]" />
+
+            <div className="text-left">
+              <p className="text-[10px] uppercase tracking-[0.35em] text-slate-400 md:text-xs">
+                Core Status
+              </p>
+              <h3 className="mt-1 text-xl font-bold text-cyan-200 md:text-2xl">
+                Optimal
+              </h3>
+            </div>
           </div>
-        </PremiumGate>
+        </div>
 
-      <div className="mt-3">
-          <p className="text-sm text-gray-300" data-testid="simulation-status">
-            Status: {simulationState === "idle" ? "Ready" : simulationState.charAt(0).toUpperCase() + simulationState.slice(1)}
-            {status && ` - ${status}`}
-          </p>
-          {runId ? (
-            <p className="mt-1 text-xs text-slate-500" data-testid="active-run-id">
-              Run: {runId}
+        <div className="hero-floating-card hero-floating-card-right hidden rounded-3xl px-5 py-4 backdrop-blur-xl md:flex">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.3em] text-slate-400">
+              Telemetry
             </p>
-          ) : null}
+            <p className="mt-2 text-3xl font-black text-white">12.4M/s</p>
+            <p className="mt-1 text-sm text-cyan-200">Live event throughput</p>
+          </div>
         </div>
-      </div>
 
-      <div data-testid="metrics-total-requests" className="sr-only">
-        {metrics.totalRequests}
-      </div>
-      <div data-testid="metrics-success" className="sr-only">
-        {metrics.success}
-      </div>
-      <div data-testid="chart-point-count" className="sr-only">
-        {graphData.length}
-      </div>
-      <div data-testid="log-count" className="sr-only">
-        {logs.length}
-      </div>
-      <div data-testid="chart-latest-requests" className="sr-only">
-        {graphData.at(-1)?.requests || 0}
-      </div>
-      <div data-testid="active-project-id" className="sr-only">
-        {projectId || ""}
-      </div>
-      <MetricsGrid metrics={metrics} />
-      <div className="grid min-w-0 grid-cols-1 xl:grid-cols-2 gap-6 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6">
-        <div ref={requestsChartRef} className="min-w-0">
-          <GraphSection data={graphData} />
+        <div className="hero-floating-card hero-floating-card-left hidden rounded-3xl px-5 py-4 backdrop-blur-xl xl:flex">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.3em] text-slate-400">
+              Latency
+            </p>
+            <p className="mt-2 text-3xl font-black text-white">4.8ms</p>
+            <p className="mt-1 text-sm text-cyan-200">Cross-region stream sync</p>
+          </div>
         </div>
-        <div ref={latencyChartRef} className="min-w-0">
-          <MetricsChart data={history} />
-        </div>
-        <div ref={rpsChartRef} className="min-w-0">
-          <RpsChart data={history} />
-        </div>
-        <div ref={distributionChartRef} className="min-w-0">
-          <DistributionChart buckets={metrics.latencyBuckets} />
-        </div>
-        <div ref={errorChartRef} className="min-w-0">
-          <ErrorPieChart errorTypes={metrics.errorTypes} />
-        </div>
-      </div>
-      <LogsPanel
-        projectId={projectId}
-        logs={logs}
-        focusTrigger={logsFocusTrigger}
-      />
 
-      <div className="flex flex-col gap-2">
-        <a
-          href={projectId ? `${getBaseUrl()}/report/csv/${projectId}` : "#"}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-block bg-blue-500 px-4 py-2 rounded-lg text-center disabled:opacity-60"
-          aria-disabled={!projectId}
-        >
-          Download CSV
-        </a>
+        <div className="hero-bottom-fade" />
+      </header>
 
-        <button
-          type="button"
-          onClick={downloadPdf}
-          disabled={!projectId || isDownloadingPdf}
-          className="inline-block bg-blue-500 px-4 py-2 rounded-lg text-center disabled:opacity-60 mt-2"
-        >
-          {isDownloadingPdf ? "Preparing PDF..." : "Download PDF"}
-        </button>
-      </div>
-    </div>
+      <section className="relative z-10 -mt-10 px-6 pb-24 pt-32">
+        <div className="mx-auto grid max-w-7xl gap-8 md:grid-cols-3">
+          {metrics.map(([value, label]) => (
+            <div key={label} className="glass-panel card-hover rounded-[28px] p-10 text-center">
+              <h3 className="text-6xl font-black text-cyan-300">{value}</h3>
+              <p className="mt-4 text-sm uppercase tracking-[0.3em] text-slate-400">
+                {label}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="relative bg-[linear-gradient(180deg,rgba(2,6,23,0.08),rgba(2,6,23,0.36))] px-6 py-24">
+        <div className="mx-auto max-w-7xl space-y-16">
+          <div className="mx-auto max-w-3xl text-center">
+            <p className="text-sm uppercase tracking-[0.4em] text-cyan-400">
+              Platform Capabilities
+            </p>
+
+            <h2 className="mt-6 text-5xl font-black text-white md:text-6xl">
+              Architected for Chaos
+            </h2>
+
+            <p className="mx-auto mt-8 max-w-3xl text-xl leading-8 text-slate-400">
+              Deep visibility into distributed systems through unified telemetry,
+              realtime observability, and AI-native intelligence.
+            </p>
+          </div>
+
+          <div className="grid auto-rows-[300px] gap-8 md:grid-cols-12">
+            <article className="glass-panel card-hover group relative overflow-hidden rounded-[30px] p-8 md:col-span-8">
+              <div className="hero-bento-glow absolute right-0 top-0 h-full w-[45%] opacity-50 transition-opacity duration-300 group-hover:opacity-90" />
+              <div className="absolute right-8 top-8 text-[7rem] font-black leading-none text-cyan-400/12">
+                HUB
+              </div>
+              <div className="relative z-10 flex h-full max-w-xl flex-col justify-end text-left">
+                <h3 className="text-3xl font-bold text-white md:text-4xl">
+                  {features[0].title}
+                </h3>
+                <p className="mt-4 text-lg leading-8 text-slate-300">
+                  {features[0].description}
+                </p>
+              </div>
+            </article>
+
+            <article className="glass-panel card-hover relative flex flex-col justify-between overflow-hidden rounded-[30px] p-8 text-left md:col-span-4">
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-400/10 text-lg font-bold text-cyan-300">
+                  WS
+                </div>
+                <h3 className="text-2xl font-bold text-white">
+                  WebSocket Telemetry
+                </h3>
+              </div>
+              <p className="mt-8 text-lg leading-8 text-slate-400">
+                Sub-millisecond real-time event streaming directly to your
+                observability dashboards.
+              </p>
+            </article>
+
+            <article className="glass-panel card-hover relative flex flex-col justify-between overflow-hidden rounded-[30px] p-8 text-left md:col-span-4">
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-400/10 text-lg font-bold text-cyan-300">
+                  PM
+                </div>
+                <h3 className="text-2xl font-bold text-white">
+                  Prometheus Native
+                </h3>
+              </div>
+              <p className="mt-8 text-lg leading-8 text-slate-400">
+                Seamless integration with Prometheus and Grafana for
+                enterprise-grade analytics.
+              </p>
+            </article>
+
+            <article className="glass-panel card-hover group relative overflow-hidden rounded-[30px] p-8 md:col-span-8">
+              <div className="hero-ai-panel absolute inset-0 opacity-55 transition-opacity duration-300 group-hover:opacity-75" />
+              <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/55 to-transparent" />
+              <div className="relative z-10 flex h-full max-w-xl flex-col justify-end text-left">
+                <h3 className="text-3xl font-bold text-white md:text-4xl">
+                  AI-Native Intelligence
+                </h3>
+                <p className="mt-4 text-lg leading-8 text-slate-300">
+                  Predictive anomaly detection and automated root-cause analysis
+                  powered by advanced machine learning models.
+                </p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section className="px-6 py-24">
+        <div className="mx-auto max-w-7xl space-y-16">
+          <div className="mx-auto max-w-3xl text-center">
+            <h2 className="text-5xl font-black text-white md:text-6xl">
+              Transparent Scale
+            </h2>
+            <p className="mt-4 text-xl leading-8 text-slate-400">
+              Enterprise-grade infrastructure without the enterprise opacity.
+            </p>
+          </div>
+
+          <div className="grid items-center gap-8 md:grid-cols-3">
+            {pricingPlans.map((plan) => (
+              <article
+                key={plan.name}
+                className={`glass-panel relative flex h-full flex-col rounded-[30px] p-8 text-left ${
+                  plan.highlighted
+                    ? "hero-pricing-featured border-cyan-400/40 bg-cyan-400/[0.08] md:scale-[1.03]"
+                    : ""
+                }`}
+              >
+                {plan.badge ? (
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-cyan-400 px-4 py-1 text-xs font-bold uppercase tracking-[0.25em] text-slate-950">
+                    {plan.badge}
+                  </div>
+                ) : null}
+
+                <div className="mb-8">
+                  <h3 className="text-3xl font-bold text-white">{plan.name}</h3>
+                  <div className="mt-4 flex items-baseline gap-2">
+                    <span
+                      className={`text-[3rem] font-black leading-none ${
+                        plan.highlighted ? "text-cyan-300" : "text-white"
+                      }`}
+                    >
+                      {plan.price}
+                    </span>
+                    {plan.suffix ? (
+                      <span className="text-base text-slate-400">{plan.suffix}</span>
+                    ) : null}
+                  </div>
+                  <p className="mt-3 text-base leading-7 text-slate-400">
+                    {plan.subtitle}
+                  </p>
+                </div>
+
+                <ul className="mb-8 flex flex-1 flex-col gap-4 text-base text-slate-300">
+                  {plan.features.map((item) => (
+                    <li key={item} className="flex items-center gap-3">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-cyan-400/10 text-xs font-bold text-cyan-300">
+                        +
+                      </span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+
+                <button
+                  className={`w-full rounded-xl px-6 py-3 text-base font-bold transition ${
+                    plan.highlighted
+                      ? "hero-cta-primary text-slate-950 hover:scale-[1.01]"
+                      : "hero-cta-secondary text-white hover:bg-white/10"
+                  }`}
+                >
+                  {plan.cta}
+                </button>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="relative flex justify-center overflow-hidden px-6 py-32">
+        <div className="hero-bottom-glow absolute inset-0 z-0 opacity-50" />
+        <div className="glass-panel relative z-10 max-w-4xl rounded-[36px] border border-cyan-400/20 p-12 text-center md:p-16">
+          <h2 className="text-5xl font-black text-white md:text-[3.5rem]">
+            Scale your intelligence.
+          </h2>
+          <p className="mx-auto mt-6 max-w-2xl text-xl leading-8 text-slate-400">
+            Join the teams building the next generation of resilient
+            infrastructure.
+          </p>
+          <button className="hero-cta-primary mt-10 rounded-2xl px-10 py-4 text-xl font-bold text-slate-950 transition hover:scale-[1.02]">
+            Get Started Now
+          </button>
+        </div>
+      </section>
+
+      <footer className="border-t border-white/5 bg-[rgba(2,6,23,0.56)] px-6 pb-10 pt-20">
+        <div className="mx-auto grid max-w-7xl gap-10 md:grid-cols-4 lg:grid-cols-6">
+          <div className="space-y-4 md:col-span-2 lg:col-span-2">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-400/12 text-sm font-black text-cyan-300">
+                CF
+              </div>
+              <span className="text-2xl font-bold text-white">ChaosForge</span>
+            </div>
+            <p className="max-w-xs text-base leading-7 text-slate-400">
+              © 2024 ChaosForge Intelligence. All rights reserved. Built for
+              distributed resilience.
+            </p>
+          </div>
+
+          {footerGroups.map((group) => (
+            <div key={group.title} className="flex flex-col space-y-3">
+              <h4 className="mb-2 text-xs font-bold uppercase tracking-[0.3em] text-slate-300">
+                {group.title}
+              </h4>
+              {group.links.map((link) => (
+                <a
+                  key={link}
+                  href="#"
+                  className="text-base text-slate-400 transition-colors hover:text-cyan-300"
+                >
+                  {link}
+                </a>
+              ))}
+            </div>
+          ))}
+        </div>
+      </footer>
+    </main>
   );
 }
