@@ -1,4 +1,4 @@
-require("dotenv").config();
+require("./config/env");
 
 const http = require("http");
 
@@ -16,10 +16,10 @@ const server = http.createServer(app);
 
 initSocket(server);
 
-connectDB();
-
 const startServer = async () => {
   try {
+    await connectDB();
+
     await connectRedis();
 
     server.listen(PORT, () => {

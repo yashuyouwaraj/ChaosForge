@@ -16,11 +16,17 @@ services:
 
       PORT: 3001
 
+      FRONTEND_URL: http://localhost:3000
+
+      CORS_ORIGIN: http://localhost:3000
+
       MONGO_URI: mongodb://mongo:27017/chaosforge
 
       REDIS_URL: redis://redis:6379
 
       KAFKA_BROKER: kafka:9092
+
+      KAFKA_TOPIC_REPLICATION_FACTOR: 1
 
       USE_KAFKA: "true"
 
@@ -47,6 +53,8 @@ services:
       REDIS_URL: redis://redis:6379
 
       KAFKA_BROKER: kafka:9092
+
+      KAFKA_TOPIC_REPLICATION_FACTOR: 1
 
       USE_KAFKA: "true"
 

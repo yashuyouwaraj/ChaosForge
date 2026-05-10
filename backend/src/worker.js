@@ -1,4 +1,4 @@
-require("dotenv").config();
+require("./config/env");
 
 const connectDB = require("./config/db");
 
@@ -10,20 +10,16 @@ const runConsumer = require("./consumers/traffic.consumer");
 
 const useKafka = process.env.USE_KAFKA === "true";
 
-connectDB();
-
 const startWorker = async () => {
   try {
+    await connectDB();
+
     await connectRedis();
 
     if (useKafka) {
-      try {
-        await connectProducer();
-        await runConsumer();
-        console.log("Kafka worker started.");
-      } catch (kafkaErr) {
-        console.warn("Kafka connection failed, continuing without Kafka:", kafkaErr.message);
-      }
+      await connectProducer();
+      await runConsumer();
+      console.log("Kafka worker started.");
     } else {
       console.log("Kafka disabled.");
     }

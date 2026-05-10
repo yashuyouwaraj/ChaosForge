@@ -1,22 +1,13 @@
-require("dotenv").config();
-const { Kafka } = require("kafkajs");
+require("../config/env");
 const {
-  ensureKafkaTopics,
+  consumer,
+  connectConsumer,
   TRAFFIC_TOPIC,
 } = require("../config/kafka");
 const { simulateProcessing } = require("../services/simulation.service");
-const { getMetrics } = require("../metrics/metrics.store");
-const { emitBufferedLog, getIO } = require("../websocket/socket");
 const logger = require("../utils/logger");
 
 const useKafka = process.env.USE_KAFKA === "true";
-
-const kafka = new Kafka({
-  clientId: "traffic-consumer",
-  brokers: [process.env.KAFKA_BROKER || "localhost:9092"],
-});
-
-const consumer = kafka.consumer({ groupId: "traffic-group" });
 
 const runConsumer = async () => {
   if (!useKafka) {
@@ -24,9 +15,7 @@ const runConsumer = async () => {
     return;
   }
 
-  await ensureKafkaTopics();
-
-  await consumer.connect();
+  await connectConsumer();
 
   await consumer.subscribe({
     topic: TRAFFIC_TOPIC,
