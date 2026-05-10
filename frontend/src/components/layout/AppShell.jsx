@@ -5,7 +5,7 @@ import { Navbar } from "../navbar/Navbar";
 
 export function AppShell({ children }) {
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-white text-black">
       <Sidebar />
 
       <div className="flex flex-1 flex-col">

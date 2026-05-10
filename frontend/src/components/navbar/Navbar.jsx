@@ -8,7 +8,7 @@ export function Navbar() {
       className="
         sticky top-0 z-50 flex h-16
         items-center justify-between
-        border-b bg-background/80 px-6
+       bg-background/80 px-6
         backdrop-blur
       "
     >

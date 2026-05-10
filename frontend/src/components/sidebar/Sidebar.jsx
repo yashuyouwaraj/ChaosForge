@@ -60,11 +60,11 @@ export function Sidebar() {
   return (
     <aside
       className="
-        hidden w-72 border-r bg-card
+        hidden w-72 bg-card
         lg:flex lg:flex-col
       "
     >
-      <div className="border-b p-6">
+      <div className="p-6">
         <h1 className="text-2xl font-bold">
           ChaosForge
         </h1>
