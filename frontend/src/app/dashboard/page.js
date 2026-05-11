@@ -2,8 +2,9 @@ import { AppShell } from "@/components/layout/AppShell";
 
 import { DashboardSection } from "@/components/dashboard/DashboardSection";
 
-import { RunSelector }
-  from "@/components/dashboard/RunSelector";
+import { CreateSimulationPanel } from "@/components/dashboard/CreateSimulationPanel";
+
+import { RunSelector } from "@/components/dashboard/RunSelector";
 
 import { InfraStatusCard } from "@/components/dashboard/InfraStatusCard";
 
@@ -63,6 +64,8 @@ export default function DashboardPage() {
         </section>
 
         <RunSelector />
+
+        <CreateSimulationPanel />
 
         {/* INFRA */}
         <DashboardSection

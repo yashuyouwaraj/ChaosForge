@@ -5,21 +5,23 @@ import {
   useState,
 } from "react";
 
-import {
-  useSocket,
-} from "@/components/providers/SocketProvider";
+import socket
+  from "@/lib/socket";
 
 export function useRealtimeMetrics(
   projectId,
   runId,
 ) {
-  const socket = useSocket();
-
   const [metrics, setMetrics] =
     useState(null);
 
   useEffect(() => {
-    if (!socket) return;
+    if (
+      !projectId ||
+      !runId
+    ) {
+      return;
+    }
 
     const event =
       `metrics-${projectId}-${runId}`;
@@ -31,10 +33,12 @@ export function useRealtimeMetrics(
     socket.on(event, handler);
 
     return () => {
-      socket.off(event, handler);
+      socket.off(
+        event,
+        handler,
+      );
     };
   }, [
-    socket,
     projectId,
     runId,
   ]);

@@ -7,6 +7,17 @@ import { useActiveSimulations } from "@/hooks/useActiveSimulations";
 export function ActiveSimulations() {
   const runs = useActiveSimulations();
 
+  const handleNewSimulation = () => {
+    document
+      .getElementById(
+        "create-simulation-panel",
+      )
+      ?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+  };
+
   return (
     <div
       className="
@@ -31,6 +42,8 @@ export function ActiveSimulations() {
         </div>
 
         <button
+          type="button"
+          onClick={handleNewSimulation}
           className="
             rounded-xl
             bg-cyan-500 px-5 py-3

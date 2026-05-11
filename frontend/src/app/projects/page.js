@@ -105,7 +105,7 @@ export default function Projects() {
       localStorage.removeItem("currentRunActive");
     }
 
-    window.location.href = `/?${params.toString()}`;
+    window.location.href = `/dashboard?${params.toString()}`;
   };
 
   const runTest = async (projectId) => {

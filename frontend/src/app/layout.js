@@ -1,6 +1,6 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "../styles/globals.css";
-import { SocketProvider } from "@/components/providers/SocketProvider";
+import { ProjectProvider } from "@/components/providers/ProjectProvider";
 import { RunProvider } from "@/components/providers/RunProvider";
 
 const geistSans = Geist({
@@ -26,9 +26,9 @@ export default function RootLayout({ children }) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <SocketProvider>
+        <ProjectProvider>
           <RunProvider>{children}</RunProvider>
-        </SocketProvider>
+        </ProjectProvider>
       </body>
     </html>
   );

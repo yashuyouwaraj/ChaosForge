@@ -12,21 +12,31 @@ import ErrorPieChart
 import {
   useMetricsHistory,
 } from "@/hooks/useMetricsHistory";
+import {
+  useRun,
+} from "@/components/providers/RunProvider";
 
 export function RealtimeCharts() {
+  const { selectedRun } =
+    useRun();
+
   const history =
     useMetricsHistory(
-      "demo-project",
-      "demo-run",
+      selectedRun.projectId,
+      selectedRun.runId,
+      selectedRun.isActive,
     );
 
   const rpsData =
     history.map((point) => ({
+      timestamp:
+        point.timestamp,
+      elapsedSec:
+        point.elapsedSec,
       time:
         new Date(
           point.timestamp,
         ).toLocaleTimeString(),
-
       rps: point.rps,
     }));
 
@@ -36,35 +46,16 @@ export function RealtimeCharts() {
         new Date(
           point.timestamp,
         ).toLocaleTimeString(),
-
-      latency:
-        point.latency,
+      avgLatency:
+        point.avgLatency,
+      p95Latency:
+        point.p95Latency,
     }));
 
   const latest =
     history[
       history.length - 1
     ];
-
-  const errorData = [
-    {
-      name: "Failures",
-      value:
-        latest?.failures || 0,
-    },
-
-    {
-      name: "Healthy",
-      value:
-        Math.max(
-          0,
-          100 -
-            (
-              latest?.failures || 0
-            ),
-        ),
-    },
-  ];
 
   return (
     <div
@@ -111,7 +102,9 @@ export function RealtimeCharts() {
         </div>
 
         <ErrorPieChart
-          data={errorData}
+          errorTypes={
+            latest?.errorTypes
+          }
         />
       </div>
 

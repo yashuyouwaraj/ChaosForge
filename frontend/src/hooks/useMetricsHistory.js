@@ -12,6 +12,7 @@ import {
 export function useMetricsHistory(
   projectId,
   runId,
+  isActive = true,
 ) {
   const metrics =
     useRealtimeMetrics(
@@ -23,29 +24,75 @@ export function useMetricsHistory(
     useState([]);
 
   useEffect(() => {
-    if (!metrics) return;
+    setHistory([]);
+  }, [
+    projectId,
+    runId,
+  ]);
+
+  useEffect(() => {
+    if (!metrics || !isActive) {
+      return;
+    }
 
     setHistory((prev) => {
+      const timestamp =
+        Date.now();
+      const startTimestamp =
+        prev[0]?.timestamp ||
+        timestamp;
+      const elapsedSec =
+        Math.max(
+          0,
+          Math.round(
+            (timestamp -
+              startTimestamp) /
+              1000,
+          ),
+        );
+      const nextPoint = {
+        timestamp,
+        elapsedSec,
+        rps:
+          metrics.currentRps || 0,
+        avgLatency:
+          metrics.avgLatency || 0,
+        p95Latency:
+          metrics.p95Latency || 0,
+        failures:
+          metrics.failure || 0,
+        errorTypes:
+          metrics.errorTypes || {
+            timeout: 0,
+            network: 0,
+            server: 0,
+          },
+      };
+
+      if (
+        prev.length > 0 &&
+        prev[
+          prev.length - 1
+        ].elapsedSec ===
+          elapsedSec
+      ) {
+        return [
+          ...prev.slice(0, -1),
+          nextPoint,
+        ];
+      }
+
       const next = [
         ...prev,
-        {
-          timestamp:
-            Date.now(),
-
-          rps:
-            metrics.currentRps || 0,
-
-          latency:
-            metrics.avgLatency || 0,
-
-          failures:
-            metrics.failure || 0,
-        },
+        nextPoint,
       ];
 
-      return next.slice(-40);
+      return next.slice(-240);
     });
-  }, [metrics]);
+  }, [
+    isActive,
+    metrics,
+  ]);
 
   return history;
 }
