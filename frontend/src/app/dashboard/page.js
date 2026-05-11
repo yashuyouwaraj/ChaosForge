@@ -1,19 +1,27 @@
 import { AppShell } from "@/components/layout/AppShell";
 
-import { DashboardSection }
-  from "@/components/dashboard/DashboardSection";
+import { DashboardSection } from "@/components/dashboard/DashboardSection";
 
-import { InfraStatusCard }
-  from "@/components/dashboard/InfraStatusCard";
+import { InfraStatusCard } from "@/components/dashboard/InfraStatusCard";
 
-import { AiInsightsPreview }
-  from "@/components/dashboard/AiInsightsPreview";
+import { AiInsightsPreview } from "@/components/dashboard/AiInsightsPreview";
+
+import { RealtimeTelemetry } from "@/components/dashboard/RealtimeTelemetry";
+
+import { RealtimeCharts } from "@/components/dashboard/RealtimeCharts";
+
+import { ActiveSimulations } from "@/components/dashboard/ActiveSimulations";
+
+import { LiveLogStream } from "@/components/dashboard/LiveLogStream";
+
+import { AlertCenter } from "@/components/dashboard/AlertCenter";
+
+import { InfrastructureTopology } from "@/components/dashboard/InfrastructureTopology";
 
 export default function DashboardPage() {
   return (
     <AppShell>
       <div className="space-y-10">
-
         {/* HERO */}
         <section
           className="
@@ -37,8 +45,7 @@ export default function DashboardPage() {
               leading-tight
             "
           >
-            Distributed Infrastructure
-            Intelligence Platform
+            Distributed Infrastructure Intelligence Platform
           </h1>
 
           <p
@@ -47,9 +54,8 @@ export default function DashboardPage() {
               text-lg text-muted-foreground
             "
           >
-            Realtime distributed load testing,
-            observability, AI insights,
-            and infrastructure intelligence.
+            Realtime distributed load testing, observability, AI insights, and
+            infrastructure intelligence.
           </p>
         </section>
 
@@ -65,23 +71,11 @@ export default function DashboardPage() {
               xl:grid-cols-4
             "
           >
-            <InfraStatusCard
-              title="Kafka Workers"
-              status="healthy"
-              value="8"
-            />
+            <InfraStatusCard title="Kafka Workers" status="healthy" value="8" />
 
-            <InfraStatusCard
-              title="Redis"
-              status="healthy"
-              value="Connected"
-            />
+            <InfraStatusCard title="Redis" status="healthy" value="Connected" />
 
-            <InfraStatusCard
-              title="WebSockets"
-              status="healthy"
-              value="42"
-            />
+            <InfraStatusCard title="WebSockets" status="healthy" value="42" />
 
             <InfraStatusCard
               title="Prometheus"
@@ -89,6 +83,48 @@ export default function DashboardPage() {
               value="Active"
             />
           </div>
+        </DashboardSection>
+
+        <DashboardSection
+          title="Realtime Telemetry"
+          description="Live infrastructure metrics streaming."
+        >
+          <RealtimeTelemetry />
+        </DashboardSection>
+
+        <DashboardSection
+          title="Realtime Observability"
+          description="Streaming infrastructure analytics and telemetry."
+        >
+          <RealtimeCharts />
+        </DashboardSection>
+
+        <DashboardSection
+          title="Simulation Command Center"
+          description="Realtime distributed load orchestration."
+        >
+          <ActiveSimulations />
+        </DashboardSection>
+
+        <DashboardSection
+          title="Realtime Infrastructure Feed"
+          description="Live distributed infrastructure events and operational activity."
+        >
+          <LiveLogStream />
+        </DashboardSection>
+
+        <DashboardSection
+          title="Incident Intelligence"
+          description="Realtime infrastructure anomalies and operational alerts."
+        >
+          <AlertCenter />
+        </DashboardSection>
+
+        <DashboardSection
+          title="Infrastructure Topology"
+          description="Realtime distributed system architecture visualization."
+        >
+          <InfrastructureTopology />
         </DashboardSection>
 
         {/* AI */}

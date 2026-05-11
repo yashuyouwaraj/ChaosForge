@@ -1,48 +1,138 @@
+"use client";
+
+import { motion } from "framer-motion";
+
+import {
+  useAiInsights,
+} from "@/hooks/useAiInsights";
+
+const styles = {
+  info:
+    "border-cyan-500/20 bg-cyan-500/5 text-cyan-300",
+
+  warning:
+    "border-yellow-500/20 bg-yellow-500/5 text-yellow-300",
+
+  critical:
+    "border-red-500/20 bg-red-500/5 text-red-300",
+};
+
 export function AiInsightsPreview() {
+  const insights =
+    useAiInsights(
+      "demo-project",
+      "demo-run",
+    );
+
   return (
-    <div
-      className="
-        glass rounded-3xl
-        border border-cyan-500/20
-        p-6
-      "
-    >
-      <div className="flex items-center gap-3">
+    <div className="space-y-6">
+      {insights.length === 0 && (
         <div
           className="
-            flex h-12 w-12 items-center
-            justify-center rounded-2xl
-            bg-cyan-500/10
+            glass rounded-[28px]
+            p-10 text-center
           "
         >
-          🧠
-        </div>
-
-        <div>
-          <h3 className="text-xl font-semibold">
-            AI Infrastructure Insight
+          <h3 className="text-2xl font-bold">
+            AI Analysis Stable
           </h3>
 
-          <p className="text-muted-foreground">
-            Realtime analysis engine
+          <p
+            className="
+              mt-3 text-muted-foreground
+            "
+          >
+            No infrastructure anomalies
+            detected.
           </p>
         </div>
-      </div>
+      )}
 
-      <div
-        className="
-          mt-6 rounded-2xl
-          border border-white/10
-          bg-black/20 p-4
-        "
-      >
-        <p className="text-sm leading-7">
-          Elevated latency detected during
-          websocket burst traffic.
-          Possible bottleneck:
-          Redis write pressure.
-        </p>
-      </div>
+      {insights.map(
+        (insight, index) => (
+          <motion.div
+            key={insight.title}
+
+            initial={{
+              opacity: 0,
+              y: 20,
+            }}
+
+            animate={{
+              opacity: 1,
+              y: 0,
+            }}
+
+            transition={{
+              delay: index * 0.08,
+            }}
+
+            className={`
+              glass rounded-[28px]
+              border p-6
+              ${
+                styles[
+                  insight.severity
+                ]
+              }
+            `}
+          >
+            <div
+              className="
+                flex items-start
+                justify-between gap-4
+              "
+            >
+              <div>
+                <div
+                  className="
+                    inline-flex rounded-full
+                    bg-white/5 px-3 py-1
+                    text-xs font-semibold
+                    uppercase tracking-[0.2em]
+                  "
+                >
+                  {
+                    insight.severity
+                  }
+                </div>
+
+                <h3
+                  className="
+                    mt-5 text-2xl
+                    font-bold
+                  "
+                >
+                  {insight.title}
+                </h3>
+
+                <p
+                  className="
+                    mt-4 leading-7
+                    text-slate-300
+                  "
+                >
+                  {
+                    insight.description
+                  }
+                </p>
+              </div>
+
+              <div
+                className="
+                  flex h-12 w-12
+                  items-center justify-center
+                  rounded-2xl
+                  bg-white/5
+                  text-xl
+                "
+              >
+                🧠
+              </div>
+            </div>
+          </motion.div>
+        ),
+      )}
     </div>
   );
 }

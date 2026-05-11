@@ -1,0 +1,189 @@
+"use client";
+
+import { motion } from "framer-motion";
+
+const nodes = [
+  {
+    name: "Frontend",
+    status: "healthy",
+  },
+
+  {
+    name: "API Gateway",
+    status: "healthy",
+  },
+
+  {
+    name: "Kafka",
+    status: "healthy",
+  },
+
+  {
+    name: "Workers",
+    status: "healthy",
+  },
+
+  {
+    name: "Redis",
+    status: "warning",
+  },
+
+  {
+    name: "WebSockets",
+    status: "healthy",
+  },
+
+  {
+    name: "Observability",
+    status: "healthy",
+  },
+];
+
+const statusStyles = {
+  healthy:
+    "bg-green-500 shadow-[0_0_20px_rgba(34,197,94,0.8)]",
+
+  warning:
+    "bg-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.8)]",
+
+  critical:
+    "bg-red-500 shadow-[0_0_20px_rgba(239,68,68,0.8)]",
+};
+
+export function InfrastructureTopology() {
+  return (
+    <div
+      className="
+        glass overflow-hidden
+        rounded-[32px]
+        p-10
+      "
+    >
+      <div className="mb-12">
+        <h3 className="text-3xl font-black">
+          Distributed Infrastructure Map
+        </h3>
+
+        <p className="mt-3 text-muted-foreground">
+          Live topology visualization of the
+          ChaosForge distributed system.
+        </p>
+      </div>
+
+      <div
+        className="
+          relative flex
+          flex-wrap items-center
+          justify-center gap-10
+        "
+      >
+        {nodes.map((node, index) => (
+          <div
+            key={node.name}
+            className="
+              flex items-center gap-6
+            "
+          >
+            <motion.div
+              initial={{
+                opacity: 0,
+                scale: 0.8,
+              }}
+
+              animate={{
+                opacity: 1,
+                scale: 1,
+              }}
+
+              transition={{
+                delay: index * 0.08,
+              }}
+
+              className="
+                relative flex
+                h-36 w-36 flex-col
+                items-center justify-center
+                rounded-[30px]
+                border border-white/10
+                bg-white/[0.03]
+                backdrop-blur-xl
+              "
+            >
+              {/* Glow */}
+              <div
+                className={`
+                  absolute top-5 right-5
+                  h-3 w-3 rounded-full
+                  ${statusStyles[node.status]}
+                `}
+              />
+
+              {/* Pulse */}
+              <div
+                className={`
+                  absolute inset-0
+                  rounded-[30px]
+                  opacity-20 blur-2xl
+                  ${statusStyles[node.status]}
+                `}
+              />
+
+              <div
+                className="
+                  relative z-10
+                  text-center
+                "
+              >
+                <h4
+                  className="
+                    text-lg font-bold
+                  "
+                >
+                  {node.name}
+                </h4>
+
+                <p
+                  className="
+                    mt-2 text-sm
+                    uppercase tracking-[0.2em]
+                    text-muted-foreground
+                  "
+                >
+                  {node.status}
+                </p>
+              </div>
+            </motion.div>
+
+            {/* Connection */}
+            {index < nodes.length - 1 && (
+              <motion.div
+                initial={{
+                  opacity: 0,
+                  scaleX: 0,
+                }}
+
+                animate={{
+                  opacity: 1,
+                  scaleX: 1,
+                }}
+
+                transition={{
+                  delay: index * 0.1,
+                }}
+
+                className="
+                  hidden h-[2px]
+                  w-20 origin-left
+                  bg-gradient-to-r
+                  from-cyan-400
+                  to-blue-500
+                  xl:block
+                "
+              />
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
