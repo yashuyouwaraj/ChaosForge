@@ -2,41 +2,34 @@
 
 import { motion } from "framer-motion";
 
-import {
-  useRealtimeMetrics,
-} from "@/hooks/useRealtimeMetrics";
+import { useRealtimeMetrics } from "@/hooks/useRealtimeMetrics";
+
+import { useRun } from "@/components/providers/RunProvider";
 
 export function RealtimeTelemetry() {
-  const metrics =
-    useRealtimeMetrics(
-      "demo-project",
-      "demo-run",
-    );
+  const { selectedRun } = useRun();
+
+  const metrics = useRealtimeMetrics(selectedRun.projectId, selectedRun.runId);
 
   const cards = [
     {
       label: "Requests",
-      value:
-        metrics?.totalRequests || 0,
+      value: metrics?.totalRequests || 0,
     },
 
     {
       label: "Avg Latency",
-      value: `${
-        metrics?.avgLatency || 0
-      }ms`,
+      value: `${metrics?.avgLatency || 0}ms`,
     },
 
     {
       label: "Current RPS",
-      value:
-        metrics?.currentRps || 0,
+      value: metrics?.currentRps || 0,
     },
 
     {
       label: "Failures",
-      value:
-        metrics?.failure || 0,
+      value: metrics?.failure || 0,
     },
   ];
 
@@ -51,21 +44,17 @@ export function RealtimeTelemetry() {
       {cards.map((metric, index) => (
         <motion.div
           key={metric.label}
-
           initial={{
             opacity: 0,
             y: 20,
           }}
-
           animate={{
             opacity: 1,
             y: 0,
           }}
-
           transition={{
             delay: index * 0.08,
           }}
-
           className="
             glass rounded-[28px]
             p-6

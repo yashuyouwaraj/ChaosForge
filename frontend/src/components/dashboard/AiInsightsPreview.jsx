@@ -2,27 +2,24 @@
 
 import { motion } from "framer-motion";
 
+import { useAiInsights } from "@/hooks/useAiInsights";
+
 import {
-  useAiInsights,
-} from "@/hooks/useAiInsights";
+  useRun,
+} from "@/components/providers/RunProvider";
 
 const styles = {
-  info:
-    "border-cyan-500/20 bg-cyan-500/5 text-cyan-300",
+  info: "border-cyan-500/20 bg-cyan-500/5 text-cyan-300",
 
-  warning:
-    "border-yellow-500/20 bg-yellow-500/5 text-yellow-300",
+  warning: "border-yellow-500/20 bg-yellow-500/5 text-yellow-300",
 
-  critical:
-    "border-red-500/20 bg-red-500/5 text-red-300",
+  critical: "border-red-500/20 bg-red-500/5 text-red-300",
 };
 
 export function AiInsightsPreview() {
-  const insights =
-    useAiInsights(
-      "demo-project",
-      "demo-run",
-    );
+  const { selectedRun } = useRun();
+
+  const insights = useAiInsights(selectedRun.projectId, selectedRun.runId);
 
   return (
     <div className="space-y-6">
@@ -33,106 +30,89 @@ export function AiInsightsPreview() {
             p-10 text-center
           "
         >
-          <h3 className="text-2xl font-bold">
-            AI Analysis Stable
-          </h3>
+          <h3 className="text-2xl font-bold">AI Analysis Stable</h3>
 
           <p
             className="
               mt-3 text-muted-foreground
             "
           >
-            No infrastructure anomalies
-            detected.
+            No infrastructure anomalies detected.
           </p>
         </div>
       )}
 
-      {insights.map(
-        (insight, index) => (
-          <motion.div
-            key={insight.title}
-
-            initial={{
-              opacity: 0,
-              y: 20,
-            }}
-
-            animate={{
-              opacity: 1,
-              y: 0,
-            }}
-
-            transition={{
-              delay: index * 0.08,
-            }}
-
-            className={`
+      {insights.map((insight, index) => (
+        <motion.div
+          key={insight.title}
+          initial={{
+            opacity: 0,
+            y: 20,
+          }}
+          animate={{
+            opacity: 1,
+            y: 0,
+          }}
+          transition={{
+            delay: index * 0.08,
+          }}
+          className={`
               glass rounded-[28px]
               border p-6
-              ${
-                styles[
-                  insight.severity
-                ]
-              }
+              ${styles[insight.severity]}
             `}
-          >
-            <div
-              className="
+        >
+          <div
+            className="
                 flex items-start
                 justify-between gap-4
               "
-            >
-              <div>
-                <div
-                  className="
+          >
+            <div>
+              <div
+                className="
                     inline-flex rounded-full
                     bg-white/5 px-3 py-1
                     text-xs font-semibold
                     uppercase tracking-[0.2em]
                   "
-                >
-                  {
-                    insight.severity
-                  }
-                </div>
+              >
+                {insight.severity}
+              </div>
 
-                <h3
-                  className="
+              <h3
+                className="
                     mt-5 text-2xl
                     font-bold
                   "
-                >
-                  {insight.title}
-                </h3>
+              >
+                {insight.title}
+              </h3>
 
-                <p
-                  className="
+              <p
+                className="
                     mt-4 leading-7
                     text-slate-300
                   "
-                >
-                  {
-                    insight.description
-                  }
-                </p>
-              </div>
+              >
+                {insight.description}
+              </p>
+            </div>
 
-              <div
-                className="
+            <div
+              className="
                   flex h-12 w-12
                   items-center justify-center
                   rounded-2xl
                   bg-white/5
                   text-xl
                 "
-              >
-                🧠
-              </div>
+            >
+              🧠
             </div>
-          </motion.div>
-        ),
-      )}
+          </div>
+        </motion.div>
+      ))}
     </div>
   );
 }

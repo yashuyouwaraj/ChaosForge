@@ -2,13 +2,10 @@
 
 import { motion } from "framer-motion";
 
-import {
-  useActiveSimulations,
-} from "@/hooks/useActiveSimulations";
+import { useActiveSimulations } from "@/hooks/useActiveSimulations";
 
 export function ActiveSimulations() {
-  const runs =
-    useActiveSimulations();
+  const runs = useActiveSimulations();
 
   return (
     <div
@@ -26,9 +23,7 @@ export function ActiveSimulations() {
         "
       >
         <div>
-          <h3 className="text-2xl font-bold">
-            Active Simulations
-          </h3>
+          <h3 className="text-2xl font-bold">Active Simulations</h3>
 
           <p className="text-muted-foreground">
             Distributed traffic orchestration.
@@ -58,29 +53,17 @@ export function ActiveSimulations() {
                 text-muted-foreground
               "
             >
-              <th className="px-6 py-4">
-                Run ID
-              </th>
+              <th className="px-6 py-4">Run ID</th>
 
-              <th className="px-6 py-4">
-                Status
-              </th>
+              <th className="px-6 py-4">Status</th>
 
-              <th className="px-6 py-4">
-                RPS
-              </th>
+              <th className="px-6 py-4">RPS</th>
 
-              <th className="px-6 py-4">
-                Latency
-              </th>
+              <th className="px-6 py-4">Latency</th>
 
-              <th className="px-6 py-4">
-                Failures
-              </th>
+              <th className="px-6 py-4">Failures</th>
 
-              <th className="px-6 py-4">
-                Duration
-              </th>
+              <th className="px-6 py-4">Duration</th>
             </tr>
           </thead>
 
@@ -103,21 +86,17 @@ export function ActiveSimulations() {
             {runs.map((run, index) => (
               <motion.tr
                 key={run.runId}
-
                 initial={{
                   opacity: 0,
                   y: 10,
                 }}
-
                 animate={{
                   opacity: 1,
                   y: 0,
                 }}
-
                 transition={{
                   delay: index * 0.04,
                 }}
-
                 className="
                   border-b border-white/5
                   transition hover:bg-white/[0.02]
@@ -139,10 +118,8 @@ export function ActiveSimulations() {
                       gap-2 rounded-full
                       px-3 py-1 text-sm
                       ${
-                        run.status ===
-                        "running"
+                        run.status === "running"
                           ? "bg-green-500/10 text-green-400"
-
                           : "bg-yellow-500/10 text-yellow-400"
                       }
                     `}
@@ -151,10 +128,8 @@ export function ActiveSimulations() {
                       className={`
                         h-2 w-2 rounded-full
                         ${
-                          run.status ===
-                          "running"
+                          run.status === "running"
                             ? "bg-green-400"
-
                             : "bg-yellow-400"
                         }
                       `}
@@ -164,21 +139,13 @@ export function ActiveSimulations() {
                   </div>
                 </td>
 
-                <td className="px-6 py-5">
-                  {run.currentRps || 0}
-                </td>
+                <td className="px-6 py-5">{run.currentRps || 0}</td>
 
-                <td className="px-6 py-5">
-                  {run.avgLatency || 0}ms
-                </td>
+                <td className="px-6 py-5">{run.avgLatency || 0}ms</td>
 
-                <td className="px-6 py-5">
-                  {run.failure || 0}
-                </td>
+                <td className="px-6 py-5">{run.failure || 0}</td>
 
-                <td className="px-6 py-5">
-                  {run.duration || "-"}
-                </td>
+                <td className="px-6 py-5">{run.duration || "-"}</td>
               </motion.tr>
             ))}
           </tbody>

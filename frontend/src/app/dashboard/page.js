@@ -2,6 +2,9 @@ import { AppShell } from "@/components/layout/AppShell";
 
 import { DashboardSection } from "@/components/dashboard/DashboardSection";
 
+import { RunSelector }
+  from "@/components/dashboard/RunSelector";
+
 import { InfraStatusCard } from "@/components/dashboard/InfraStatusCard";
 
 import { AiInsightsPreview } from "@/components/dashboard/AiInsightsPreview";
@@ -58,6 +61,8 @@ export default function DashboardPage() {
             infrastructure intelligence.
           </p>
         </section>
+
+        <RunSelector />
 
         {/* INFRA */}
         <DashboardSection
