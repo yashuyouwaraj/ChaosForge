@@ -6,7 +6,8 @@ import { CreateSimulationPanel } from "@/components/dashboard/CreateSimulationPa
 
 import { RunSelector } from "@/components/dashboard/RunSelector";
 
-import { InfraStatusCard } from "@/components/dashboard/InfraStatusCard";
+import { InfrastructureHealthGrid } from "@/components/dashboard/InfrastructureHealthGrid";
+import { InfrastructureStatusCards } from "@/components/dashboard/InfrastructureStatusCards";
 
 import { AiInsightsPreview } from "@/components/dashboard/AiInsightsPreview";
 
@@ -63,6 +64,14 @@ export default function DashboardPage() {
           </p>
         </section>
 
+        <DashboardSection
+          title="Infrastructure Grid"
+          description="Realtime operational infrastructure state."
+        >
+          <InfrastructureHealthGrid />
+        </DashboardSection>
+
+        
         <RunSelector />
 
         <CreateSimulationPanel />
@@ -72,25 +81,7 @@ export default function DashboardPage() {
           title="Infrastructure Health"
           description="Realtime distributed system status."
         >
-          <div
-            className="
-              grid gap-6
-              md:grid-cols-2
-              xl:grid-cols-4
-            "
-          >
-            <InfraStatusCard title="Kafka Workers" status="healthy" value="8" />
-
-            <InfraStatusCard title="Redis" status="healthy" value="Connected" />
-
-            <InfraStatusCard title="WebSockets" status="healthy" value="42" />
-
-            <InfraStatusCard
-              title="Prometheus"
-              status="healthy"
-              value="Active"
-            />
-          </div>
+          <InfrastructureStatusCards />
         </DashboardSection>
 
         <DashboardSection

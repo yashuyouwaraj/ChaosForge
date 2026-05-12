@@ -7,6 +7,9 @@ const { connectRedis } = require("./config/redis");
 const { connectProducer } = require("./config/kafka");
 
 const runConsumer = require("./consumers/traffic.consumer");
+const {
+  startKafkaWorkerHeartbeat,
+} = require("./services/worker-heartbeat.service");
 
 const useKafka = process.env.USE_KAFKA === "true";
 
@@ -19,6 +22,7 @@ const startWorker = async () => {
     if (useKafka) {
       await connectProducer();
       await runConsumer();
+      startKafkaWorkerHeartbeat();
       console.log("Kafka worker started.");
     } else {
       console.log("Kafka disabled.");

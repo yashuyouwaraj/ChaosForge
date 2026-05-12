@@ -3,6 +3,13 @@ export function InfraStatusCard({
   status,
   value,
 }) {
+  const statusColor =
+    status === "healthy"
+      ? "bg-green-500"
+      : status === "warning"
+        ? "bg-amber-400"
+        : "bg-red-500";
+
   return (
     <div
       className="
@@ -18,9 +25,7 @@ export function InfraStatusCard({
         <div
           className={`
             h-3 w-3 rounded-full
-            ${status === "healthy"
-              ? "bg-green-500"
-              : "bg-red-500"}
+            ${statusColor}
           `}
         />
       </div>

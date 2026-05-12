@@ -2,55 +2,103 @@
 
 import { motion } from "framer-motion";
 
-const nodes = [
+import {
+  useInfrastructureHealth,
+} from "@/hooks/useInfrastructureHealth";
+
+const statusStyles = {
+  healthy: "bg-green-500",
+  warning: "bg-amber-400",
+  critical: "bg-red-500",
+};
+
+const getKafkaStatus = (health) => {
+  if (!health) {
+    return "warning";
+  }
+
+  if (health.kafka === "connected") {
+    return "healthy";
+  }
+
+  if (
+    health.kafka === "disabled" ||
+    health.kafka === "unknown"
+  ) {
+    return "warning";
+  }
+
+  return "critical";
+};
+
+const getNodes = (health) => [
   {
     name: "Frontend",
+
     status: "healthy",
   },
 
   {
     name: "API Gateway",
-    status: "healthy",
+
+    status:
+      health?.status === "ok"
+        ? "healthy"
+        : "warning",
   },
 
   {
     name: "Kafka",
-    status: "healthy",
+
+    status: getKafkaStatus(health),
   },
 
   {
     name: "Workers",
-    status: "healthy",
+
+    status:
+      health?.activeRuns > 0
+        ? "healthy"
+        : "warning",
   },
 
   {
     name: "Redis",
-    status: "warning",
+
+    status:
+      health?.redis === "connected"
+        ? "healthy"
+        : "critical",
   },
 
   {
     name: "WebSockets",
-    status: "healthy",
+
+    status:
+      health?.websockets
+        ?.connectedClients > 0
+        ? "healthy"
+        : "warning",
   },
 
   {
     name: "Observability",
-    status: "healthy",
+
+    status:
+      health?.status === "ok"
+        ? "healthy"
+        : "warning",
   },
 ];
 
-const statusStyles = {
-  healthy:
-    "bg-green-500 shadow-[0_0_20px_rgba(34,197,94,0.8)]",
-
-  warning:
-    "bg-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.8)]",
-
-  critical:
-    "bg-red-500 shadow-[0_0_20px_rgba(239,68,68,0.8)]",
-};
-
 export function InfrastructureTopology() {
+  const {
+    health,
+  } =
+    useInfrastructureHealth();
+
+  const nodes = getNodes(health);
+
   return (
     <div
       className="
