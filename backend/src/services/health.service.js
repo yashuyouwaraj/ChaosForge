@@ -1,11 +1,10 @@
 const os = require("os");
 const { getConnectedClients } = require("../websocket/socket");
-
+const { evaluateInfrastructureAlerts } = require("./alertEngine");
 const { client: redis } = require("../config/redis");
 const { kafka } = require("../config/kafka");
-const {
-  getConnectedKafkaWorkerCount,
-} = require("./worker-heartbeat.service");
+const { getConnectedKafkaWorkerCount } = require("./worker-heartbeat.service");
+const { getActiveRunCount } = require("../metrics/metrics.store");
 
 const KAFKA_HEALTH_TIMEOUT_MS = Number(
   process.env.KAFKA_HEALTH_TIMEOUT_MS || 3000,
@@ -21,10 +20,7 @@ const getGrafanaHealthUrl = () => {
   }
 
   if (process.env.GRAFANA_URL) {
-    return `${process.env.GRAFANA_URL.replace(
-      /\/$/,
-      "",
-    )}/api/health`;
+    return `${process.env.GRAFANA_URL.replace(/\/$/, "")}/api/health`;
   }
 
   if (process.env.NODE_ENV === "production") {
@@ -79,8 +75,7 @@ const getKafkaHealth = async () => {
 };
 
 const getGrafanaHealth = async () => {
-  const controller =
-    new AbortController();
+  const controller = new AbortController();
 
   const timeoutId = setTimeout(
     () => controller.abort(),
@@ -88,16 +83,11 @@ const getGrafanaHealth = async () => {
   );
 
   try {
-    const response = await fetch(
-      getGrafanaHealthUrl(),
-      {
-        signal: controller.signal,
-      },
-    );
+    const response = await fetch(getGrafanaHealthUrl(), {
+      signal: controller.signal,
+    });
 
-    return response.ok
-      ? "connected"
-      : "error";
+    return response.ok ? "connected" : "error";
   } catch {
     return "error";
   } finally {
@@ -109,10 +99,7 @@ const getSystemHealth = async () => {
   let redisStatus = "disconnected";
   let kafkaWorkerCount = 0;
 
-  const [
-    kafkaStatus,
-    grafanaStatus,
-  ] = await Promise.all([
+  const [kafkaStatus, grafanaStatus] = await Promise.all([
     getKafkaHealth(),
     getGrafanaHealth(),
   ]);
@@ -121,13 +108,12 @@ const getSystemHealth = async () => {
     await redis.ping();
 
     redisStatus = "connected";
-    kafkaWorkerCount =
-      await getConnectedKafkaWorkerCount();
+    kafkaWorkerCount = await getConnectedKafkaWorkerCount();
   } catch (err) {
     redisStatus = "error";
   }
 
-  return {
+  const health = {
     status: "ok",
     uptime: process.uptime(),
     memory: {
@@ -147,8 +133,13 @@ const getSystemHealth = async () => {
     websockets: {
       connectedClients: getConnectedClients(),
     },
+    activeRuns: Math.max(0, getActiveRunCount()),
     timeStamp: new Date().toISOString(),
   };
+
+  health.alerts = evaluateInfrastructureAlerts(health);
+
+  return health;
 };
 
 module.exports = {

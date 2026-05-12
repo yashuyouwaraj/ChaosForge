@@ -57,7 +57,8 @@ const getNodes = (health) => [
     name: "Workers",
 
     status:
-      health?.activeRuns > 0
+      health?.kafkaWorkers
+      ?.connected ?? 0
         ? "healthy"
         : "warning",
   },

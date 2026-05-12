@@ -21,6 +21,9 @@ const markRunComplete = (runId) => {
   completedRuns.add(runId);
 };
 
+const getActiveRunCount = () =>
+  Object.keys(metricsBuffer).length - completedRuns.size;
+
 const recordPrometheusMetrics = (multi, latency, isSuccess) => {
   multi.hIncrBy(PROMETHEUS_METRICS_KEY, "requests_total", 1);
 
@@ -241,6 +244,7 @@ module.exports = {
   recordRequest,
   markRunActive,
   markRunComplete,
+  getActiveRunCount,
   getMetrics,
   getPrometheusSimulationMetrics,
   calculateP95,

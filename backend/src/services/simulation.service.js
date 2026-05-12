@@ -29,7 +29,7 @@ const simulateProcessing = async (
 
   let finalErrorType = "network";
 
-  while (attempt <= MAX_RETRIES && !success) {
+  while (attempt < MAX_RETRIES && !success) {
     const start = Date.now();
 
     try {
@@ -84,7 +84,7 @@ const simulateProcessing = async (
 
         message:
           `✅ ${url} - ${res.status} ` +
-          `(try ${attempt + 1}/${MAX_RETRIES + 1})`,
+          `(try ${attempt + 1}/${MAX_RETRIES})`,
 
         type: "success",
 
@@ -142,7 +142,7 @@ const simulateProcessing = async (
 
           message:
             `❌ ${url} - ${err.message} ` +
-            `(after ${MAX_RETRIES + 1} attempts)`,
+            `(after ${MAX_RETRIES} attempts)`,
 
           type: "error",
 
@@ -173,7 +173,7 @@ const simulateProcessing = async (
 
           message:
             `Retrying ${url} after ${err.message} ` +
-            `(try ${attempt + 1}/${MAX_RETRIES + 1})`,
+            `(try ${attempt + 1}/${MAX_RETRIES})`,
 
           type: "retry",
 

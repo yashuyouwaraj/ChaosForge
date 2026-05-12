@@ -4,6 +4,10 @@ import { DashboardSection } from "@/components/dashboard/DashboardSection";
 
 import { CreateSimulationPanel } from "@/components/dashboard/CreateSimulationPanel";
 
+import { InfrastructureAlerts } from "@/components/dashboard/InfrastructureAlerts";
+
+import { IncidentTimeline } from "@/components/dashboard/IncidentTimeline";
+
 import { RunSelector } from "@/components/dashboard/RunSelector";
 
 import { InfrastructureHealthGrid } from "@/components/dashboard/InfrastructureHealthGrid";
@@ -71,7 +75,6 @@ export default function DashboardPage() {
           <InfrastructureHealthGrid />
         </DashboardSection>
 
-        
         <RunSelector />
 
         <CreateSimulationPanel />
@@ -125,6 +128,10 @@ export default function DashboardPage() {
         >
           <InfrastructureTopology />
         </DashboardSection>
+
+        <InfrastructureAlerts />
+
+        <IncidentTimeline />
 
         {/* AI */}
         <DashboardSection
