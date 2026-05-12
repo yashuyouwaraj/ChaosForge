@@ -31,14 +31,22 @@ export function RealtimeTelemetry() {
       label: "Failures",
       value: metrics?.failure || 0,
     },
+    {
+      label: "P95 Latency",
+      value : metrics?.p95Latency || 0
+    },
+    {
+      label: "RPS",
+      value : metrics?.rps || 0
+    }
   ];
 
   return (
     <div
       className="
         grid gap-6
-        md:grid-cols-2
-        xl:grid-cols-4
+        md:grid-cols-3
+        xl:grid-cols-6
       "
     >
       {cards.map((metric, index) => (

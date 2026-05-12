@@ -1,18 +1,60 @@
 "use client";
 
-import {
-  useIncidentTimeline,
-} from "@/hooks/useIncidentTimeline";
+import { motion } from "framer-motion";
 
-const severityStyles = {
-  critical:
-    "border-red-500/30",
+import { useIncidentTimeline } from "@/hooks/useIncidentTimeline";
 
-  warning:
-    "border-yellow-500/30",
+const styles = {
+  critical: {
+    border:
+      "border-red-500/20",
 
-  info:
-    "border-cyan-500/30",
+    bg:
+      "bg-red-500/5",
+
+    text:
+      "text-red-300",
+
+    badge:
+      "bg-red-500/10 text-red-300",
+
+    dot:
+      "bg-red-400",
+  },
+
+  warning: {
+    border:
+      "border-yellow-500/20",
+
+    bg:
+      "bg-yellow-500/5",
+
+    text:
+      "text-yellow-400",
+
+    badge:
+      "bg-yellow-500/10 text-yellow-400",
+
+    dot:
+      "bg-yellow-500",
+  },
+
+  info: {
+    border:
+      "border-cyan-500/20",
+
+    bg:
+      "bg-cyan-500/5",
+
+    text:
+      "text-cyan-300",
+
+    badge:
+      "bg-cyan-500/10 text-cyan-300",
+
+    dot:
+      "bg-cyan-400",
+  },
 };
 
 export function IncidentTimeline() {
@@ -26,6 +68,8 @@ export function IncidentTimeline() {
         p-8
       "
     >
+      {/* HEADER */}
+
       <div className="mb-8">
         <h3
           className="
@@ -45,76 +89,184 @@ export function IncidentTimeline() {
         </p>
       </div>
 
-      <div className="space-y-4">
-        {timeline.length === 0 ? (
-          <div
+      {/* EMPTY */}
+
+      {timeline.length === 0 && (
+        <div
+          className="
+            glass rounded-[28px]
+            border border-white/10
+            p-10 text-center
+          "
+        >
+          <h3
             className="
-              text-muted-foreground
+              text-2xl font-bold
             "
           >
-            No incidents recorded.
-          </div>
-        ) : (
-          timeline.map(
-            (
-              incident,
-              index,
-            ) => (
-              <div
-                key={index}
+            Timeline Stable
+          </h3>
+
+          <p
+            className="
+              mt-3 text-muted-foreground
+            "
+          >
+            No operational incidents
+            recorded yet.
+          </p>
+        </div>
+      )}
+
+      {/* TIMELINE */}
+
+      <div className="space-y-6">
+        {timeline.map(
+          (
+            incident,
+            index,
+          ) => {
+            const style =
+              styles[
+                incident
+                  .severity
+              ];
+
+            return (
+              <motion.div
+                key={
+                  incident.id ||
+                  index
+                }
+                initial={{
+                  opacity: 0,
+                  y: 20,
+                }}
+                animate={{
+                  opacity: 1,
+                  y: 0,
+                }}
+                transition={{
+                  delay:
+                    index * 0.05,
+                }}
                 className={`
-                  rounded-2xl border
-                  p-5
-                  ${severityStyles[
-                    incident.severity
-                  ]}
+                  glass rounded-[28px]
+                  border p-6
+                  ${style.border}
+                  ${style.bg}
                 `}
               >
                 <div
                   className="
                     flex items-start
-                    justify-between gap-4
+                    justify-between
+                    gap-4
                   "
                 >
+                  {/* LEFT */}
+
                   <div>
-                    <p
+                    {/* BADGES */}
+
+                    <div
                       className="
-                        text-xs uppercase
-                        tracking-[0.2em]
-                        text-muted-foreground
+                        flex flex-wrap
+                        items-center gap-3
                       "
                     >
-                      {
-                        incident.severity
-                      }
-                    </p>
+                      <div
+                        className={`
+                          inline-flex
+                          rounded-full
+                          px-3 py-1
+                          text-xs font-semibold
+                          uppercase
+                          tracking-[0.2em]
+                          ${style.badge}
+                        `}
+                      >
+                        {
+                          incident.severity
+                        }
+                      </div>
 
-                    <h4
-                      className="
-                        mt-2 text-lg
+                      <div
+                        className="
+                          rounded-full
+                          bg-white/5
+                          px-3 py-1
+                          text-xs uppercase
+                          tracking-[0.2em]
+                          text-slate-300
+                        "
+                      >
+                        {
+                          incident.type
+                        }
+                      </div>
+                    </div>
+
+                    {/* TITLE */}
+
+                    <h3
+                      className={`
+                        mt-5 text-2xl
                         font-bold
+                        ${style.text}
+                      `}
+                    >
+                      {
+                        incident.title
+                      }
+                    </h3>
+
+                    {/* MESSAGE */}
+
+                    <p
+                      className="
+                        mt-4 leading-7
+                        text-slate-300
                       "
                     >
                       {
                         incident.message
                       }
-                    </h4>
+                    </p>
                   </div>
+
+                  {/* RIGHT */}
 
                   <div
                     className="
-                      text-sm
-                      text-muted-foreground
+                      flex flex-col
+                      items-end gap-4
                     "
                   >
-                    {new Date(
-                      incident.timestamp,
-                    ).toLocaleTimeString()}
+                    <div
+                      className={`
+                        h-3 w-3
+                        rounded-full
+                        ${style.dot}
+                      `}
+                    />
+
+                    <p
+                      className="
+                        whitespace-nowrap
+                        text-sm
+                        text-muted-foreground
+                      "
+                    >
+                      {new Date(
+                        incident.timestamp,
+                      ).toLocaleTimeString()}
+                    </p>
                   </div>
                 </div>
-              </div>
-            ),
-          )
+              </motion.div>
+            );
+          },
         )}
       </div>
     </div>

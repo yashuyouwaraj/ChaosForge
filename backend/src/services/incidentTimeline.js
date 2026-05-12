@@ -1,17 +1,53 @@
-const MAX_INCIDENTS = 100;
+const MAX_INCIDENTS = 200;
 
 const incidentTimeline = [];
 
-const addIncident = (incident) => {
-  incidentTimeline.unshift({ ...incident, timestamp: new Date().toISOString });
+const addIncident = (
+  incident,
+) => {
+  incidentTimeline.unshift({
+    id:
+      crypto.randomUUID(),
 
-  if (incidentTimeline.length > MAX_INCIDENTS) {
+    timestamp:
+      new Date().toISOString(),
+
+    type:
+      incident.type ||
+      "system",
+
+    severity:
+      incident.severity ||
+      "info",
+
+    title:
+      incident.title ||
+      "Infrastructure Event",
+
+    message:
+      incident.message ||
+      "",
+
+    metadata:
+      incident.metadata ||
+      {},
+  });
+
+  if (
+    incidentTimeline.length >
+    MAX_INCIDENTS
+  ) {
     incidentTimeline.pop();
   }
 };
 
-const getIncidentTimeline = () => {
-  return incidentTimeline;
-};
+const getIncidentTimeline =
+  () => {
+    return incidentTimeline;
+  };
 
-module.exports = { addIncident, getIncidentTimeline };
+module.exports = {
+  addIncident,
+
+  getIncidentTimeline,
+};

@@ -2,8 +2,7 @@ const express = require("express");
 
 const { getSystemHealth } = require("../services/health.service");
 const { getIOIfReady } = require("../websocket/socket");
-
-const { getIncidentTimeline } = require("./services/incidentTimeline");
+const { getIncidentTimeline } = require("../services/incidentTimeline");
 
 const router = express.Router();
 
@@ -14,6 +13,7 @@ router.get("/", async (req, res) => {
 
     if (io) {
       io.emit("infrastructure-alerts", health.alerts || []);
+      io.emit("ai-insights", health.insights || []);
       io.emit(
         "incident-timeline",getIncidentTimeline(),
       );

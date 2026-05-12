@@ -2,6 +2,7 @@ const { setRate, setStatus } = require("./control.store");
 const Run = require("../modules/run/run.model");
 const User = require("../modules/user/user.model");
 const jwt = require("jsonwebtoken");
+const { addIncident } = require("../services/incidentTimeline");
 
 const getSocketUserId = async (socket) => {
   const authToken = socket.handshake.auth?.token;
@@ -110,6 +111,17 @@ const registerControlHandlers = (io) => {
 
         await setStatus(projectId, runId, "paused");
 
+        addIncident({
+          type: "simulation",
+          severity: "warning",
+          title: "Simulation Paused",
+          message: `Run ${runId} paused.`,
+          metadata: {
+            projectId,
+            runId,
+          },
+        });
+
         io.to(`run-${runId}`).emit("run-status", {
           runId,
           status: "paused",
@@ -149,6 +161,17 @@ const registerControlHandlers = (io) => {
 
         await setStatus(projectId, runId, "running");
 
+        addIncident({
+          type: "simulation",
+          severity: "info",
+          title: "Simulation Resumed",
+          message: `Run ${runId} resumed.`,
+          metadata: {
+            projectId,
+            runId,
+          },
+        });
+
         io.to(`run-${runId}`).emit("run-status", {
           runId,
           status: "running",
@@ -187,6 +210,17 @@ const registerControlHandlers = (io) => {
         }
 
         await setStatus(projectId, runId, "stopped");
+
+        addIncident({
+          type: "simulation",
+          severity: "warning",
+          title: "Simulation Stopped",
+          message: `Run ${runId} stopped.`,
+          metadata: {
+            projectId,
+            runId,
+          },
+        });
 
         io.to(`run-${runId}`).emit("run-status", {
           runId,

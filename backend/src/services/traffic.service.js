@@ -15,6 +15,7 @@ const {
 } = require("../metrics/metrics.store");
 const { saveRun } = require("../modules/run/run.service");
 const { initControl, getControl } = require("../control/control.store");
+const { addIncident } = require("./incidentTimeline");
 
 const useKafka = process.env.USE_KAFKA === "true";
 
@@ -47,6 +48,18 @@ const generateTraffic = async (config, projectId, url, options = {}) => {
     projectId,
     runId,
     config,
+  });
+
+  addIncident({
+    type: "simulation",
+    severity: "info",
+    title: "Simulation Started",
+    message: `Run ${runId} started.`,
+    metadata: {
+      projectId,
+      runId,
+      pattern: config.pattern || "requests",
+    },
   });
 
   // 🟩 STAGES MODE (DAY 41)
@@ -92,6 +105,19 @@ const generateTraffic = async (config, projectId, url, options = {}) => {
   });
 
   markRunComplete(runId);
+
+  if (finalStatus === "completed") {
+    addIncident({
+      type: "simulation",
+      severity: "info",
+      title: "Simulation Completed",
+      message: `Run ${runId} completed successfully.`,
+      metadata: {
+        projectId,
+        runId,
+      },
+    });
+  }
 
   return runId;
 };

@@ -1,61 +1,198 @@
-const { addIncident } = require("./incidentTimeline");
+const {
+  addIncident,
+} = require("./incidentTimeline");
 
-const evaluateInfrastructureAlerts = (health) => {
+const INCIDENT_SEVERITIES = new Set([
+  "warning",
+  "critical",
+]);
+
+let activeIncidentKeys = new Set();
+let hasLoggedStableState = false;
+
+const getAlertKey = (alert) =>
+  `${alert.type}:${alert.title}`;
+
+const syncInfrastructureIncidents = (
+  alerts,
+) => {
+  const currentIncidentAlerts =
+    alerts.filter((alert) =>
+      INCIDENT_SEVERITIES.has(
+        alert.severity,
+      ),
+    );
+
+  const currentIncidentKeys =
+    new Set(
+      currentIncidentAlerts.map(
+        getAlertKey,
+      ),
+    );
+
+  for (const alert of currentIncidentAlerts) {
+    const alertKey =
+      getAlertKey(alert);
+
+    if (
+      activeIncidentKeys.has(
+        alertKey,
+      )
+    ) {
+      continue;
+    }
+
+    addIncident(alert);
+  }
+
+  if (
+    currentIncidentKeys.size ===
+    0
+  ) {
+    if (
+      !hasLoggedStableState ||
+      activeIncidentKeys.size > 0
+    ) {
+      addIncident({
+        type: "system",
+        severity: "info",
+        title:
+          "Infrastructure Stable",
+        message:
+          "All monitored infrastructure systems operational.",
+      });
+
+      hasLoggedStableState = true;
+    }
+  } else {
+    hasLoggedStableState = false;
+  }
+
+  activeIncidentKeys =
+    currentIncidentKeys;
+};
+
+const evaluateInfrastructureAlerts = (
+  health,
+) => {
   const alerts = [];
 
-  if (health.redis !== "connected") {
-    const incident = {
-      severity: "critical",
-      message: "Redis disconnected",
-    };
-    alerts.push(incident);
+  /*
+   * REDIS
+   */
 
-    addIncident(incident);
+  if (
+    health.redis !==
+    "connected"
+  ) {
+    alerts.push({
+      type: "redis",
+
+      severity:
+        "critical",
+
+      title:
+        "Redis Failure",
+
+      message:
+        "Redis connection lost.",
+    });
   }
 
-  if (health.kafka !== "connected") {
-    const incident = {
-      severity: "critical",
+  /*
+   * KAFKA
+   */
 
-      message: "Kafka unavailable",
-    };
-    alerts.push(incident);
+  if (
+    health.kafka !==
+    "connected"
+  ) {
+    alerts.push({
+      type: "kafka",
 
-    addIncident(incident);
+      severity:
+        "critical",
+
+      title:
+        "Kafka Failure",
+
+      message:
+        "Kafka unavailable.",
+    });
   }
 
-  if (health.memory?.heapUsed > 300 * 1024 * 1024) {
-    const incident = {
-      severity: "warning",
+  /*
+   * MEMORY
+   */
 
-      message: "High memory usage detected",
-    };
-    alerts.push(incident);
+  if (
+    health.memory
+      ?.heapUsed >
+    300 * 1024 * 1024
+  ) {
+    alerts.push({
+      type: "memory",
 
-    addIncident(incident);
+      severity:
+        "warning",
+
+      title:
+        "High Memory Usage",
+
+      message:
+        "Backend memory pressure elevated.",
+    });
   }
 
-  if (health.activeRuns > 10) {
-    const incident = {
-      severity: "warning",
+  /*
+   * CONCURRENCY
+   */
 
-      message: "High simulation concurrency",
-    };
-    alerts.push(incident);
+  if (
+    health.activeRuns >
+    10
+  ) {
+    alerts.push({
+      type:
+        "simulation",
 
-    addIncident(incident);
+      severity:
+        "warning",
+
+      title:
+        "High Simulation Concurrency",
+
+      message:
+        "Large number of concurrent simulations detected.",
+    });
   }
 
-  if (health.websockets?.connectedClients === 0) {
-    const incident = {
+  /*
+   * WEBSOCKETS
+   */
+
+  if (
+    health.websockets
+      ?.connectedClients ===
+    0
+  ) {
+    alerts.push({
+      type:
+        "websocket",
+
       severity: "info",
 
-      message: "No websocket clients connected",
-    };
-    alerts.push(incident);
+      title:
+        "No Active Websocket Clients",
 
-    addIncident(incident);
+      message:
+        "Realtime telemetry stream currently idle.",
+    });
   }
+
+  syncInfrastructureIncidents(
+    alerts,
+  );
 
   return alerts;
 };

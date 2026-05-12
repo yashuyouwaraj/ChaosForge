@@ -6,14 +6,14 @@ import { CreateSimulationPanel } from "@/components/dashboard/CreateSimulationPa
 
 import { InfrastructureAlerts } from "@/components/dashboard/InfrastructureAlerts";
 
+import { RunAiInsights } from "@/components/dashboard/RunAiInsights";
+
 import { IncidentTimeline } from "@/components/dashboard/IncidentTimeline";
 
 import { RunSelector } from "@/components/dashboard/RunSelector";
 
 import { InfrastructureHealthGrid } from "@/components/dashboard/InfrastructureHealthGrid";
 import { InfrastructureStatusCards } from "@/components/dashboard/InfrastructureStatusCards";
-
-import { AiInsightsPreview } from "@/components/dashboard/AiInsightsPreview";
 
 import { RealtimeTelemetry } from "@/components/dashboard/RealtimeTelemetry";
 
@@ -22,8 +22,6 @@ import { RealtimeCharts } from "@/components/dashboard/RealtimeCharts";
 import { ActiveSimulations } from "@/components/dashboard/ActiveSimulations";
 
 import { LiveLogStream } from "@/components/dashboard/LiveLogStream";
-
-import { AlertCenter } from "@/components/dashboard/AlertCenter";
 
 import { InfrastructureTopology } from "@/components/dashboard/InfrastructureTopology";
 
@@ -75,7 +73,9 @@ export default function DashboardPage() {
           <InfrastructureHealthGrid />
         </DashboardSection>
 
-        <RunSelector />
+        <DashboardSection>
+          <RunSelector />
+        </DashboardSection>
 
         <CreateSimulationPanel />
 
@@ -101,6 +101,14 @@ export default function DashboardPage() {
           <RealtimeCharts />
         </DashboardSection>
 
+        {/* AI */}
+        <DashboardSection
+          title="AI Insights"
+          description="Realtime infrastructure intelligence."
+        >
+          <RunAiInsights />
+        </DashboardSection>
+
         <DashboardSection
           title="Simulation Command Center"
           description="Realtime distributed load orchestration."
@@ -116,29 +124,18 @@ export default function DashboardPage() {
         </DashboardSection>
 
         <DashboardSection
-          title="Incident Intelligence"
-          description="Realtime infrastructure anomalies and operational alerts."
-        >
-          <AlertCenter />
-        </DashboardSection>
-
-        <DashboardSection
           title="Infrastructure Topology"
           description="Realtime distributed system architecture visualization."
         >
           <InfrastructureTopology />
         </DashboardSection>
 
-        <InfrastructureAlerts />
+        <DashboardSection>
+          <InfrastructureAlerts />
+        </DashboardSection>
 
-        <IncidentTimeline />
-
-        {/* AI */}
-        <DashboardSection
-          title="AI Insights"
-          description="Realtime infrastructure intelligence."
-        >
-          <AiInsightsPreview />
+        <DashboardSection>
+          <IncidentTimeline />
         </DashboardSection>
       </div>
     </AppShell>

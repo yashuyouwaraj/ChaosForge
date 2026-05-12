@@ -5,6 +5,9 @@ const { client: redis } = require("../config/redis");
 const { kafka } = require("../config/kafka");
 const { getConnectedKafkaWorkerCount } = require("./worker-heartbeat.service");
 const { getActiveRunCount } = require("../metrics/metrics.store");
+const {
+  generateInfrastructureInsights,
+} = require("./analysisEngine");
 
 const KAFKA_HEALTH_TIMEOUT_MS = Number(
   process.env.KAFKA_HEALTH_TIMEOUT_MS || 3000,
@@ -138,6 +141,10 @@ const getSystemHealth = async () => {
   };
 
   health.alerts = evaluateInfrastructureAlerts(health);
+  health.insights = generateInfrastructureInsights({
+    health,
+    alerts: health.alerts,
+  });
 
   return health;
 };
