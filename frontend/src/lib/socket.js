@@ -52,4 +52,50 @@ export const leaveRun = (runId, ack) => {
   socket.emit("leave-run", { runId }, ack);
 };
 
+const emitWithAck = (event, payload) =>
+  new Promise((resolve, reject) => {
+    refreshSocketAuth();
+    socket.emit(event, payload, (response) => {
+      if (!response?.ok) {
+        reject(
+          new Error(
+            response?.message || `Failed to ${event}.`,
+          ),
+        );
+        return;
+      }
+
+      resolve(response);
+    });
+  });
+
+export const pauseRun = (projectId, runId) =>
+  emitWithAck("pause", {
+    projectId,
+    runId,
+  });
+
+export const resumeRun = (projectId, runId) =>
+  emitWithAck("resume", {
+    projectId,
+    runId,
+  });
+
+export const stopRun = (projectId, runId) =>
+  emitWithAck("stop", {
+    projectId,
+    runId,
+  });
+
+export const updateRunRate = (
+  projectId,
+  runId,
+  rate,
+) =>
+  emitWithAck("set-rate", {
+    projectId,
+    runId,
+    rate,
+  });
+
 export default socket;

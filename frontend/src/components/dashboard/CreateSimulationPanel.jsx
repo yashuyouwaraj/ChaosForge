@@ -1,12 +1,18 @@
 "use client";
 import { api } from "../../lib/api";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useProject } from "@/components/providers/ProjectProvider";
 
 import { useRun } from "@/components/providers/RunProvider";
+import {
+  pauseRun,
+  resumeRun,
+  stopRun,
+  updateRunRate,
+} from "@/lib/socket";
 
 export function CreateSimulationPanel() {
-  const { setSelectedRun } = useRun();
+  const { selectedRun, setSelectedRun } = useRun();
   const { projectId } = useProject();
 
   const [form, setForm] = useState({
@@ -21,6 +27,105 @@ export function CreateSimulationPanel() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [controlRate, setControlRate] = useState(100);
+  const [controlError, setControlError] = useState("");
+  const [controlMessage, setControlMessage] = useState("");
+  const [actionLoading, setActionLoading] = useState("");
+
+  useEffect(() => {
+    setControlRate(form.rps);
+  }, [form.rps]);
+
+  const hasSelectedRun =
+    Boolean(selectedRun.projectId) &&
+    Boolean(selectedRun.runId);
+
+  const selectedRunStatus =
+    selectedRun.status || "completed";
+
+  const canPause =
+    hasSelectedRun &&
+    selectedRunStatus === "running";
+
+  const canResume =
+    hasSelectedRun &&
+    selectedRunStatus === "paused";
+
+  const canStop =
+    hasSelectedRun &&
+    (selectedRunStatus === "running" ||
+      selectedRunStatus === "paused");
+
+  const handleControlAction =
+    async (
+      actionName,
+      action,
+      message,
+    ) => {
+      if (!hasSelectedRun) {
+        setControlError("Select or launch a run first.");
+        return;
+      }
+
+      try {
+        setControlError("");
+        setControlMessage("");
+        setActionLoading(actionName);
+
+        await action(
+          selectedRun.projectId,
+          selectedRun.runId,
+        );
+
+        setControlMessage(message);
+      } catch (err) {
+        setControlError(
+          err.message ||
+            "Failed to update run control.",
+        );
+      } finally {
+        setActionLoading("");
+      }
+    };
+
+  const handleRateUpdate =
+    async () => {
+      if (!hasSelectedRun) {
+        setControlError("Select or launch a run first.");
+        return;
+      }
+
+      if (
+        !Number.isFinite(controlRate) ||
+        controlRate <= 0
+      ) {
+        setControlError("RPS must be greater than 0.");
+        return;
+      }
+
+      try {
+        setControlError("");
+        setControlMessage("");
+        setActionLoading("rate");
+
+        await updateRunRate(
+          selectedRun.projectId,
+          selectedRun.runId,
+          Number(controlRate),
+        );
+
+        setControlMessage(
+          `RPS updated to ${controlRate}.`,
+        );
+      } catch (err) {
+        setControlError(
+          err.message ||
+            "Failed to update RPS.",
+        );
+      } finally {
+        setActionLoading("");
+      }
+    };
 
   const handleStart =
     async () => {
@@ -76,6 +181,7 @@ export function CreateSimulationPanel() {
         projectId,
         runId:
           data.runId,
+        status: "running",
       });
 
     } catch (err) {
@@ -281,6 +387,204 @@ export function CreateSimulationPanel() {
       >
         {loading ? "Starting..." : "Launch Simulation"}
       </button>
+
+      <div
+        className="
+          mt-8 grid gap-4
+          border-t border-white/10
+          pt-8
+          xl:grid-cols-[1.4fr,1fr]
+        "
+      >
+        <div>
+          <p
+            className="
+              text-sm uppercase
+              tracking-[0.3em]
+              text-cyan-400
+            "
+          >
+            Live Controls
+          </p>
+
+          <h3
+            className="
+              mt-3 text-2xl
+              font-black
+            "
+          >
+            Run Command Controls
+          </h3>
+
+          <p
+            className="
+              mt-2 text-sm
+              text-muted-foreground
+            "
+          >
+            Control the selected simulation in realtime with pause, resume,
+            stop, and live RPS changes.
+          </p>
+
+          <div
+            className="
+              mt-5 flex flex-wrap
+              items-center gap-3
+              text-sm text-muted-foreground
+            "
+          >
+            <span>
+              Run: {selectedRun.runId || "No run selected"}
+            </span>
+
+            <span>
+              Status: {selectedRun.status || "idle"}
+            </span>
+          </div>
+        </div>
+
+        <div
+          className="
+            rounded-2xl border
+            border-white/10
+            bg-black/20
+            p-5
+          "
+        >
+          <div className="grid gap-3 sm:grid-cols-3">
+            <button
+              type="button"
+              onClick={() =>
+                handleControlAction(
+                  "pause",
+                  pauseRun,
+                  "Simulation paused.",
+                )
+              }
+              disabled={!canPause || actionLoading !== ""}
+              className="
+                rounded-xl bg-yellow-500
+                px-4 py-3 text-sm
+                font-semibold text-black
+                transition hover:scale-[1.02]
+                disabled:opacity-50
+              "
+            >
+              {actionLoading === "pause" ? "Pausing..." : "Pause"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                handleControlAction(
+                  "resume",
+                  resumeRun,
+                  "Simulation resumed.",
+                )
+              }
+              disabled={!canResume || actionLoading !== ""}
+              className="
+                rounded-xl bg-green-500
+                px-4 py-3 text-sm
+                font-semibold text-black
+                transition hover:scale-[1.02]
+                disabled:opacity-50
+              "
+            >
+              {actionLoading === "resume" ? "Resuming..." : "Resume"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                handleControlAction(
+                  "stop",
+                  stopRun,
+                  "Simulation stopped.",
+                )
+              }
+              disabled={!canStop || actionLoading !== ""}
+              className="
+                rounded-xl bg-red-500
+                px-4 py-3 text-sm
+                font-semibold text-white
+                transition hover:scale-[1.02]
+                disabled:opacity-50
+              "
+            >
+              {actionLoading === "stop" ? "Stopping..." : "Stop"}
+            </button>
+          </div>
+
+          <div
+            className="
+              mt-4 flex gap-3
+              sm:items-center
+            "
+          >
+            <input
+              type="number"
+              min="1"
+              value={controlRate}
+              onChange={(e) =>
+                setControlRate(
+                  Number(e.target.value),
+                )
+              }
+              className="
+                min-w-0 flex-1 rounded-xl
+                border border-white/10
+                bg-black/30
+                px-4 py-3 outline-none
+              "
+              placeholder="Change RPS"
+            />
+
+            <button
+              type="button"
+              onClick={handleRateUpdate}
+              disabled={!canStop || actionLoading !== ""}
+              className="
+                rounded-xl border
+                border-cyan-400/30
+                bg-cyan-500/10
+                px-5 py-3 text-sm
+                font-semibold text-cyan-300
+                transition hover:bg-cyan-500/20
+                disabled:opacity-50
+              "
+            >
+              {actionLoading === "rate" ? "Updating..." : "Apply RPS"}
+            </button>
+          </div>
+
+          {controlError ? (
+            <div
+              className="
+                mt-4 rounded-xl
+                border border-red-500/20
+                bg-red-500/5 px-4
+                py-3 text-sm text-red-300
+              "
+            >
+              {controlError}
+            </div>
+          ) : null}
+
+          {controlMessage ? (
+            <div
+              className="
+                mt-4 rounded-xl
+                border border-green-500/20
+                bg-green-500/5 px-4
+                py-3 text-sm text-green-300
+              "
+            >
+              {controlMessage}
+            </div>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }

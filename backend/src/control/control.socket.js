@@ -110,6 +110,10 @@ const registerControlHandlers = (io) => {
         }
 
         await setStatus(projectId, runId, "paused");
+        await Run.updateOne(
+          { projectId, runId },
+          { $set: { status: "paused" } },
+        );
 
         addIncident({
           type: "simulation",
@@ -160,6 +164,10 @@ const registerControlHandlers = (io) => {
         }
 
         await setStatus(projectId, runId, "running");
+        await Run.updateOne(
+          { projectId, runId },
+          { $set: { status: "running" } },
+        );
 
         addIncident({
           type: "simulation",
@@ -210,6 +218,10 @@ const registerControlHandlers = (io) => {
         }
 
         await setStatus(projectId, runId, "stopped");
+        await Run.updateOne(
+          { projectId, runId },
+          { $set: { status: "stopped" } },
+        );
 
         addIncident({
           type: "simulation",
@@ -266,6 +278,18 @@ const registerControlHandlers = (io) => {
         }
 
         await setRate(projectId, runId, parsedRate);
+
+        addIncident({
+          type: "simulation",
+          severity: "info",
+          title: "Simulation RPS Updated",
+          message: `Run ${runId} rate changed to ${parsedRate} RPS.`,
+          metadata: {
+            projectId,
+            runId,
+            rate: parsedRate,
+          },
+        });
 
         io.to(`run-${runId}`).emit("rate-updated", {
           runId,
