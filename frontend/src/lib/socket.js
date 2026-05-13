@@ -1,16 +1,5 @@
 import { io } from "socket.io-client";
-
-const getSocketUrl = () => {
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
-  }
-
-  if (typeof window !== "undefined") {
-    return `http://${window.location.hostname}:3001`;
-  }
-
-  return "http://localhost:3001";
-};
+import { getSocketBaseUrl } from "./runtime";
 
 const getToken = () => {
   if (typeof window === "undefined") {
@@ -20,8 +9,12 @@ const getToken = () => {
   return localStorage.getItem("token");
 };
 
-const socket = io(getSocketUrl(), {
+const socket = io(getSocketBaseUrl(), {
   transports: ["websocket", "polling"],
+  autoConnect: true,
+  reconnection: true,
+  reconnectionAttempts: 10,
+  reconnectionDelay: 1000,
   auth: {
     token: getToken(),
   },
