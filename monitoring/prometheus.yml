@@ -1,12 +1,16 @@
 global:
-  scrape_interval: 15s
+  scrape_interval: 5s
   evaluation_interval: 15s
 
 scrape_configs:
-  - job_name: 'backend'
+  - job_name: "chaosforge-backend"
+    scheme: "__PROMETHEUS_BACKEND_SCHEME__"
+    metrics_path: /metrics
     static_configs:
-      - targets: ['host.docker.internal:3001']
+      - targets:
+          - "__PROMETHEUS_BACKEND_TARGET__"
 
-  - job_name: 'prometheus'
+  - job_name: "prometheus"
     static_configs:
-      - targets: ['localhost:9090']
+      - targets:
+          - "localhost:9090"

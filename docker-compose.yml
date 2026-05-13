@@ -72,9 +72,9 @@ services:
     restart: unless-stopped
 
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:3001
+      NEXT_PUBLIC_API_URL: http://backend:3001
 
-      NEXT_PUBLIC_SOCKET_URL: http://localhost:3001
+      NEXT_PUBLIC_SOCKET_URL: http://backend:3001
 
     ports:
       - "3000:3000"
@@ -137,11 +137,32 @@ services:
 
     restart: unless-stopped
 
+    entrypoint:
+      - /bin/sh
+      - -c
+
+    command:
+      - |
+        sed \
+          -e "s|__PROMETHEUS_BACKEND_SCHEME__|$${PROMETHEUS_BACKEND_SCHEME}|g" \
+          -e "s|__PROMETHEUS_BACKEND_TARGET__|$${PROMETHEUS_BACKEND_TARGET}|g" \
+          /etc/prometheus/prometheus.yml.template > /tmp/prometheus.yml
+        exec /bin/prometheus \
+          --config.file=/tmp/prometheus.yml \
+          --storage.tsdb.path=/prometheus \
+          --web.console.libraries=/usr/share/prometheus/console_libraries \
+          --web.console.templates=/usr/share/prometheus/consoles
+
+    environment:
+      PROMETHEUS_BACKEND_SCHEME: ${PROMETHEUS_BACKEND_SCHEME:-http}
+
+      PROMETHEUS_BACKEND_TARGET: ${PROMETHEUS_BACKEND_TARGET:-host.docker.internal:3001}
+
     ports:
       - "9090:9090"
 
     volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml.template:ro
 
     extra_hosts:
       - "host.docker.internal:host-gateway"
