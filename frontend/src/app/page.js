@@ -138,6 +138,10 @@ export default function HomePage() {
     };
   }, []);
 
+  const handleSignup = () => {
+    window.location.href = "/signup";
+  }
+
   return (
     <main className="overflow-hidden bg-background text-foreground">
       <header
@@ -191,7 +195,7 @@ export default function HomePage() {
             </p>
 
             <div className="mt-12 flex flex-wrap items-center justify-center gap-5">
-              <button className="hero-cta-primary rounded-2xl px-8 py-4 text-lg font-semibold text-slate-950 transition hover:scale-[1.03]">
+              <button onClick={handleSignup} className="hero-cta-primary rounded-2xl px-8 py-4 text-lg font-semibold text-slate-950 transition hover:scale-[1.03]">
                 Start Free Trial
               </button>
 
@@ -415,7 +419,7 @@ export default function HomePage() {
             Join the teams building the next generation of resilient
             infrastructure.
           </p>
-          <button className="hero-cta-primary mt-10 rounded-2xl px-10 py-4 text-xl font-bold text-slate-950 transition hover:scale-[1.02]">
+          <button onClick={handleSignup} className="hero-cta-primary mt-10 rounded-2xl px-10 py-4 text-xl font-bold text-slate-950 transition hover:scale-[1.02]">
             Get Started Now
           </button>
         </div>
