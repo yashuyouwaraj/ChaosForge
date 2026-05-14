@@ -53,7 +53,6 @@ const runStages = async ({ stages, concurrency, projectId, url, runId }) => {
       // 🔥 execute THIS SECOND’s requests
       await Promise.all(promises);
 
-      await delay(1000);
     }
   }
 };
