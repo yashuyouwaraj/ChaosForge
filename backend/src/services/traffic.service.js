@@ -164,13 +164,15 @@ const runRequestMode = async (config, projectId, url, runId) => {
     const messages = [];
 
     for (let i = 0; i < rate && sent < requestCount; i++) {
+      const requestId = uuidv4();
+
       messages.push({
-        key: projectId,
+        key: requestId,
         value: JSON.stringify({
           projectId,
           url,
           runId,
-          requestId: uuidv4(),
+          requestId,
         }),
       });
       sent++;
@@ -264,13 +266,15 @@ const runStages = async (config, projectId, url, runId) => {
       const messages = [];
 
       for (let i = 0; i < rate; i++) {
+        const requestId = uuidv4();
+
         messages.push({
-          key: projectId,
+          key: requestId,
           value: JSON.stringify({
             projectId,
             url,
             runId,
-            requestId: uuidv4(),
+            requestId,
           }),
         });
         sent++;
