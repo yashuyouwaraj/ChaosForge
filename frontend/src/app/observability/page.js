@@ -5,6 +5,7 @@ import {
 import {
   GrafanaPanel,
 } from "@/components/dashboard/GrafanaPanel";
+import { PrometheusPanel } from "@/components/dashboard/PrometheusPanel";
 
 export default function ObservabilityPage() {
   return (
@@ -46,6 +47,8 @@ export default function ObservabilityPage() {
           title="ChaosForge Metrics"
           path="/d"
         />
+
+        <PrometheusPanel />
       </div>
     </AppShell>
   );
