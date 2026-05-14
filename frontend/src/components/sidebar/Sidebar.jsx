@@ -24,6 +24,11 @@ const items = [
     href: "/simulations",
     icon: Activity,
   },
+  {
+    label: "Observability",
+    href: "/observability",
+    icon: Activity,
+  },
 
   {
     label: "AI Insights",

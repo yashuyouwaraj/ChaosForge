@@ -181,6 +181,15 @@ services:
     depends_on:
       - prometheus
 
+    environment:
+      GF_SECURITY_ALLOW_EMBEDDING: "true"
+
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+
+      GF_SECURITY_COOKIE_SAMESITE: disabled
+
 volumes:
   mongo-data:
 
