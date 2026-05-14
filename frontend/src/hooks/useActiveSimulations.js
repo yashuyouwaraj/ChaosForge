@@ -152,21 +152,53 @@ export function useActiveSimulations() {
           return;
         }
 
-        setRuns(
-          (data || [])
-            .filter(
-              isLikelyStillActive,
-            )
-            .map((run) => ({
-              ...run,
-              currentRps:
-                run.currentRps ||
-                run.rps ||
-                0,
-              duration:
-                getDurationLabel(run),
-            })),
-        );
+        const activeRuns =
+          (data || []).filter(
+            isLikelyStillActive,
+          );
+
+        const runsWithMetrics =
+          await Promise.all(
+            activeRuns.map(
+              async (run) => {
+                try {
+                  const metrics =
+                    await api(
+                      `/metrics/${projectId}?runId=${run.runId}`,
+                    );
+
+                  return {
+                    ...run,
+                    ...metrics,
+                    currentRps:
+                      metrics.currentRps ||
+                      metrics.rps ||
+                      run.currentRps ||
+                      run.rps ||
+                      0,
+                    duration:
+                      getDurationLabel(run),
+                  };
+                } catch {
+                  return {
+                    ...run,
+                    currentRps:
+                      run.currentRps ||
+                      run.rps ||
+                      0,
+                    duration:
+                      getDurationLabel(run),
+                  };
+                }
+              },
+            ),
+          );
+
+        if (ignore) {
+          return;
+        }
+
+        setRuns(runsWithMetrics);
       } catch {
         if (!ignore) {
           setRuns([]);
