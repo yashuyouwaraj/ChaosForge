@@ -2,6 +2,8 @@ FROM prom/prometheus:latest
 
 COPY prometheus.render.yml /etc/prometheus/prometheus.yml.template
 
+ENTRYPOINT []
+
 CMD sed \
   -e "s|__PROMETHEUS_BACKEND_SCHEME__|${PROMETHEUS_BACKEND_SCHEME:-https}|g" \
   -e "s|__PROMETHEUS_BACKEND_TARGET__|${PROMETHEUS_BACKEND_TARGET:-chaosforge.onrender.com}|g" \
