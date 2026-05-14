@@ -5,8 +5,8 @@ import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 
 export default function Login() {
-  const [email, setEmail] = useState("aman@gmail.com");
-  const [password, setPassword] = useState("123456");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -29,6 +29,9 @@ export default function Login() {
 
     try {
       const res = await api("/auth/login", "POST", { email, password });
+      localStorage.removeItem("projectId");
+      localStorage.removeItem("currentRunId");
+      localStorage.removeItem("currentRunActive");
       localStorage.setItem("token", res.token);
       window.location.href = "/projects";
     } catch (err) {
@@ -56,6 +59,7 @@ export default function Login() {
 
         <form
           onSubmit={handleLogin}
+          autoComplete="off"
           className="rounded-lg border border-slate-700 bg-slate-900/80 p-7 shadow-2xl shadow-cyan-950/30"
         >
           <div className="mb-7">
@@ -74,6 +78,7 @@ export default function Login() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              autoComplete="off"
               className="w-full rounded-md border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100 outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
               placeholder="you@example.com"
             />
@@ -85,6 +90,7 @@ export default function Login() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              autoComplete="new-password"
               className="w-full rounded-md border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100 outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
               placeholder="Your password"
             />

@@ -1,0 +1,13 @@
+FROM prom/prometheus:latest
+
+COPY prometheus.render.yml /etc/prometheus/prometheus.yml.template
+
+CMD sed \
+  -e "s|__PROMETHEUS_BACKEND_SCHEME__|${PROMETHEUS_BACKEND_SCHEME:-https}|g" \
+  -e "s|__PROMETHEUS_BACKEND_TARGET__|${PROMETHEUS_BACKEND_TARGET:-chaosforge.onrender.com}|g" \
+  -e "s|__PROMETHEUS_PORT__|${PORT:-9090}|g" \
+  /etc/prometheus/prometheus.yml.template > /tmp/prometheus.yml && \
+  exec /bin/prometheus \
+  --config.file=/tmp/prometheus.yml \
+  --storage.tsdb.path=/prometheus \
+  --web.listen-address=0.0.0.0:${PORT:-9090}
