@@ -1,5 +1,7 @@
 require("./config/env");
 
+const http = require("http");
+
 const connectDB = require("./config/db");
 
 const { connectRedis } = require("./config/redis");
@@ -13,8 +15,47 @@ const {
 
 const useKafka = process.env.USE_KAFKA === "true";
 
+let workerStatus = "starting";
+
+const startHealthServer = () => {
+  const port = process.env.PORT;
+
+  if (!port) {
+    return;
+  }
+
+  const server = http.createServer((req, res) => {
+    if (req.url === "/health") {
+      res.writeHead(200, {
+        "Content-Type": "application/json",
+      });
+
+      res.end(JSON.stringify({
+        status: workerStatus,
+        role: "worker",
+        kafka: useKafka ? "enabled" : "disabled",
+        timestamp: new Date().toISOString(),
+      }));
+
+      return;
+    }
+
+    res.writeHead(200, {
+      "Content-Type": "text/plain",
+    });
+
+    res.end("ChaosForge worker is running");
+  });
+
+  server.listen(port, "0.0.0.0", () => {
+    console.log(`Worker health server running on port ${port}`);
+  });
+};
+
 const startWorker = async () => {
   try {
+    startHealthServer();
+
     await connectDB();
 
     await connectRedis();
@@ -23,12 +64,15 @@ const startWorker = async () => {
       await connectProducer();
       await runConsumer();
       startKafkaWorkerHeartbeat();
+      workerStatus = "running";
       console.log("Kafka worker started.");
     } else {
+      workerStatus = "running";
       console.log("Kafka disabled.");
     }
 
   } catch (err) {
+    workerStatus = "error";
     console.error("Worker startup failed:", err);
 
     process.exit(1);
