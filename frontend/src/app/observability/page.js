@@ -1,61 +1,33 @@
-import {
-  AppShell,
-} from "@/components/layout/AppShell";
+import { AppShell } from "@/components/layout/AppShell";
 
-import {
-  ProtectedRoute,
-} from "@/components/layout/ProtectedRoute";
+import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 
-import {
-  GrafanaPanel,
-} from "@/components/dashboard/GrafanaPanel";
+import { GrafanaPanel } from "@/components/dashboard/GrafanaPanel";
 import { PrometheusPanel } from "@/components/dashboard/PrometheusPanel";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 export default function ObservabilityPage() {
   return (
     <ProtectedRoute>
-    <AppShell>
-      <div className="space-y-10">
-        <section>
-          <p
-            className="
-              text-sm uppercase
-              tracking-[0.3em]
-              text-cyan-400
-            "
-          >
-            ChaosForge Observability
-          </p>
+      <AppShell>
+        <div className="space-y-10">
+          <PageHeader
+            eyebrow="Realtime telemetry"
+            title="
+    Observability Workspace
+  "
+            description="
+    Unified infrastructure telemetry powered by
+    Prometheus, Grafana, realtime metrics,
+    and distributed monitoring systems.
+  "
+          />
 
-          <h1
-            className="
-              mt-4 text-5xl
-              font-black
-            "
-          >
-            Infrastructure Intelligence
-          </h1>
+          <GrafanaPanel title="ChaosForge Metrics" path="/d" />
 
-          <p
-            className="
-              mt-6 max-w-3xl
-              text-lg text-muted-foreground
-            "
-          >
-            Realtime infrastructure
-            telemetry powered by
-            Prometheus and Grafana.
-          </p>
-        </section>
-
-        <GrafanaPanel
-          title="ChaosForge Metrics"
-          path="/d"
-        />
-
-        <PrometheusPanel />
-      </div>
-    </AppShell>
+          <PrometheusPanel />
+        </div>
+      </AppShell>
     </ProtectedRoute>
   );
 }
