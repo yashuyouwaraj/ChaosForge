@@ -7,12 +7,16 @@ import {
 
 import socket
   from "@/lib/socket";
+import { api }
+  from "@/lib/api";
 
 export function useInfrastructureAlerts() {
   const [alerts, setAlerts] =
     useState([]);
 
   useEffect(() => {
+    let ignore = false;
+
     const handler = (
       incomingAlerts,
     ) => {
@@ -21,12 +25,31 @@ export function useInfrastructureAlerts() {
       );
     };
 
+    const loadAlerts = async () => {
+      try {
+        const health =
+          await api("/health");
+
+        if (!ignore) {
+          setAlerts(
+            health.alerts || [],
+          );
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    loadAlerts();
+
     socket.on(
       "infrastructure-alerts",
       handler,
     );
 
     return () => {
+      ignore = true;
+
       socket.off(
         "infrastructure-alerts",
         handler,

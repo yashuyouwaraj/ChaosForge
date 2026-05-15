@@ -2,6 +2,10 @@ import { AppShell } from "@/components/layout/AppShell";
 
 import { DashboardSection } from "@/components/dashboard/DashboardSection";
 
+import {
+  ProtectedRoute,
+} from "@/components/layout/ProtectedRoute";
+
 import { CreateSimulationPanel } from "@/components/dashboard/CreateSimulationPanel";
 
 import { InfrastructureAlerts } from "@/components/dashboard/InfrastructureAlerts";
@@ -27,6 +31,7 @@ import { InfrastructureTopology } from "@/components/dashboard/InfrastructureTop
 
 export default function DashboardPage() {
   return (
+     <ProtectedRoute>
     <AppShell>
       <div className="space-y-10">
         {/* HERO */}
@@ -139,5 +144,6 @@ export default function DashboardPage() {
         </DashboardSection>
       </div>
     </AppShell>
+    </ProtectedRoute>
   );
 }

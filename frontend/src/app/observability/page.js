@@ -3,12 +3,17 @@ import {
 } from "@/components/layout/AppShell";
 
 import {
+  ProtectedRoute,
+} from "@/components/layout/ProtectedRoute";
+
+import {
   GrafanaPanel,
 } from "@/components/dashboard/GrafanaPanel";
 import { PrometheusPanel } from "@/components/dashboard/PrometheusPanel";
 
 export default function ObservabilityPage() {
   return (
+    <ProtectedRoute>
     <AppShell>
       <div className="space-y-10">
         <section>
@@ -51,5 +56,6 @@ export default function ObservabilityPage() {
         <PrometheusPanel />
       </div>
     </AppShell>
+    </ProtectedRoute>
   );
 }

@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import socket, { joinRun, leaveRun } from "../../lib/socket";
+import { AppShell } from "@/components/layout/AppShell";
+import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 
 export default function Projects() {
   const [projects, setProjects] = useState([]);
@@ -239,6 +241,8 @@ export default function Projects() {
   }, [currentTestRunId, currentTestProjectId]);
 
   return (
+    <ProtectedRoute>
+      <AppShell>
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8">
       <div className="max-w-6xl mx-auto">
         <div className="mb-8 flex items-center justify-between gap-4">
@@ -854,5 +858,7 @@ export default function Projects() {
         </div>
       </div>
     </div>
+    </AppShell>
+    </ProtectedRoute>
   );
 }

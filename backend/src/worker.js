@@ -18,7 +18,7 @@ const useKafka = process.env.USE_KAFKA === "true";
 let workerStatus = "starting";
 
 const startHealthServer = () => {
-  const port = process.env.PORT;
+  const port = process.env.WORKER_HEALTH_PORT;
 
   if (!port) {
     return;
@@ -45,6 +45,18 @@ const startHealthServer = () => {
     });
 
     res.end("ChaosForge worker is running");
+  });
+
+  server.on("error", (err) => {
+    if (err.code === "EADDRINUSE") {
+      console.warn(
+        `Worker health server skipped because port ${port} is already in use.`,
+      );
+
+      return;
+    }
+
+    throw err;
   });
 
   server.listen(port, "0.0.0.0", () => {

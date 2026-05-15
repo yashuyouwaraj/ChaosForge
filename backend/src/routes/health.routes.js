@@ -9,17 +9,22 @@ const router = express.Router();
 router.get("/", async (req, res) => {
   try {
     const health = await getSystemHealth();
+    const incidentTimeline = getIncidentTimeline();
     const io = getIOIfReady();
 
     if (io) {
       io.emit("infrastructure-alerts", health.alerts || []);
       io.emit("ai-insights", health.insights || []);
       io.emit(
-        "incident-timeline",getIncidentTimeline(),
+        "incident-timeline",
+        incidentTimeline,
       );
     }
 
-    res.json(health);
+    res.json({
+      ...health,
+      incidentTimeline,
+    });
   } catch (err) {
     res.status(500).json({
       status: "error",
