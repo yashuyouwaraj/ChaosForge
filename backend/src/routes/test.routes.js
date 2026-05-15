@@ -10,6 +10,10 @@ const Run = require('../modules/run/run.model');
 const { v4: uuidv4 } = require('uuid');
 const { getControl, initControl } = require('../control/control.store');
 const { getIO } = require('../websocket/socket');
+const {
+  addIncident,
+  getIncidentTimeline,
+} = require('../services/incidentTimeline');
 
 
 const router = express.Router();
@@ -58,6 +62,20 @@ router.post('/test/:projectId', authMiddleware, async (req, res) => {
   });
   await run.save();
 
+  addIncident({
+    type: 'simulation',
+    severity: 'info',
+    title: 'Simulation Started',
+    message: `Run ${runId} started.`,
+    metadata: {
+      projectId,
+      runId,
+      pattern: config.pattern || 'stages',
+    },
+  });
+
+  getIO().emit('incident-timeline', getIncidentTimeline());
+
   // Start execution in background
   runStages({ ...config, projectId, url, runId }).then(async () => {
     // After completion, update run with metrics
@@ -78,6 +96,22 @@ router.post('/test/:projectId', authMiddleware, async (req, res) => {
       latencyBuckets: metrics.latencyBuckets,
       failureTimeline: metrics.failureTimeline,
     });
+
+    addIncident({
+      type: 'simulation',
+      severity: 'info',
+      title:
+        finalStatus === 'stopped'
+          ? 'Simulation Stopped'
+          : 'Simulation Completed',
+      message: `Run ${runId} ${finalStatus}.`,
+      metadata: {
+        projectId,
+        runId,
+      },
+    });
+
+    getIO().emit('incident-timeline', getIncidentTimeline());
     getIO().emit(`complete-${projectId}-${runId}`);
   }).catch(async (err) => {
     logger.error('Error in runStages', err);
@@ -88,6 +122,20 @@ router.post('/test/:projectId', authMiddleware, async (req, res) => {
         error: error.message,
       });
     });
+
+    addIncident({
+      type: 'simulation',
+      severity: 'critical',
+      title: 'Simulation Failed',
+      message: `Run ${runId} failed.`,
+      metadata: {
+        projectId,
+        runId,
+        error: err.message,
+      },
+    });
+
+    getIO().emit('incident-timeline', getIncidentTimeline());
     getIO().emit(`complete-${projectId}-${runId}`);
   });
 

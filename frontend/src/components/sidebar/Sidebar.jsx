@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { usePlatformStatus } from "@/hooks/usePlatformStatus";
 
 import {
   LayoutDashboard,
@@ -10,97 +12,334 @@ import {
   FileText,
   CreditCard,
   Settings,
+  Radio,
+  ShieldCheck,
 } from "lucide-react";
 
-const items = [
+const groups = [
   {
-    label: "Dashboard",
-    href: "/dashboard",
-    icon: LayoutDashboard,
+    title: "Operations",
+
+    items: [
+      {
+        label: "Dashboard",
+        href: "/dashboard",
+        icon: LayoutDashboard,
+      },
+
+      {
+        label: "Simulations",
+        href: "/simulations",
+        icon: Activity,
+      },
+
+      {
+        label: "Infrastructure",
+        href: "/infrastructure",
+        icon: Server,
+      },
+    ],
   },
 
   {
-    label: "Simulations",
-    href: "/simulations",
-    icon: Activity,
-  },
-  {
-    label: "Observability",
-    href: "/observability",
-    icon: Activity,
+    title: "Observability",
+
+    items: [
+      {
+        label: "Observability",
+        href: "/observability",
+        icon: Radio,
+      },
+
+      {
+        label: "AI Insights",
+        href: "/ai",
+        icon: Brain,
+      },
+
+      {
+        label: "Reports",
+        href: "/reports",
+        icon: FileText,
+      },
+    ],
   },
 
   {
-    label: "AI Insights",
-    href: "/ai",
-    icon: Brain,
-  },
+    title: "Workspace",
 
-  {
-    label: "Infrastructure",
-    href: "/infrastructure",
-    icon: Server,
-  },
+    items: [
+      {
+        label: "Billing",
+        href: "/billing",
+        icon: CreditCard,
+      },
 
-  {
-    label: "Reports",
-    href: "/reports",
-    icon: FileText,
-  },
-
-  {
-    label: "Billing",
-    href: "/billing",
-    icon: CreditCard,
-  },
-
-  {
-    label: "Settings",
-    href: "/settings",
-    icon: Settings,
+      {
+        label: "Settings",
+        href: "/settings",
+        icon: Settings,
+      },
+    ],
   },
 ];
 
 export function Sidebar() {
+  const pathname = usePathname();
+  const status = usePlatformStatus();
+
   return (
     <aside
       className="
-        hidden w-72 bg-card
+        hidden w-[290px]
+        border-r border-white/10
+        bg-black/30
+        backdrop-blur-2xl
         lg:flex lg:flex-col
       "
     >
-      <div className="p-6">
-        <h1 className="text-2xl font-bold">
-          ChaosForge
-        </h1>
+      {/* BRAND */}
 
-        <p className="text-sm text-muted-foreground">
-          AI Infrastructure Platform
-        </p>
-      </div>
-
-      <nav className="flex-1 space-y-2 p-4">
-        {items.map((item) => {
-          const Icon = item.icon;
-
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
+      <div
+        className="
+          border-b border-white/10
+          px-7 py-7
+        "
+      >
+        <div
+          className="
+            flex items-center gap-4
+          "
+        >
+          <div
+            className="
+              flex h-14 w-14
+              items-center justify-center
+              rounded-2xl
+              bg-cyan-400/10
+              text-cyan-300
+            "
+          >
+            <ShieldCheck
               className="
-                flex items-center gap-3
-                rounded-xl px-4 py-3
-                text-sm font-medium
-                transition hover:bg-accent
+                h-7 w-7
+              "
+            />
+          </div>
+
+          <div>
+            <h1
+              className="
+                text-2xl font-black
               "
             >
-              <Icon className="h-5 w-5" />
+              ChaosForge
+            </h1>
 
-              {item.label}
-            </Link>
-          );
-        })}
+            <p
+              className="
+                mt-1 text-xs
+                uppercase
+                tracking-[0.25em]
+                text-cyan-400
+              "
+            >
+              Infrastructure OS
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* NAV */}
+
+      <nav
+        className="
+          flex-1 overflow-y-auto
+          px-4
+        "
+      >
+        <div className="space-y-8">
+          {groups.map((group) => (
+            <div key={group.title}>
+              <p
+                className="
+                  mb-3 px-4
+                  text-xs uppercase
+                  tracking-[0.25em]
+                  text-slate-500
+                "
+              >
+                {group.title}
+              </p>
+
+              <div className="space-y-2">
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`
+                            group flex
+                            items-center gap-4
+                            rounded-2xl
+                            px-4 py-3
+                            text-sm font-medium
+                            transition-all
+                            duration-200
+
+                                          ${
+                                            pathname === item.href
+                                              ? `
+                                                bg-cyan-400/15
+                                                text-cyan-300
+                                                shadow-[0_0_25px_rgba(34,211,238,0.12)]
+                                              `
+                                              : `
+                                                text-slate-300
+                                                hover:bg-cyan-400/10
+                                                hover:text-cyan-300
+                                              `
+                                          }
+                                        `}
+                    >
+                      <Icon
+                        className="
+                            h-5 w-5
+                            transition-transform
+                            duration-200
+                            group-hover:scale-110
+                          "
+                      />
+
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
       </nav>
+
+      <div className="">
+        <div
+          className="
+      rounded-2xl
+      border border-white/10
+      bg-black/20
+      p-5
+    "
+        >
+          <div
+            className="
+        flex items-center
+        justify-between
+      "
+          >
+            <div>
+              <p
+                className="
+            text-[10px]
+            uppercase
+            tracking-[0.25em]
+            text-slate-500
+          "
+              >
+                Active Simulation
+              </p>
+
+              <h4
+                className="
+            mt-2 text-lg
+            font-bold
+            text-cyan-300
+          "
+              >
+                {status.simulation ? "Running" : "Idle"}
+              </h4>
+            </div>
+
+            <div
+              className={`
+          h-3 w-3 rounded-full
+          ${
+            status.simulation
+              ? "bg-green-400 shadow-[0_0_16px_rgba(74,222,128,0.9)]"
+              : "bg-slate-600"
+          }
+        `}
+            />
+          </div>
+
+          <div
+            className="
+        mt-4 text-xs
+        text-slate-500
+      "
+          >
+            {status.simulation && status.runId
+              ? `${status.runId.slice(0, 12)}...`
+              : "No active infrastructure load"}
+          </div>
+        </div>
+      </div>
+
+      {/* STATUS */}
+
+      <div
+        className="
+          border-t border-white/10
+          p-5
+        "
+      >
+        <div
+          className="
+            rounded-2xl
+            border border-cyan-400/20
+            bg-cyan-400/[0.04]
+            p-4
+          "
+        >
+          <div
+            className="
+              flex items-center
+              gap-3
+            "
+          >
+            <div
+              className="
+                h-3 w-3
+                rounded-full
+                bg-green-400
+                shadow-[0_0_16px_rgba(74,222,128,0.9)]
+              "
+            />
+
+            <div>
+              <p
+                className="
+                  text-xs uppercase
+                  tracking-[0.2em]
+                  text-slate-400
+                "
+              >
+                Platform Status
+              </p>
+
+              <h4
+                className="
+                  mt-1 text-sm
+                  font-bold text-green-400
+                "
+              >
+                Operational
+              </h4>
+            </div>
+          </div>
+        </div>
+      </div>
     </aside>
   );
 }
