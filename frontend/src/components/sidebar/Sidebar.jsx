@@ -11,6 +11,7 @@ import {
   Server,
   FileText,
   CreditCard,
+  Book,
   Settings,
   Radio,
   ShieldCheck,
@@ -25,6 +26,11 @@ const groups = [
         label: "Dashboard",
         href: "/dashboard",
         icon: LayoutDashboard,
+      },
+      {
+        label: "Projects",
+        href: "/projects",
+        icon: Book,
       },
 
       {
