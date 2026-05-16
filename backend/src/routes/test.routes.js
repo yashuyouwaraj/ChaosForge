@@ -13,6 +13,9 @@ const {
   addIncident,
   getIncidentTimeline,
 } = require('../services/incidentTimeline');
+const {
+  ensureKafkaWorkersReady,
+} = require('../services/worker-readiness.service');
 
 
 const router = express.Router();
@@ -44,6 +47,23 @@ router.post('/test/:projectId', authMiddleware, async (req, res) => {
 
   if (!url || !config) {
     return res.status(400).json({ error: 'url and config required' });
+  }
+
+  const workerReadiness = await ensureKafkaWorkersReady();
+
+  if (!workerReadiness.ready) {
+    logger.warn({
+      message: 'Simulation blocked because Kafka workers are not ready',
+      projectId,
+      reason: workerReadiness.reason,
+      connectedWorkers: workerReadiness.connectedWorkers,
+    });
+
+    return res.status(503).json({
+      error: 'Workers are still waking up. Please retry in a few seconds.',
+      code: 'WORKERS_NOT_READY',
+      connectedWorkers: workerReadiness.connectedWorkers,
+    });
   }
 
   const runId = uuidv4();
