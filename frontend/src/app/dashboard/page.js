@@ -24,6 +24,8 @@ import { InfrastructureStatusCards } from "@/components/dashboard/Infrastructure
 
 import { RealtimeTelemetry } from "@/components/dashboard/RealtimeTelemetry";
 
+import { LatencyBuckets } from "@/components/dashboard/LatencyBuckets";
+
 import { RealtimeCharts } from "@/components/dashboard/RealtimeCharts";
 
 import { ActiveSimulations } from "@/components/dashboard/ActiveSimulations";
@@ -209,6 +211,13 @@ export default function DashboardPage() {
             description="Live infrastructure metrics streaming."
           >
             <RealtimeTelemetry />
+          </DashboardSection>
+
+          <DashboardSection
+            title="Latency Distribution"
+            description="Realtime response-time bucket analysis."
+          >
+            <LatencyBuckets />
           </DashboardSection>
 
           <DashboardSection

@@ -109,7 +109,7 @@ const simulateProcessing = async (
       /**
        * 💀 FINAL FAILURE
        */
-      if (attempt === MAX_RETRIES) {
+      if (attempt + 1 >= MAX_RETRIES) {
         logger.error({
           message: "request_failed",
           requestId,

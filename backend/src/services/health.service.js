@@ -5,6 +5,8 @@ const { client: redis } = require("../config/redis");
 const { kafka } = require("../config/kafka");
 const { getConnectedKafkaWorkerCount } = require("./worker-heartbeat.service");
 const { getActiveRunCount } = require("../metrics/metrics.store");
+const Run = require("../modules/run/run.model");
+const { completeFinishedActiveRuns } = require("../modules/run/run.service");
 const {
   generateInfrastructureInsights,
 } = require("./analysisEngine");
@@ -98,13 +100,28 @@ const getGrafanaHealth = async () => {
   }
 };
 
+const getActiveRunTotal = async () => {
+  try {
+    await completeFinishedActiveRuns();
+
+    return await Run.countDocuments({
+      status: {
+        $in: ["running", "paused"],
+      },
+    });
+  } catch {
+    return Math.max(0, getActiveRunCount());
+  }
+};
+
 const getSystemHealth = async () => {
   let redisStatus = "disconnected";
   let kafkaWorkerCount = 0;
 
-  const [kafkaStatus, grafanaStatus] = await Promise.all([
+  const [kafkaStatus, grafanaStatus, activeRuns] = await Promise.all([
     getKafkaHealth(),
     getGrafanaHealth(),
+    getActiveRunTotal(),
   ]);
 
   try {
@@ -136,7 +153,7 @@ const getSystemHealth = async () => {
     websockets: {
       connectedClients: getConnectedClients(),
     },
-    activeRuns: Math.max(0, getActiveRunCount()),
+    activeRuns,
     timeStamp: new Date().toISOString(),
   };
 

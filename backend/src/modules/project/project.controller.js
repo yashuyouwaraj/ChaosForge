@@ -10,6 +10,7 @@ const { success, error } = require("../../utils/response");
 const logger = require("../../utils/logger");
 const { v4: uuidv4 } = require("uuid");
 const { initControl } = require("../../control/control.store");
+const { markRunComplete } = require("../../metrics/metrics.store");
 
 const createProject = async (req, res) => {
   const { name } = req.body;
@@ -109,6 +110,20 @@ const runProjectTraffic = async (req, res) => {
         runId,
         error: err.message,
       });
+
+      Run.findOneAndUpdate(
+        { projectId: id, runId },
+        { status: "failed" },
+      ).catch((error) => {
+        logger.error({
+          message: "Failed to mark run as failed",
+          projectId: id,
+          runId,
+          error: error.message,
+        });
+      });
+
+      markRunComplete(runId);
 
       emitBufferedLog(id, runId, {
         projectId: id,

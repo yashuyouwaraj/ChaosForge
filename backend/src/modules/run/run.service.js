@@ -1,5 +1,117 @@
 const Run = require("./run.model");
 const logger = require("../../utils/logger");
+const { getMetrics } = require("../../metrics/metrics.store");
+
+const ACTIVE_STATUSES = ["running", "paused"];
+const COMPLETION_GRACE_MS = 30000;
+
+const getExpectedDurationMs = (run) => {
+  const config = run.config || {};
+
+  if (Array.isArray(config.stages)) {
+    return (
+      config.stages.reduce(
+        (total, stage) => total + Number(stage.durationSec || 0),
+        0,
+      ) * 1000
+    );
+  }
+
+  const totalRequests = Number(config.totalRequests || 0);
+  const rate = Number(config.rate || 0);
+
+  if (totalRequests > 0 && rate > 0) {
+    return Math.ceil(totalRequests / rate) * 1000;
+  }
+
+  return 0;
+};
+
+const getExpectedRequestCount = (run) => {
+  const config = run.config || {};
+
+  if (Number(config.totalRequests || 0) > 0) {
+    return Number(config.totalRequests);
+  }
+
+  return 0;
+};
+
+const shouldMarkCompleted = async (run, now = Date.now()) => {
+  const expectedRequests = getExpectedRequestCount(run);
+
+  if (expectedRequests > 0) {
+    const metrics = await getMetrics(run.projectId, run.runId);
+
+    if (metrics.totalRequests >= expectedRequests) {
+      return { complete: true, metrics };
+    }
+  }
+
+  if (run.status !== "running") {
+    return { complete: false };
+  }
+
+  const expectedDurationMs = getExpectedDurationMs(run);
+  const createdAt = run.createdAt ? new Date(run.createdAt).getTime() : 0;
+
+  if (
+    expectedDurationMs > 0 &&
+    createdAt > 0 &&
+    now > createdAt + expectedDurationMs + COMPLETION_GRACE_MS
+  ) {
+    const metrics = await getMetrics(run.projectId, run.runId);
+    return { complete: true, metrics };
+  }
+
+  return { complete: false };
+};
+
+const completeFinishedActiveRuns = async (filter = {}) => {
+  const activeRuns = await Run.find({
+    ...filter,
+    status: { $in: ACTIVE_STATUSES },
+  });
+  const now = Date.now();
+
+  await Promise.all(
+    activeRuns.map(async (run) => {
+      try {
+        const result = await shouldMarkCompleted(run, now);
+
+        if (!result.complete) {
+          return;
+        }
+
+        const metrics = result.metrics || (await getMetrics(run.projectId, run.runId));
+
+        await Run.updateOne(
+          { _id: run._id, status: { $in: ACTIVE_STATUSES } },
+          {
+            $set: {
+              status: "completed",
+              totalRequests: metrics.totalRequests,
+              success: metrics.success,
+              failure: metrics.failure,
+              avgLatency: metrics.avgLatency,
+              p95Latency: metrics.p95Latency,
+              rps: metrics.rps,
+              errorTypes: metrics.errorTypes,
+              latencyBuckets: metrics.latencyBuckets,
+              failureTimeline: metrics.failureTimeline,
+            },
+          },
+        );
+      } catch (err) {
+        logger.warn({
+          message: "Failed to reconcile active run status",
+          runId: run.runId,
+          error: err.message,
+        });
+      }
+    }),
+  );
+};
 
 const saveRun = async (data) => {
   try {
@@ -36,6 +148,7 @@ const saveRun = async (data) => {
 
 const getRunsByProject = async (projectId, userId) => {
   try {
+    await completeFinishedActiveRuns({ projectId, owner: userId });
     return await Run.find({ projectId,owner: userId }).sort({ createdAt: -1 });
   } catch (err) {
     logger.error({
@@ -50,4 +163,5 @@ const getRunsByProject = async (projectId, userId) => {
 module.exports = {
   saveRun,
   getRunsByProject,
+  completeFinishedActiveRuns,
 };

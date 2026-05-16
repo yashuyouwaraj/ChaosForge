@@ -4,11 +4,10 @@ const {sendMessage} = require('../services/producer.service');
 const {generateTraffic} = require('../services/traffic.service');
 const authMiddleware = require('../middleware/auth.middleware');
 const roleMiddleware = require('../middleware/role.middleware');
-const { runStages } = require('../services/execution.engine');
-const { getMetrics } = require('../metrics/metrics.store');
 const Run = require('../modules/run/run.model');
+const { markRunComplete } = require('../metrics/metrics.store');
 const { v4: uuidv4 } = require('uuid');
-const { getControl, initControl } = require('../control/control.store');
+const { initControl } = require('../control/control.store');
 const { getIO } = require('../websocket/socket');
 const {
   addIncident,
@@ -76,45 +75,17 @@ router.post('/test/:projectId', authMiddleware, async (req, res) => {
 
   getIO().emit('incident-timeline', getIncidentTimeline());
 
-  // Start execution in background
-  runStages({ ...config, projectId, url, runId }).then(async () => {
-    // After completion, update run with metrics
-    const metrics = await getMetrics(projectId, runId);
-    const finalControl = await getControl(projectId, runId);
-    const finalStatus =
-      finalControl.status === 'stopped' ? 'stopped' : 'completed';
-
-    await Run.findOneAndUpdate({ projectId, runId }, {
-      status: finalStatus,
-      totalRequests: metrics.totalRequests,
-      success: metrics.success,
-      failure: metrics.failure,
-      avgLatency: metrics.avgLatency,
-      p95Latency: metrics.p95Latency,
-      rps: metrics.rps,
-      errorTypes: metrics.errorTypes,
-      latencyBuckets: metrics.latencyBuckets,
-      failureTimeline: metrics.failureTimeline,
-    });
-
-    addIncident({
-      type: 'simulation',
-      severity: 'info',
-      title:
-        finalStatus === 'stopped'
-          ? 'Simulation Stopped'
-          : 'Simulation Completed',
-      message: `Run ${runId} ${finalStatus}.`,
-      metadata: {
-        projectId,
-        runId,
-      },
-    });
-
+  // Start execution in background through the traffic service.
+  // With USE_KAFKA=true, requests are published to Kafka and split across workers.
+  generateTraffic(config, projectId, url, {
+    runId,
+    controlInitialized: true,
+    owner: req.user.id,
+  }).then(async () => {
     getIO().emit('incident-timeline', getIncidentTimeline());
     getIO().emit(`complete-${projectId}-${runId}`);
   }).catch(async (err) => {
-    logger.error('Error in runStages', err);
+    logger.error('Error in generateTraffic', err);
     await Run.findOneAndUpdate({ projectId, runId }, { status: 'failed' }).catch((error) => {
       logger.error({
         message: 'Failed to mark run as failed',
@@ -122,6 +93,8 @@ router.post('/test/:projectId', authMiddleware, async (req, res) => {
         error: error.message,
       });
     });
+
+    markRunComplete(runId);
 
     addIncident({
       type: 'simulation',

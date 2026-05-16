@@ -1,66 +1,42 @@
 "use client";
 
-import RpsChart
-  from "@/components/charts/RpsChart";
+import RpsChart from "@/components/charts/RpsChart";
 
-import MetricsChart
-  from "@/components/charts/MetricsChart";
+import MetricsChart from "@/components/charts/MetricsChart";
 
-import ErrorPieChart
-  from "@/components/charts/ErrorPieChart";
+import ErrorPieChart from "@/components/charts/ErrorPieChart";
 
-import {
-  useMetricsHistory,
-} from "@/hooks/useMetricsHistory";
-import {
-  useRun,
-} from "@/components/providers/RunProvider";
+import { useMetricsHistory } from "@/hooks/useMetricsHistory";
+import { useRun } from "@/components/providers/RunProvider";
 
 export function RealtimeCharts() {
-  const { selectedRun } =
-    useRun();
+  const { selectedRun } = useRun();
 
-  const history =
-    useMetricsHistory(
-      selectedRun.projectId,
-      selectedRun.runId,
-      selectedRun.isActive,
-    );
+  const history = useMetricsHistory(
+    selectedRun.projectId,
+    selectedRun.runId,
+    selectedRun.isActive,
+  );
 
-  const rpsData =
-    history.map((point) => ({
-      timestamp:
-        point.timestamp,
-      elapsedSec:
-        point.elapsedSec,
-      time:
-        new Date(
-          point.timestamp,
-        ).toLocaleTimeString(),
-      rps: point.rps,
-    }));
+  const rpsData = history.map((point) => ({
+    timestamp: point.timestamp,
+    elapsedSec: point.elapsedSec,
+    time: new Date(point.timestamp).toLocaleTimeString(),
+    rps: point.rps,
+  }));
 
-  const latencyData =
-    history.map((point) => ({
-      time:
-        new Date(
-          point.timestamp,
-        ).toLocaleTimeString(),
-      avgLatency:
-        point.avgLatency,
-      p95Latency:
-        point.p95Latency,
-    }));
+  const latencyData = history.map((point) => ({
+    time: new Date(point.timestamp).toLocaleTimeString(),
+    avgLatency: point.avgLatency,
+    p95Latency: point.p95Latency,
+  }));
 
-  const latest =
-    history[
-      history.length - 1
-    ];
+  const latest = history[history.length - 1];
 
   return (
     <div
       className="
-        grid gap-6
+        grid gap-4
         xl:grid-cols-3
       "
     >
@@ -72,9 +48,7 @@ export function RealtimeCharts() {
         "
       >
         <div className="mb-6">
-          <h3 className="text-2xl font-bold">
-            Request Throughput
-          </h3>
+          <h3 className="text-2xl font-bold">Request Throughput</h3>
 
           <p className="text-muted-foreground">
             Live requests per second telemetry.
@@ -92,20 +66,12 @@ export function RealtimeCharts() {
         "
       >
         <div className="mb-6">
-          <h3 className="text-2xl font-bold">
-            Failure Distribution
-          </h3>
+          <h3 className="text-2xl font-bold">Failure Distribution</h3>
 
-          <p className="text-muted-foreground">
-            Error analytics stream.
-          </p>
+          <p className="text-muted-foreground">Error analytics stream.</p>
         </div>
 
-        <ErrorPieChart
-          errorTypes={
-            latest?.errorTypes
-          }
-        />
+        <ErrorPieChart errorTypes={latest?.errorTypes} />
       </div>
 
       {/* LATENCY */}
@@ -116,18 +82,12 @@ export function RealtimeCharts() {
         "
       >
         <div className="mb-6">
-          <h3 className="text-2xl font-bold">
-            Latency Intelligence
-          </h3>
+          <h3 className="text-2xl font-bold">Latency Intelligence</h3>
 
-          <p className="text-muted-foreground">
-            Distributed latency analysis.
-          </p>
+          <p className="text-muted-foreground">Distributed latency analysis.</p>
         </div>
 
-        <MetricsChart
-          data={latencyData}
-        />
+        <MetricsChart data={latencyData} />
       </div>
     </div>
   );

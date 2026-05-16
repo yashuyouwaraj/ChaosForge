@@ -14,6 +14,7 @@ const MAX_REDIS_LOG_BATCH = 500;
 let io;
 let connectedClients = 0;
 let flushLoopStarted = false;
+const connectedSocketIds = new Set();
 
 const logBuffers = new Map();
 
@@ -180,11 +181,15 @@ const initSocket = (server) => {
       origin: process.env.CORS_ORIGIN || "*",
       credentials: true,
     },
+    pingInterval: 10000,
+    pingTimeout: 5000,
   });
 
   io.on("connection", (socket) => {
-    activeWebSocketClients.inc();
-    connectedClients++;
+    connectedSocketIds.add(socket.id);
+    connectedClients = connectedSocketIds.size;
+    activeWebSocketClients.set(connectedClients);
+
     logger.info({
       message: "socket_connected",
       socketId: socket.id,
@@ -212,8 +217,10 @@ const initSocket = (server) => {
     });
 
     socket.on("disconnect", () => {
-      activeWebSocketClients.dec();
-      connectedClients--;
+      connectedSocketIds.delete(socket.id);
+      connectedClients = connectedSocketIds.size;
+      activeWebSocketClients.set(connectedClients);
+
       logger.info({
         message: "socket_disconnected",
         socketId: socket.id,
@@ -228,7 +235,13 @@ const initSocket = (server) => {
   return io;
 };
 
-const getConnectedClients = () => connectedClients;
+const getConnectedClients = () => {
+  if (!io) {
+    return 0;
+  }
+
+  return io.of("/").sockets.size;
+};
 
 module.exports = {
   initSocket,

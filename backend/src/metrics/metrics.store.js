@@ -61,6 +61,7 @@ const recordRequest = async (
   multi.hIncrBy(metricsKey, "totalRequests", 1);
   multi.hIncrBy(metricsKey, isSuccess ? "success" : "failure", 1);
   multi.hIncrBy(metricsKey, "totalLatency", String(latency));
+  multi.hIncrBy(metricsKey, `latencyBucket:${getLatencyBucket(latency)}`, 1);
   multi.hSetNX(metricsKey, "startedAt", String(recordedAt));
   multi.hSet(metricsKey, "lastRequestAt", String(recordedAt));
 
@@ -119,6 +120,13 @@ const calculateAverageRPS = (totalRequests, startedAt, lastRequestAt) => {
   return Math.round((totalRequests * 1000) / elapsedMs);
 };
 
+const getLatencyBucket = (latency) => {
+  if (latency < 500) return "0-500";
+  if (latency < 1000) return "500-1000";
+  if (latency < 2000) return "1000-2000";
+  return "2000+";
+};
+
 const getMetrics = async (projectId, runId) => {
   const redis = await connectRedis();
 
@@ -143,20 +151,20 @@ const getMetrics = async (projectId, runId) => {
     data.lastRequestAt || parsedTimestamps[parsedTimestamps.length - 1] || 0,
   );
 
-  // latency buckets (computed here)
   const buckets = {
-    "0-500": 0,
-    "500-1000": 0,
-    "1000-2000": 0,
-    "2000+": 0,
+    "0-500": Number(data["latencyBucket:0-500"] || 0),
+    "500-1000": Number(data["latencyBucket:500-1000"] || 0),
+    "1000-2000": Number(data["latencyBucket:1000-2000"] || 0),
+    "2000+": Number(data["latencyBucket:2000+"] || 0),
   };
 
-  parsedLatencies.forEach((lat) => {
-    if (lat < 500) buckets["0-500"]++;
-    else if (lat < 1000) buckets["500-1000"]++;
-    else if (lat < 2000) buckets["1000-2000"]++;
-    else buckets["2000+"]++;
-  });
+  const hasStoredBuckets = Object.values(buckets).some((value) => value > 0);
+
+  if (!hasStoredBuckets) {
+    parsedLatencies.forEach((lat) => {
+      buckets[getLatencyBucket(lat)]++;
+    });
+  }
 
   return {
     totalRequests,

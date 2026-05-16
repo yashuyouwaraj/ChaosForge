@@ -22,6 +22,12 @@ const socket = io(getSocketBaseUrl(), {
 
 let currentAuthToken = getToken();
 
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeunload", () => {
+    socket.disconnect();
+  });
+}
+
 const refreshSocketAuth = () => {
   const token = getToken();
 

@@ -1,19 +1,13 @@
 "use client";
 
-import {
-  useInfrastructureHealth,
-} from "@/hooks/useInfrastructureHealth";
+import { useInfrastructureHealth } from "@/hooks/useInfrastructureHealth";
 
-const getStatusColor = (
-  value,
-) => {
+const getStatusColor = (value) => {
   if (typeof value === "number") {
     return "text-cyan-300";
   }
 
-  const normalizedValue = String(
-    value,
-  ).toLowerCase();
+  const normalizedValue = String(value).toLowerCase();
 
   if (
     normalizedValue === "connected" ||
@@ -40,66 +34,44 @@ const formatValue = (value) => {
     return value;
   }
 
-  return value.charAt(0).toUpperCase() +
-    value.slice(1);
+  return value.charAt(0).toUpperCase() + value.slice(1);
 };
 
 export function InfrastructureHealthGrid() {
-  const {
-    health,
-    loading,
-  } =
-    useInfrastructureHealth();
+  const { health, loading } = useInfrastructureHealth();
+  
 
   const cards = [
     {
       label: "Redis",
-      value:
-        health?.redis ||
-        "unknown",
+      value: health?.redis || "unknown",
     },
 
     {
       label: "Kafka",
-      value:
-        health?.kafka ||
-        "unknown",
+      value: health?.kafka || "unknown",
     },
 
     {
       label: "WebSockets",
-      value:
-        health?.websockets
-          ?.connectedClients ??
-        0,
+      value: health?.websockets ? "Connected" : "Disconnected",
     },
 
     {
       label: "Active Runs",
-      value:
-        health?.activeRuns ??
-        0,
+      value: health?.activeRuns ?? 0,
     },
 
     {
       label: "Memory Usage",
-      value:
-        health?.memory
-          ?.heapUsed
-          ? `${Math.round(
-              health.memory
-                .heapUsed /
-                1024 /
-                1024,
-            )} MB`
-          : "N/A",
+      value: health?.memory?.heapUsed
+        ? `${Math.round(health.memory.heapUsed / 1024 / 1024)} MB`
+        : "N/A",
     },
 
     {
       label: "Platform",
-      value:
-        health?.platform ||
-        "unknown",
+      value: health?.platform || "unknown",
     },
   ];
 
@@ -114,7 +86,6 @@ export function InfrastructureHealthGrid() {
       {cards.map((card) => (
         <div
           key={card.label}
-
           className="
             glass rounded-[28px]
             p-6
@@ -133,16 +104,10 @@ export function InfrastructureHealthGrid() {
             className={`
               mt-4 text-3xl
               font-black
-              ${getStatusColor(
-                card.value,
-              )}
+              ${getStatusColor(card.value)}
             `}
           >
-            {loading
-              ? "..."
-              : formatValue(
-                  card.value,
-                )}
+            {loading ? "..." : formatValue(card.value)}
           </h3>
         </div>
       ))}
