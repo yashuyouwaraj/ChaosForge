@@ -44,20 +44,29 @@ const EMPTY_BUCKETS = {
   "2000+": 0,
 };
 
+const getBucketTotal = (buckets = EMPTY_BUCKETS) =>
+  BUCKETS.reduce(
+    (sum, bucket) => sum + Number(buckets[bucket.key] || 0),
+    0,
+  );
+
+const hasTelemetry = (metrics) =>
+  Boolean(metrics) &&
+  (Number(metrics.totalRequests || 0) > 0 ||
+    getBucketTotal(metrics.latencyBuckets) > 0);
+
 export function LatencyBuckets() {
   const { selectedRun } = useRun();
+  const runKey = `${selectedRun.projectId || ""}:${selectedRun.runId || ""}`;
   const liveMetrics = useRealtimeMetrics(
     selectedRun.projectId,
     selectedRun.runId,
   );
   const [fetchedMetrics, setFetchedMetrics] = useState(null);
+  const [displayMetrics, setDisplayMetrics] = useState(null);
 
   useEffect(() => {
-    if (
-      !selectedRun.projectId ||
-      !selectedRun.runId ||
-      !selectedRun.isActive
-    ) {
+    if (!selectedRun.projectId || !selectedRun.runId) {
       return;
     }
 
@@ -70,39 +79,66 @@ export function LatencyBuckets() {
         );
 
         if (!ignore) {
-          setFetchedMetrics(data);
+          setFetchedMetrics({
+            runKey,
+            metrics: data,
+          });
         }
       } catch {
         if (!ignore) {
-          setFetchedMetrics(null);
+          setFetchedMetrics({
+            runKey,
+            metrics: null,
+          });
         }
       }
     };
 
     loadMetrics();
 
-    const intervalId = window.setInterval(loadMetrics, 5000);
+    const intervalId = selectedRun.isActive
+      ? window.setInterval(loadMetrics, 5000)
+      : null;
 
     return () => {
       ignore = true;
-      window.clearInterval(intervalId);
+      if (intervalId) {
+        window.clearInterval(intervalId);
+      }
     };
   }, [
     selectedRun.projectId,
     selectedRun.runId,
     selectedRun.isActive,
+    runKey,
   ]);
 
-  const metrics = selectedRun.isActive && selectedRun.runId
-    ? liveMetrics || fetchedMetrics
+  const fetchedMetricsForRun = fetchedMetrics?.runKey === runKey
+    ? fetchedMetrics.metrics
     : null;
+  const nextMetrics = liveMetrics || fetchedMetricsForRun;
+
+  useEffect(() => {
+    if (!hasTelemetry(nextMetrics)) {
+      return;
+    }
+
+    queueMicrotask(() => {
+      setDisplayMetrics({
+        runKey,
+        metrics: nextMetrics,
+      });
+    });
+  }, [nextMetrics, runKey]);
+
+  const displayMetricsForRun = displayMetrics?.runKey === runKey
+    ? displayMetrics.metrics
+    : null;
+  const metrics = displayMetricsForRun || nextMetrics;
 
   const bucketData = useMemo(() => {
     const buckets = metrics?.latencyBuckets || EMPTY_BUCKETS;
-    const total = BUCKETS.reduce(
-      (sum, bucket) => sum + Number(buckets[bucket.key] || 0),
-      0,
-    );
+    const total = getBucketTotal(buckets);
 
     return BUCKETS.map((bucket) => {
       const value = Number(buckets[bucket.key] || 0);

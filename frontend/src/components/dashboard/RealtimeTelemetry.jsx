@@ -1,15 +1,104 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 
 import { useRealtimeMetrics } from "@/hooks/useRealtimeMetrics";
 
 import { useRun } from "@/components/providers/RunProvider";
+import { api } from "@/lib/api";
+
+const hasTelemetry = (metrics) =>
+  Boolean(metrics) &&
+  (Number(metrics.totalRequests || 0) > 0 ||
+    Number(metrics.avgLatency || 0) > 0 ||
+    Number(metrics.p95Latency || 0) > 0 ||
+    Number(metrics.currentRps || 0) > 0 ||
+    Number(metrics.rps || 0) > 0 ||
+    Number(metrics.failure || 0) > 0);
 
 export function RealtimeTelemetry() {
   const { selectedRun } = useRun();
+  const runKey = `${selectedRun.projectId || ""}:${selectedRun.runId || ""}`;
 
-  const metrics = useRealtimeMetrics(selectedRun.projectId, selectedRun.runId);
+  const liveMetrics = useRealtimeMetrics(
+    selectedRun.projectId,
+    selectedRun.runId,
+  );
+  const [fetchedMetrics, setFetchedMetrics] = useState(null);
+  const [displayMetrics, setDisplayMetrics] = useState(null);
+
+  useEffect(() => {
+    if (!selectedRun.projectId || !selectedRun.runId) {
+      return;
+    }
+
+    let ignore = false;
+
+    const loadMetrics = async () => {
+      try {
+        const data = await api(
+          `/metrics/${selectedRun.projectId}?runId=${selectedRun.runId}`,
+        );
+
+        if (!ignore) {
+          setFetchedMetrics({
+            runKey,
+            metrics: data,
+          });
+        }
+      } catch {
+        if (!ignore) {
+          setFetchedMetrics({
+            runKey,
+            metrics: null,
+          });
+        }
+      }
+    };
+
+    loadMetrics();
+
+    const intervalId = selectedRun.isActive
+      ? window.setInterval(loadMetrics, 5000)
+      : null;
+
+    return () => {
+      ignore = true;
+
+      if (intervalId) {
+        window.clearInterval(intervalId);
+      }
+    };
+  }, [
+    selectedRun.projectId,
+    selectedRun.runId,
+    selectedRun.isActive,
+    runKey,
+  ]);
+
+  const fetchedMetricsForRun = fetchedMetrics?.runKey === runKey
+    ? fetchedMetrics.metrics
+    : null;
+  const nextMetrics = liveMetrics || fetchedMetricsForRun;
+
+  useEffect(() => {
+    if (!hasTelemetry(nextMetrics)) {
+      return;
+    }
+
+    queueMicrotask(() => {
+      setDisplayMetrics({
+        runKey,
+        metrics: nextMetrics,
+      });
+    });
+  }, [nextMetrics, runKey]);
+
+  const displayMetricsForRun = displayMetrics?.runKey === runKey
+    ? displayMetrics.metrics
+    : null;
+  const metrics = displayMetricsForRun || nextMetrics;
 
   const cards = [
     {
@@ -33,12 +122,12 @@ export function RealtimeTelemetry() {
     },
     {
       label: "P95 Latency",
-      value : metrics?.p95Latency || 0
+      value: `${metrics?.p95Latency || 0}ms`,
     },
     {
       label: "RPS",
-      value : metrics?.rps || 0
-    }
+      value: metrics?.rps || 0,
+    },
   ];
 
   return (
