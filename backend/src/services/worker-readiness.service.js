@@ -19,6 +19,14 @@ const WORKER_WAKE_RETRY_MS = Number(
   process.env.WORKER_WAKE_RETRY_MS || 15000,
 );
 
+const WORKER_LINK_WAKE_TIMEOUT_MS = Number(
+  process.env.WORKER_LINK_WAKE_TIMEOUT_MS || 10000,
+);
+
+const WORKER_FIRST_READY_TIMEOUT_MS = Number(
+  process.env.WORKER_FIRST_READY_TIMEOUT_MS || 12000,
+);
+
 const WORKER_BACKGROUND_WAKE_MIN_INTERVAL_MS = Number(
   process.env.WORKER_BACKGROUND_WAKE_MIN_INTERVAL_MS || 60000,
 );
@@ -28,6 +36,8 @@ let lastBackgroundWakeAt = 0;
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const isKafkaEnabled = () => process.env.USE_KAFKA === "true";
+
+const isProduction = () => process.env.NODE_ENV === "production";
 
 const getConfiguredWorkerUrls = () => {
   return (process.env.WORKER_WAKE_URLS || "")
@@ -43,6 +53,10 @@ const toHealthUrl = (url) => {
     : `${normalizedUrl}/health`;
 };
 
+const toWakeUrl = (url) => {
+  return url.replace(/\/+$/, "");
+};
+
 const isWorkerHealthReady = (health) => {
   return (
     health &&
@@ -50,6 +64,41 @@ const isWorkerHealthReady = (health) => {
     health.role === "worker" &&
     health.kafka === "enabled"
   );
+};
+
+const wakeWorkerLink = async (url) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(
+    () => controller.abort(),
+    WORKER_LINK_WAKE_TIMEOUT_MS,
+  );
+
+  try {
+    const response = await fetch(toWakeUrl(url), {
+      method: "GET",
+      signal: controller.signal,
+    });
+
+    return {
+      ok: response.ok,
+      url,
+      statusCode: response.status,
+    };
+  } catch (err) {
+    logger.warn({
+      message: "Worker deployment link wake request failed",
+      workerUrl: url,
+      error: err.message,
+    });
+
+    return {
+      ok: false,
+      url,
+      error: err.message,
+    };
+  } finally {
+    clearTimeout(timeoutId);
+  }
 };
 
 const wakeWorker = async (url) => {
@@ -103,6 +152,24 @@ const wakeWorker = async (url) => {
   }
 };
 
+const wakeWorkerLinksInBackground = (workerUrls) => {
+  if (!isProduction() || workerUrls.length === 0) {
+    return false;
+  }
+
+  workerUrls.forEach((url) => {
+    wakeWorkerLink(url).catch((err) => {
+      logger.warn({
+        message: "Worker deployment link background wake failed",
+        workerUrl: url,
+        error: err.message,
+      });
+    });
+  });
+
+  return true;
+};
+
 const wakeWorkers = async (workerUrls) => {
   if (workerUrls.length === 0) {
     return [];
@@ -127,8 +194,71 @@ const wakeWorkers = async (workerUrls) => {
   ));
 };
 
+const wakeFirstReadyWorker = async (
+  workerUrls,
+  timeoutMs = WORKER_WAKE_TIMEOUT_MS,
+) => {
+  if (workerUrls.length === 0) {
+    return null;
+  }
+
+  logger.info({
+    message: "Checking Kafka workers until one is ready",
+    workers: workerUrls.length,
+  });
+
+  return new Promise((resolve) => {
+    let pending = workerUrls.length;
+    let settled = false;
+
+    const timeoutId = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        resolve(null);
+      }
+    }, timeoutMs);
+
+    const resolveOnce = (result) => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timeoutId);
+        resolve(result);
+      }
+    };
+
+    workerUrls.forEach((url) => {
+      wakeWorker(url).then((result) => {
+        if (result.ready) {
+          resolveOnce(result);
+          return;
+        }
+
+        pending -= 1;
+
+        if (pending === 0) {
+          resolveOnce(null);
+        }
+      }).catch((err) => {
+        pending -= 1;
+
+        logger.warn({
+          message: "Worker readiness request rejected",
+          workerUrl: url,
+          error: err.message,
+        });
+
+        if (pending === 0) {
+          resolveOnce(null);
+        }
+      });
+    });
+  });
+};
+
 const wakeConfiguredWorkers = async () => {
   const workerUrls = getConfiguredWorkerUrls();
+  wakeWorkerLinksInBackground(workerUrls);
+
   const wakeResults = await wakeWorkers(workerUrls);
 
   return {
@@ -150,9 +280,12 @@ const wakeConfiguredWorkersInBackground = () => {
 
   lastBackgroundWakeAt = now;
 
-  wakeConfiguredWorkers().catch((err) => {
+  const workerUrls = getConfiguredWorkerUrls();
+  wakeWorkerLinksInBackground(workerUrls);
+
+  wakeWorkers(workerUrls).catch((err) => {
     logger.warn({
-      message: "Worker background wake failed",
+      message: "Worker background health wake failed",
       error: err.message,
     });
   });
@@ -219,15 +352,30 @@ const ensureKafkaWorkersReady = async () => {
   }
 
   const workerUrls = getConfiguredWorkerUrls();
-  const wakeResults = await wakeWorkers(workerUrls);
-  const healthReadyWorkers = wakeResults.filter((result) => result.ready).length;
+  wakeWorkerLinksInBackground(workerUrls);
 
-  if (healthReadyWorkers > 0) {
+  const readyWorker = await wakeFirstReadyWorker(
+    workerUrls,
+    isProduction()
+      ? WORKER_FIRST_READY_TIMEOUT_MS
+      : WORKER_WAKE_TIMEOUT_MS,
+  );
+
+  if (readyWorker) {
     return {
       ready: true,
-      connectedWorkers: healthReadyWorkers,
+      connectedWorkers: 1,
       skipped: false,
       reason: "worker_health_ready",
+    };
+  }
+
+  if (isProduction()) {
+    return {
+      ready: false,
+      connectedWorkers: 0,
+      skipped: false,
+      reason: "worker_wake_started",
     };
   }
 
