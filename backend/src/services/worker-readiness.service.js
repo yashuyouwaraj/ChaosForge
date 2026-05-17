@@ -4,7 +4,7 @@ const {
 } = require("./worker-heartbeat.service");
 
 const WORKER_READY_TIMEOUT_MS = Number(
-  process.env.WORKER_READY_TIMEOUT_MS || 90000,
+  process.env.WORKER_READY_TIMEOUT_MS || 180000,
 );
 
 const WORKER_READY_POLL_MS = Number(
@@ -12,7 +12,11 @@ const WORKER_READY_POLL_MS = Number(
 );
 
 const WORKER_WAKE_TIMEOUT_MS = Number(
-  process.env.WORKER_WAKE_TIMEOUT_MS || 12000,
+  process.env.WORKER_WAKE_TIMEOUT_MS || 30000,
+);
+
+const WORKER_WAKE_RETRY_MS = Number(
+  process.env.WORKER_WAKE_RETRY_MS || 15000,
 );
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -73,14 +77,28 @@ const wakeWorkers = async (workerUrls) => {
   await Promise.allSettled(workerUrls.map(wakeWorker));
 };
 
-const waitForWorkerHeartbeat = async () => {
+const waitForWorkerHeartbeat = async (workerUrls) => {
   const startedAt = Date.now();
+  let lastWakeAttemptAt = 0;
 
   while (Date.now() - startedAt < WORKER_READY_TIMEOUT_MS) {
     const connectedWorkers = await getConnectedKafkaWorkerCount();
 
     if (connectedWorkers > 0) {
       return connectedWorkers;
+    }
+
+    if (
+      workerUrls.length > 0 &&
+      Date.now() - lastWakeAttemptAt >= WORKER_WAKE_RETRY_MS
+    ) {
+      lastWakeAttemptAt = Date.now();
+      wakeWorkers(workerUrls).catch((err) => {
+        logger.warn({
+          message: "Worker wake retry failed",
+          error: err.message,
+        });
+      });
     }
 
     await delay(WORKER_READY_POLL_MS);
@@ -113,7 +131,7 @@ const ensureKafkaWorkersReady = async () => {
   const workerUrls = getConfiguredWorkerUrls();
   await wakeWorkers(workerUrls);
 
-  const readyWorkers = await waitForWorkerHeartbeat();
+  const readyWorkers = await waitForWorkerHeartbeat(workerUrls);
 
   return {
     ready: readyWorkers > 0,
