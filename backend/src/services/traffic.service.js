@@ -16,6 +16,10 @@ const {
 const { saveRun } = require("../modules/run/run.service");
 const { initControl, getControl } = require("../control/control.store");
 const { addIncident } = require("./incidentTimeline");
+const {
+  ensureKafkaWorkersReady,
+} = require("./worker-readiness.service");
+const Run = require("../modules/run/run.model");
 
 const useKafka = process.env.USE_KAFKA === "true";
 
@@ -33,6 +37,32 @@ const generateTraffic = async (config, projectId, url, options = {}) => {
   if (!options.controlInitialized) {
     await initControl(projectId, runId);
   }
+
+  const workerReadiness = await ensureKafkaWorkersReady();
+
+  if (!workerReadiness.ready) {
+    logger.warn({
+      message: "Simulation failed because Kafka workers did not become ready",
+      projectId,
+      runId,
+      reason: workerReadiness.reason,
+      connectedWorkers: workerReadiness.connectedWorkers,
+    });
+
+    throw new Error("Workers did not wake before the readiness timeout.");
+  }
+
+  await Run.updateOne(
+    { projectId, runId },
+    { $set: { status: "running", createdAt: new Date() } },
+  ).catch((err) => {
+    logger.warn({
+      message: "Failed to mark run as running after worker readiness",
+      projectId,
+      runId,
+      error: err.message,
+    });
+  });
 
   const redis = await connectRedis();
 

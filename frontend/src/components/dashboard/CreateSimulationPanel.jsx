@@ -217,7 +217,7 @@ export function CreateSimulationPanel() {
         projectId,
         runId:
           data.runId,
-        status: "running",
+        status: data.status || "running",
       });
 
     } catch (err) {

@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Loader2, Power } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 
 import { DashboardSection } from "@/components/dashboard/DashboardSection";
 
 import { PageHeader } from "@/components/shared/PageHeader";
+import { Button } from "@/components/ui/button";
 
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 
@@ -38,10 +40,27 @@ import { api } from "@/lib/api";
 
 export default function DashboardPage() {
   const overview = usePlatformOverview();
+  const [wakeStatus, setWakeStatus] = useState("");
+  const [isWakingWorkers, setIsWakingWorkers] = useState(false);
 
   useEffect(() => {
     api("/health/wake", "POST").catch(() => {});
+    api("/health/wake-workers").catch(() => {});
   }, []);
+
+  const handleWakeWorkers = async () => {
+    setIsWakingWorkers(true);
+    setWakeStatus("");
+
+    try {
+      await api("/health/wake-workers");
+      setWakeStatus("Worker wake request sent");
+    } catch (err) {
+      setWakeStatus(err.message || "Worker wake request failed");
+    } finally {
+      setIsWakingWorkers(false);
+    }
+  };
 
   return (
     <ProtectedRoute>
@@ -201,6 +220,26 @@ export default function DashboardPage() {
           </DashboardSection>
 
           <CreateSimulationPanel />
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              onClick={handleWakeWorkers}
+              disabled={isWakingWorkers}
+              className="border-cyan-400/30 bg-cyan-400/10 text-cyan-100 hover:bg-cyan-400/20"
+            >
+              {isWakingWorkers ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                <Power />
+              )}
+              {isWakingWorkers ? "Waking Workers" : "Wake Workers"}
+            </Button>
+
+            {wakeStatus && (
+              <p className="text-sm text-muted-foreground">{wakeStatus}</p>
+            )}
+          </div>
 
           {/* INFRA */}
           <DashboardSection

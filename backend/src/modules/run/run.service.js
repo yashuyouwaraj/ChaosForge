@@ -2,7 +2,7 @@ const Run = require("./run.model");
 const logger = require("../../utils/logger");
 const { getMetrics } = require("../../metrics/metrics.store");
 
-const ACTIVE_STATUSES = ["running", "paused"];
+const ACTIVE_STATUSES = ["starting", "running", "paused"];
 const COMPLETION_GRACE_MS = 30000;
 
 const getExpectedDurationMs = (run) => {

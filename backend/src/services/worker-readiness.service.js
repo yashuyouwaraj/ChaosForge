@@ -23,10 +23,6 @@ const WORKER_LINK_WAKE_TIMEOUT_MS = Number(
   process.env.WORKER_LINK_WAKE_TIMEOUT_MS || 10000,
 );
 
-const WORKER_FIRST_READY_TIMEOUT_MS = Number(
-  process.env.WORKER_FIRST_READY_TIMEOUT_MS || 12000,
-);
-
 const WORKER_BACKGROUND_WAKE_MIN_INTERVAL_MS = Number(
   process.env.WORKER_BACKGROUND_WAKE_MIN_INTERVAL_MS || 60000,
 );
@@ -194,67 +190,6 @@ const wakeWorkers = async (workerUrls) => {
   ));
 };
 
-const wakeFirstReadyWorker = async (
-  workerUrls,
-  timeoutMs = WORKER_WAKE_TIMEOUT_MS,
-) => {
-  if (workerUrls.length === 0) {
-    return null;
-  }
-
-  logger.info({
-    message: "Checking Kafka workers until one is ready",
-    workers: workerUrls.length,
-  });
-
-  return new Promise((resolve) => {
-    let pending = workerUrls.length;
-    let settled = false;
-
-    const timeoutId = setTimeout(() => {
-      if (!settled) {
-        settled = true;
-        resolve(null);
-      }
-    }, timeoutMs);
-
-    const resolveOnce = (result) => {
-      if (!settled) {
-        settled = true;
-        clearTimeout(timeoutId);
-        resolve(result);
-      }
-    };
-
-    workerUrls.forEach((url) => {
-      wakeWorker(url).then((result) => {
-        if (result.ready) {
-          resolveOnce(result);
-          return;
-        }
-
-        pending -= 1;
-
-        if (pending === 0) {
-          resolveOnce(null);
-        }
-      }).catch((err) => {
-        pending -= 1;
-
-        logger.warn({
-          message: "Worker readiness request rejected",
-          workerUrl: url,
-          error: err.message,
-        });
-
-        if (pending === 0) {
-          resolveOnce(null);
-        }
-      });
-    });
-  });
-};
-
 const wakeConfiguredWorkers = async () => {
   const workerUrls = getConfiguredWorkerUrls();
   wakeWorkerLinksInBackground(workerUrls);
@@ -268,10 +203,11 @@ const wakeConfiguredWorkers = async () => {
   };
 };
 
-const wakeConfiguredWorkersInBackground = () => {
+const wakeConfiguredWorkersInBackground = ({ force = false } = {}) => {
   const now = Date.now();
 
   if (
+    !force &&
     now - lastBackgroundWakeAt <
     WORKER_BACKGROUND_WAKE_MIN_INTERVAL_MS
   ) {
@@ -293,19 +229,20 @@ const wakeConfiguredWorkersInBackground = () => {
   return true;
 };
 
-const waitForWorkerHeartbeat = async (workerUrls) => {
+const waitForWorkerHeartbeat = async (workerUrls, targetWorkerCount = 1) => {
   const startedAt = Date.now();
   let lastWakeAttemptAt = 0;
   let healthReadyWorkers = 0;
+  const requiredWorkers = Math.max(1, targetWorkerCount);
 
   while (Date.now() - startedAt < WORKER_READY_TIMEOUT_MS) {
     const connectedWorkers = await getConnectedKafkaWorkerCount();
 
-    if (connectedWorkers > 0) {
+    if (connectedWorkers >= requiredWorkers) {
       return connectedWorkers;
     }
 
-    if (healthReadyWorkers > 0) {
+    if (healthReadyWorkers >= requiredWorkers) {
       return healthReadyWorkers;
     }
 
@@ -340,9 +277,11 @@ const ensureKafkaWorkersReady = async () => {
     };
   }
 
+  const workerUrls = getConfiguredWorkerUrls();
+  const targetWorkerCount = Math.max(1, workerUrls.length);
   const connectedWorkers = await getConnectedKafkaWorkerCount();
 
-  if (connectedWorkers > 0) {
+  if (connectedWorkers >= targetWorkerCount) {
     return {
       ready: true,
       connectedWorkers,
@@ -351,42 +290,25 @@ const ensureKafkaWorkersReady = async () => {
     };
   }
 
-  const workerUrls = getConfiguredWorkerUrls();
   wakeWorkerLinksInBackground(workerUrls);
+  wakeWorkers(workerUrls).catch((err) => {
+    logger.warn({
+      message: "Initial worker wake attempt failed",
+      error: err.message,
+    });
+  });
 
-  const readyWorker = await wakeFirstReadyWorker(
+  const readyWorkers = await waitForWorkerHeartbeat(
     workerUrls,
-    isProduction()
-      ? WORKER_FIRST_READY_TIMEOUT_MS
-      : WORKER_WAKE_TIMEOUT_MS,
+    targetWorkerCount,
   );
 
-  if (readyWorker) {
-    return {
-      ready: true,
-      connectedWorkers: 1,
-      skipped: false,
-      reason: "worker_health_ready",
-    };
-  }
-
-  if (isProduction()) {
-    return {
-      ready: false,
-      connectedWorkers: 0,
-      skipped: false,
-      reason: "worker_wake_started",
-    };
-  }
-
-  const readyWorkers = await waitForWorkerHeartbeat(workerUrls);
-
   return {
-    ready: readyWorkers > 0,
+    ready: readyWorkers >= targetWorkerCount,
     connectedWorkers: readyWorkers,
     skipped: false,
     reason:
-      readyWorkers > 0
+      readyWorkers >= targetWorkerCount
         ? "workers_woke_successfully"
         : "worker_ready_timeout",
   };

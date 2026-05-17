@@ -59,4 +59,23 @@ router.post("/wake", async (req, res) => {
   }
 });
 
+router.get("/wake-workers", async (req, res) => {
+  try {
+    const workersWakeStarted = wakeConfiguredWorkersInBackground({
+      force: true,
+    });
+
+    res.json({
+      status: "workers_wake_started",
+      workersWakeStarted,
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: "error",
+      message: "Failed to wake workers",
+      error: err.message,
+    });
+  }
+});
+
 module.exports = router;

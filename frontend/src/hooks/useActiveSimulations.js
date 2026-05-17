@@ -93,6 +93,7 @@ const isLikelyStillActive = (
   run,
 ) => {
   if (
+    run.status !== "starting" &&
     run.status !== "running" &&
     run.status !== "paused"
   ) {

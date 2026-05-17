@@ -77,7 +77,7 @@ const runProjectTraffic = async (req, res) => {
     owner: req.user.id,
     projectId: id,
     runId,
-    status: "running",
+    status: "starting",
     config: runConfig,
     url,
   });
@@ -135,7 +135,11 @@ const runProjectTraffic = async (req, res) => {
       });
     });
 
-  return res.json({ message: `Traffic started for project ${id}`, runId });
+  return res.json({
+    message: `Traffic queued for project ${id}`,
+    runId,
+    status: "starting",
+  });
 };
 
 module.exports = { createProject, getProjects, getProject, runProjectTraffic };
