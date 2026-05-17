@@ -43,6 +43,15 @@ const toHealthUrl = (url) => {
     : `${normalizedUrl}/health`;
 };
 
+const isWorkerHealthReady = (health) => {
+  return (
+    health &&
+    health.status === "running" &&
+    health.role === "worker" &&
+    health.kafka === "enabled"
+  );
+};
+
 const wakeWorker = async (url) => {
   const controller = new AbortController();
   const timeoutId = setTimeout(
@@ -56,7 +65,26 @@ const wakeWorker = async (url) => {
       signal: controller.signal,
     });
 
-    return response.ok;
+    if (!response.ok) {
+      return {
+        ok: false,
+        ready: false,
+        url,
+        statusCode: response.status,
+      };
+    }
+
+    const contentType = response.headers.get("content-type") || "";
+    const health = contentType.includes("application/json")
+      ? await response.json().catch(() => null)
+      : null;
+
+    return {
+      ok: true,
+      ready: isWorkerHealthReady(health),
+      url,
+      health,
+    };
   } catch (err) {
     logger.warn({
       message: "Worker wake request failed",
@@ -64,7 +92,12 @@ const wakeWorker = async (url) => {
       error: err.message,
     });
 
-    return false;
+    return {
+      ok: false,
+      ready: false,
+      url,
+      error: err.message,
+    };
   } finally {
     clearTimeout(timeoutId);
   }
@@ -72,7 +105,7 @@ const wakeWorker = async (url) => {
 
 const wakeWorkers = async (workerUrls) => {
   if (workerUrls.length === 0) {
-    return;
+    return [];
   }
 
   logger.info({
@@ -80,15 +113,27 @@ const wakeWorkers = async (workerUrls) => {
     workers: workerUrls.length,
   });
 
-  await Promise.allSettled(workerUrls.map(wakeWorker));
+  const results = await Promise.allSettled(workerUrls.map(wakeWorker));
+
+  return results.map((result, index) => (
+    result.status === "fulfilled"
+      ? result.value
+      : {
+          ok: false,
+          ready: false,
+          url: workerUrls[index],
+          error: result.reason?.message || "Worker wake request rejected",
+        }
+  ));
 };
 
 const wakeConfiguredWorkers = async () => {
   const workerUrls = getConfiguredWorkerUrls();
-  await wakeWorkers(workerUrls);
+  const wakeResults = await wakeWorkers(workerUrls);
 
   return {
     workerCount: workerUrls.length,
+    readyWorkers: wakeResults.filter((result) => result.ready).length,
   };
 };
 
@@ -117,6 +162,7 @@ const wakeConfiguredWorkersInBackground = () => {
 const waitForWorkerHeartbeat = async (workerUrls) => {
   const startedAt = Date.now();
   let lastWakeAttemptAt = 0;
+  let healthReadyWorkers = 0;
 
   while (Date.now() - startedAt < WORKER_READY_TIMEOUT_MS) {
     const connectedWorkers = await getConnectedKafkaWorkerCount();
@@ -125,12 +171,18 @@ const waitForWorkerHeartbeat = async (workerUrls) => {
       return connectedWorkers;
     }
 
+    if (healthReadyWorkers > 0) {
+      return healthReadyWorkers;
+    }
+
     if (
       workerUrls.length > 0 &&
       Date.now() - lastWakeAttemptAt >= WORKER_WAKE_RETRY_MS
     ) {
       lastWakeAttemptAt = Date.now();
-      wakeWorkers(workerUrls).catch((err) => {
+      wakeWorkers(workerUrls).then((wakeResults) => {
+        healthReadyWorkers = wakeResults.filter((result) => result.ready).length;
+      }).catch((err) => {
         logger.warn({
           message: "Worker wake retry failed",
           error: err.message,
@@ -166,7 +218,17 @@ const ensureKafkaWorkersReady = async () => {
   }
 
   const workerUrls = getConfiguredWorkerUrls();
-  await wakeWorkers(workerUrls);
+  const wakeResults = await wakeWorkers(workerUrls);
+  const healthReadyWorkers = wakeResults.filter((result) => result.ready).length;
+
+  if (healthReadyWorkers > 0) {
+    return {
+      ready: true,
+      connectedWorkers: healthReadyWorkers,
+      skipped: false,
+      reason: "worker_health_ready",
+    };
+  }
 
   const readyWorkers = await waitForWorkerHeartbeat(workerUrls);
 
