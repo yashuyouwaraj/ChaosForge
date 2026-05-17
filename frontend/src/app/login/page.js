@@ -13,6 +13,7 @@ export default function Login() {
 
   useEffect(() => {
     wakeGrafana();
+    api("/health/wake", "POST").catch(() => {});
 
     if (localStorage.getItem("token")) {
       window.location.href = "/projects";

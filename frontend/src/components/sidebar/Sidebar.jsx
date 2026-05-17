@@ -90,19 +90,27 @@ const groups = [
   },
 ];
 
-export function Sidebar() {
+export function Sidebar({ mobileOpen, onClose }) {
   const pathname = usePathname();
   const status = usePlatformStatus();
 
   return (
     <aside
-      className="
-        hidden w-[290px]
-        border-r border-white/10
-        bg-black/30
-        backdrop-blur-2xl
-        lg:flex lg:flex-col
-      "
+      className={`
+  fixed inset-y-0 left-0
+  z-50 flex w-[290px]
+  flex-col
+  border-r border-white/10
+  bg-black/70
+  backdrop-blur-2xl
+  transition-transform
+  duration-300
+
+  ${mobileOpen ? "translate-x-0" : "-translate-x-full"}
+
+  lg:static
+  lg:translate-x-0
+`}
     >
       {/* BRAND */}
 
@@ -186,6 +194,7 @@ export function Sidebar() {
                     <Link
                       key={item.href}
                       href={item.href}
+                      onClick={onClose}
                       className={`
                             group flex
                             items-center gap-4

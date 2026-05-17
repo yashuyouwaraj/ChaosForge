@@ -2,9 +2,7 @@
 
 import { motion } from "framer-motion";
 
-import {
-  useInfrastructureHealth,
-} from "@/hooks/useInfrastructureHealth";
+import { useInfrastructureHealth } from "@/hooks/useInfrastructureHealth";
 
 const statusStyles = {
   healthy: "bg-green-500",
@@ -21,10 +19,7 @@ const getKafkaStatus = (health) => {
     return "healthy";
   }
 
-  if (
-    health.kafka === "disabled" ||
-    health.kafka === "unknown"
-  ) {
+  if (health.kafka === "disabled" || health.kafka === "unknown") {
     return "warning";
   }
 
@@ -41,10 +36,7 @@ const getNodes = (health) => [
   {
     name: "API Gateway",
 
-    status:
-      health?.status === "ok"
-        ? "healthy"
-        : "warning",
+    status: health?.status === "ok" ? "healthy" : "warning",
   },
 
   {
@@ -56,47 +48,30 @@ const getNodes = (health) => [
   {
     name: "Workers",
 
-    status:
-      health?.kafkaWorkers
-      ?.connected ?? 0
-        ? "healthy"
-        : "warning",
+    status: (health?.kafkaWorkers?.connected ?? 0) ? "healthy" : "warning",
   },
 
   {
     name: "Redis",
 
-    status:
-      health?.redis === "connected"
-        ? "healthy"
-        : "critical",
+    status: health?.redis === "connected" ? "healthy" : "critical",
   },
 
   {
     name: "WebSockets",
 
-    status:
-      health?.websockets
-        ?.connectedClients > 0
-        ? "healthy"
-        : "warning",
+    status: health?.websockets?.connectedClients > 0 ? "healthy" : "warning",
   },
 
   {
     name: "Observability",
 
-    status:
-      health?.status === "ok"
-        ? "healthy"
-        : "warning",
+    status: health?.status === "ok" ? "healthy" : "warning",
   },
 ];
 
 export function InfrastructureTopology() {
-  const {
-    health,
-  } =
-    useInfrastructureHealth();
+  const { health } = useInfrastructureHealth();
 
   const nodes = getNodes(health);
 
@@ -109,21 +84,17 @@ export function InfrastructureTopology() {
       "
     >
       <div className="mb-12">
-        <h3 className="text-3xl font-black">
-          Distributed Infrastructure Map
-        </h3>
+        <h3 className="text-3xl font-black">Distributed Infrastructure Map</h3>
 
         <p className="mt-3 text-muted-foreground">
-          Live topology visualization of the
-          ChaosForge distributed system.
+          Live topology visualization of the ChaosForge distributed system.
         </p>
       </div>
 
       <div
         className="
           relative flex
-          flex-wrap items-center
-          justify-center gap-10
+          flex-wrap items-center justify-center gap-6 lg:gap-10
         "
       >
         {nodes.map((node, index) => (
@@ -138,19 +109,16 @@ export function InfrastructureTopology() {
                 opacity: 0,
                 scale: 0.8,
               }}
-
               animate={{
                 opacity: 1,
                 scale: 1,
               }}
-
               transition={{
                 delay: index * 0.08,
               }}
-
               className="
                 relative flex
-                h-36 w-36 flex-col
+                h-28 w-28 sm:h-32 sm:w-32 lg:h-36 lg:w-36 flex-col
                 items-center justify-center
                 rounded-[30px]
                 border border-white/10
@@ -210,16 +178,13 @@ export function InfrastructureTopology() {
                   opacity: 0,
                   scaleX: 0,
                 }}
-
                 animate={{
                   opacity: 1,
                   scaleX: 1,
                 }}
-
                 transition={{
                   delay: index * 0.1,
                 }}
-
                 className="
                   hidden h-[2px]
                   w-20 origin-left

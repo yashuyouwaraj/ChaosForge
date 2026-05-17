@@ -19,6 +19,12 @@ const WORKER_WAKE_RETRY_MS = Number(
   process.env.WORKER_WAKE_RETRY_MS || 15000,
 );
 
+const WORKER_BACKGROUND_WAKE_MIN_INTERVAL_MS = Number(
+  process.env.WORKER_BACKGROUND_WAKE_MIN_INTERVAL_MS || 60000,
+);
+
+let lastBackgroundWakeAt = 0;
+
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const isKafkaEnabled = () => process.env.USE_KAFKA === "true";
@@ -75,6 +81,37 @@ const wakeWorkers = async (workerUrls) => {
   });
 
   await Promise.allSettled(workerUrls.map(wakeWorker));
+};
+
+const wakeConfiguredWorkers = async () => {
+  const workerUrls = getConfiguredWorkerUrls();
+  await wakeWorkers(workerUrls);
+
+  return {
+    workerCount: workerUrls.length,
+  };
+};
+
+const wakeConfiguredWorkersInBackground = () => {
+  const now = Date.now();
+
+  if (
+    now - lastBackgroundWakeAt <
+    WORKER_BACKGROUND_WAKE_MIN_INTERVAL_MS
+  ) {
+    return false;
+  }
+
+  lastBackgroundWakeAt = now;
+
+  wakeConfiguredWorkers().catch((err) => {
+    logger.warn({
+      message: "Worker background wake failed",
+      error: err.message,
+    });
+  });
+
+  return true;
 };
 
 const waitForWorkerHeartbeat = async (workerUrls) => {
@@ -146,4 +183,6 @@ const ensureKafkaWorkersReady = async () => {
 
 module.exports = {
   ensureKafkaWorkersReady,
+  wakeConfiguredWorkers,
+  wakeConfiguredWorkersInBackground,
 };

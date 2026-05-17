@@ -27,6 +27,7 @@ export function LiveLogStream() {
       className="
         glass rounded-[28px]
         p-6
+        overflow-x-auto
       "
     >
       <div className="mb-6">

@@ -1,27 +1,20 @@
 "use client";
 
-import { Bell }
-  from "lucide-react";
+import { Bell } from "lucide-react";
 
-import {
-  usePlatformStatus,
-} from "@/hooks/usePlatformStatus";
+import { Menu } from "lucide-react";
+
+import { usePlatformStatus } from "@/hooks/usePlatformStatus";
 
 const statusStyles = {
-  online:
-    "bg-green-400 shadow-[0_0_14px_rgba(74,222,128,0.9)]",
+  online: "bg-green-400 shadow-[0_0_14px_rgba(74,222,128,0.9)]",
 
-  warning:
-    "bg-yellow-400 shadow-[0_0_14px_rgba(250,204,21,0.9)]",
+  warning: "bg-yellow-400 shadow-[0_0_14px_rgba(250,204,21,0.9)]",
 
-  offline:
-    "bg-red-400 shadow-[0_0_14px_rgba(248,113,113,0.9)]",
+  offline: "bg-red-400 shadow-[0_0_14px_rgba(248,113,113,0.9)]",
 };
 
-function StatusPill({
-  label,
-  active,
-}) {
+function StatusPill({ label, active }) {
   return (
     <div
       className="
@@ -36,11 +29,7 @@ function StatusPill({
         className={`
           h-2.5 w-2.5
           rounded-full
-          ${
-            active
-              ? statusStyles.online
-              : statusStyles.offline
-          }
+          ${active ? statusStyles.online : statusStyles.offline}
         `}
       />
 
@@ -58,9 +47,8 @@ function StatusPill({
   );
 }
 
-export function Navbar() {
-  const status =
-    usePlatformStatus();
+export function Navbar({ onOpenSidebar }) {
+  const status = usePlatformStatus();
 
   return (
     <header
@@ -80,56 +68,66 @@ export function Navbar() {
         "
       >
         {/* LEFT */}
-
-        <div>
-          <p
+        <div
+          className="
+    flex items-center
+    gap-4
+  "
+        >
+          <button
+            type="button"
+            onClick={onOpenSidebar}
             className="
+      flex h-11 w-11
+      items-center
+      justify-center
+      rounded-2xl
+      border border-white/10
+      bg-black/20
+      lg:hidden
+    "
+          >
+            <Menu
+              className="
+        h-5 w-5
+      "
+            />
+          </button>
+
+          <div>
+            <p
+              className="
               text-xs uppercase
               tracking-[0.25em]
               text-cyan-400
             "
-          >
-            ChaosForge Platform
-          </p>
+            >
+              ChaosForge Platform
+            </p>
 
-          <h2
-            className="
-              mt-1 text-2xl
+            <h2
+              className="
+              mt-1 text-lg lg:text-2xl
               font-black
             "
-          >
-            Infrastructure Operations
-          </h2>
+            >
+              Infrastructure Operations
+            </h2>
+          </div>
         </div>
 
         {/* CENTER */}
 
         <div
           className="
-            hidden items-center
-            gap-4 xl:flex
+            hidden items-center gap-3 2xl:flex
           "
         >
-          <StatusPill
-            label="WebSocket"
-            active={
-              status.websocket
-            }
-          />
+          <StatusPill label="WebSocket" active={status.websocket} />
 
-          <StatusPill
-            label="Observability"
-            active={
-              status.observability
-            }
-          />
+          <StatusPill label="Observability" active={status.observability} />
 
-          <StatusPill
-            label="Simulation"
-            active={
-              status.simulation
-            }
-          />
+          <StatusPill label="Simulation" active={status.simulation} />
         </div>
 
         {/* RIGHT */}
@@ -144,7 +142,7 @@ export function Navbar() {
 
           <div
             className="
-              hidden rounded-2xl
+              hidden xl:block rounded-2xl
               border border-cyan-400/20
               bg-cyan-400/[0.04]
               px-5 py-3
@@ -170,10 +168,7 @@ export function Navbar() {
               "
             >
               {status.simulation && status.runId
-                ? `${status.runId.slice(
-                    0,
-                    8,
-                  )}...`
+                ? `${status.runId.slice(0, 8)}...`
                 : "No Active Run"}
             </p>
           </div>

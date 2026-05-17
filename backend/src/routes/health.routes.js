@@ -1,6 +1,10 @@
 const express = require("express");
 
 const { getSystemHealth } = require("../services/health.service");
+const { wakeGrafanaInBackground } = require("../services/grafana-readiness.service");
+const {
+  wakeConfiguredWorkersInBackground,
+} = require("../services/worker-readiness.service");
 const { getIOIfReady } = require("../websocket/socket");
 const { getIncidentTimeline } = require("../services/incidentTimeline");
 
@@ -32,6 +36,18 @@ router.get("/", async (req, res) => {
       error: err.message,
     });
   }
+});
+
+router.post("/wake", (req, res) => {
+  const workersWakeStarted = wakeConfiguredWorkersInBackground();
+
+  wakeGrafanaInBackground();
+
+  res.json({
+    status: "wake_started",
+    grafanaWakeStarted: true,
+    workersWakeStarted,
+  });
 });
 
 module.exports = router;

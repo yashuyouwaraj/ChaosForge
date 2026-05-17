@@ -26,7 +26,9 @@ export const api = async (url, method = "GET", body = null) => {
 
     if (!res.ok) {
       const message =
-        typeof data === "string" ? data : data?.message || "Request failed";
+        typeof data === "string"
+          ? data
+          : data?.message || data?.error || "Request failed";
       throw new Error(message);
     }
 

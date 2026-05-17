@@ -4,7 +4,6 @@ import { AppShell } from "@/components/layout/AppShell";
 
 import { DashboardSection } from "@/components/dashboard/DashboardSection";
 
-
 import { PageHeader } from "@/components/shared/PageHeader";
 
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
@@ -40,7 +39,7 @@ export default function DashboardPage() {
   return (
     <ProtectedRoute>
       <AppShell>
-        <div className="space-y-10">
+        <div className="space-y-6 lg:space-y-10">
           {/* HERO */}
           <PageHeader
             eyebrow="AI-native observability"
@@ -55,10 +54,7 @@ export default function DashboardPage() {
   "
           >
             <div
-              className="
-      grid gap-4
-      md:grid-cols-2
-      xl:grid-cols-4
+              className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4
     "
             >
               {/* PROJECTS */}
@@ -174,7 +170,7 @@ export default function DashboardPage() {
                 </p>
 
                 <h3
-                className="
+                  className="
           mt-3 text-3xl
           font-black text-red-400
         "
