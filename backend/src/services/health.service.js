@@ -7,6 +7,7 @@ const { getConnectedKafkaWorkerCount } = require("./worker-heartbeat.service");
 const { getActiveRunCount } = require("../metrics/metrics.store");
 const Run = require("../modules/run/run.model");
 const { completeFinishedActiveRuns } = require("../modules/run/run.service");
+const { getGrafanaHealthUrl } = require("./grafana-readiness.service");
 const {
   generateInfrastructureInsights,
 } = require("./analysisEngine");
@@ -18,22 +19,6 @@ const KAFKA_HEALTH_TIMEOUT_MS = Number(
 const SERVICE_HEALTH_TIMEOUT_MS = Number(
   process.env.SERVICE_HEALTH_TIMEOUT_MS || 2500,
 );
-
-const getGrafanaHealthUrl = () => {
-  if (process.env.GRAFANA_HEALTH_URL) {
-    return process.env.GRAFANA_HEALTH_URL;
-  }
-
-  if (process.env.GRAFANA_URL) {
-    return `${process.env.GRAFANA_URL.replace(/\/$/, "")}/api/health`;
-  }
-
-  if (process.env.NODE_ENV === "production") {
-    return "http://grafana:3000/api/health";
-  }
-
-  return "http://localhost:5000/api/health";
-};
 
 const withTimeout = async (promise, message) => {
   let timeoutId;
@@ -80,6 +65,12 @@ const getKafkaHealth = async () => {
 };
 
 const getGrafanaHealth = async () => {
+  const grafanaHealthUrl = getGrafanaHealthUrl();
+
+  if (!grafanaHealthUrl) {
+    return "disabled";
+  }
+
   const controller = new AbortController();
 
   const timeoutId = setTimeout(
@@ -88,7 +79,7 @@ const getGrafanaHealth = async () => {
   );
 
   try {
-    const response = await fetch(getGrafanaHealthUrl(), {
+    const response = await fetch(grafanaHealthUrl, {
       signal: controller.signal,
     });
 

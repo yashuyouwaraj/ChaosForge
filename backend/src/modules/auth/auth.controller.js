@@ -1,9 +1,11 @@
 const { signup, login, upgradePlan, createAuthToken } = require("./auth.service");
 const User = require("../user/user.model");
+const { wakeGrafanaInBackground } = require("../../services/grafana-readiness.service");
 
 const signupHandler = async (req, res) => {
   try {
     const { email, password } = req.body;
+    wakeGrafanaInBackground();
     const user = await signup(email, password);
 
     res.json(user);
@@ -18,6 +20,7 @@ const loginHandler = async (req, res) => {
   try {
     const { email, password } = req.body;
     const token = await login(email, password);
+    wakeGrafanaInBackground();
     res.json({ token });
   } catch (error) {
     res.status(error.statusCode || 500).json({

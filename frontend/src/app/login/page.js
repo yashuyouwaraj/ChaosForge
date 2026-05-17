@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
+import { wakeGrafana } from "../../lib/observability";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -11,6 +12,8 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    wakeGrafana();
+
     if (localStorage.getItem("token")) {
       window.location.href = "/projects";
     }
