@@ -8,9 +8,7 @@ const { getActiveRunCount } = require("../metrics/metrics.store");
 const Run = require("../modules/run/run.model");
 const { completeFinishedActiveRuns } = require("../modules/run/run.service");
 const { getGrafanaHealthUrl } = require("./grafana-readiness.service");
-const {
-  generateInfrastructureInsights,
-} = require("./analysisEngine");
+const { generateInfrastructureInsights } = require("./analysisEngine");
 
 const KAFKA_HEALTH_TIMEOUT_MS = Number(
   process.env.KAFKA_HEALTH_TIMEOUT_MS || 3000,
@@ -90,6 +88,8 @@ const getGrafanaHealth = async () => {
     clearTimeout(timeoutId);
   }
 };
+
+
 
 const getActiveRunTotal = async () => {
   try {

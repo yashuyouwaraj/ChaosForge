@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
+import { getUsableStoredToken } from "../../lib/auth-token";
 import { wakeGrafana } from "../../lib/observability";
 
 export default function Login() {
@@ -15,7 +16,7 @@ export default function Login() {
     wakeGrafana();
     api("/health/wake", "POST").catch(() => {});
 
-    if (localStorage.getItem("token")) {
+    if (getUsableStoredToken()) {
       window.location.href = "/projects";
     }
   }, []);

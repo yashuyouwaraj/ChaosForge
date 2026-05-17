@@ -22,7 +22,7 @@ const runConsumer = async () => {
     fromBeginning: false,
   });
 
-  await consumer.run({
+  consumer.run({
     eachMessage: async ({ message }) => {
       try {
         const data = JSON.parse(message.value.toString());
@@ -49,6 +49,11 @@ const runConsumer = async () => {
         });
       }
     }
+  }).catch((err) => {
+    logger.error({
+      message: "Kafka consumer stopped unexpectedly",
+      error: err.message,
+    });
   });
 };
 

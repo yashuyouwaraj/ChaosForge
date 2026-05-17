@@ -18,7 +18,7 @@ const useKafka = process.env.USE_KAFKA === "true";
 let workerStatus = "starting";
 
 const startHealthServer = () => {
-  const port = process.env.WORKER_HEALTH_PORT;
+  const port = process.env.WORKER_HEALTH_PORT || process.env.PORT;
 
   if (!port) {
     return;

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
+import { getUsableStoredToken } from "../../lib/auth-token";
 
 export default function Signup() {
   const [email, setEmail] = useState("");
@@ -11,7 +12,7 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (localStorage.getItem("token")) {
+    if (getUsableStoredToken()) {
       window.location.href = "/projects";
     }
   }, []);

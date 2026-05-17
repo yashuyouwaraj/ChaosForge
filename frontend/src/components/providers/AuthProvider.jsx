@@ -1,6 +1,8 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { api } from "@/lib/api";
+import { clearAuthStorage, getUsableStoredToken } from "@/lib/auth-token";
 
 const AuthContext = createContext(null);
 
@@ -10,27 +12,30 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = getUsableStoredToken();
 
     if (!token) {
-      setLoading(false);
+      queueMicrotask(() => {
+        setLoading(false);
+      });
       return;
     }
 
-    setUser({ token });
-
-    setLoading(false);
+    api("/auth/me")
+      .then((profile) => {
+        setUser({ token, ...profile });
+      })
+      .catch(() => {
+        clearAuthStorage();
+        setUser(null);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, []);
 
   const logout = () => {
-    ocalStorage.removeItem("token");
-
-    localStorage.removeItem("projectId");
-
-    localStorage.removeItem("currentRunId");
-
-    localStorage.removeItem("currentRunActive");
-
+    clearAuthStorage();
     window.location.href = "/login";
   };
 

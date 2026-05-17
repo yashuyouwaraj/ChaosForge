@@ -8,6 +8,7 @@ const {
 const { getIOIfReady } = require("../websocket/socket");
 const { getIncidentTimeline } = require("../services/incidentTimeline");
 
+
 const router = express.Router();
 
 router.get("/", async (req, res) => {

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 
 import { DashboardSection } from "@/components/dashboard/DashboardSection";
@@ -33,9 +34,15 @@ import { LiveLogStream } from "@/components/dashboard/LiveLogStream";
 
 import { InfrastructureTopology } from "@/components/dashboard/InfrastructureTopology";
 import { usePlatformOverview } from "@/hooks/usePlatformOverview";
+import { api } from "@/lib/api";
 
 export default function DashboardPage() {
   const overview = usePlatformOverview();
+
+  useEffect(() => {
+    api("/health/wake", "POST").catch(() => {});
+  }, []);
+
   return (
     <ProtectedRoute>
       <AppShell>
