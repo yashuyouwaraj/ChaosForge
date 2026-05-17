@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { api } from "@/lib/api";
+import { useProject } from "@/components/providers/ProjectProvider";
 
 const COMPLETED_RUN_STATUSES = new Set(["completed"]);
 
@@ -13,7 +14,9 @@ const isCompletedRun = (run) => COMPLETED_RUN_STATUSES.has(run?.status);
 const isFailedRun = (run) => FAILED_RUN_STATUSES.has(run?.status);
 
 export function usePlatformOverview() {
-  const [totalProjects, setTotalProjects] = useState(0);
+  const { projectId } = useProject();
+
+  const [selectedProjectName, setSelectedProjectName] = useState("");
 
   const [totalRuns, setTotalRuns] = useState(0);
 
@@ -29,34 +32,40 @@ export function usePlatformOverview() {
     let ignore = false;
 
     const load = async () => {
+      if (!projectId) {
+        setSelectedProjectName("");
+        setTotalRuns(0);
+        setCompletedRuns(0);
+        setFailedRuns(0);
+        setError(null);
+        setLoading(false);
+        return;
+      }
+
       try {
-        const projectData = await api("/projects");
+        const [projectData, runData] = await Promise.all([
+          api("/projects"),
+          api(`/runs/${projectId}`),
+        ]);
+
         const nextProjects = Array.isArray(projectData) ? projectData : [];
-
-        const runResults = await Promise.allSettled(
-          nextProjects.map((project) => api(`/runs/${project._id}`)),
+        const selectedProject = nextProjects.find(
+          (project) => project._id === projectId,
         );
-
-        const nextRuns = runResults.flatMap((result) => {
-          if (result.status !== "fulfilled" || !Array.isArray(result.value)) {
-            return [];
-          }
-
-          return result.value;
-        });
+        const nextRuns = Array.isArray(runData) ? runData : [];
 
         if (ignore) {
           return;
         }
 
-        setTotalProjects(nextProjects.length);
+        setSelectedProjectName(selectedProject?.name || "Selected Project");
         setTotalRuns(nextRuns.length);
         setCompletedRuns(nextRuns.filter(isCompletedRun).length);
         setFailedRuns(nextRuns.filter(isFailedRun).length);
         setError(null);
       } catch (err) {
         if (!ignore) {
-          setTotalProjects(0);
+          setSelectedProjectName("Selected Project");
           setTotalRuns(0);
           setCompletedRuns(0);
           setFailedRuns(0);
@@ -77,11 +86,11 @@ export function usePlatformOverview() {
       ignore = true;
       clearInterval(interval);
     };
-  }, []);
+  }, [projectId]);
 
   return useMemo(
     () => ({
-      totalProjects,
+      selectedProjectName,
 
       totalRuns,
 
@@ -94,6 +103,13 @@ export function usePlatformOverview() {
       error,
     }),
 
-    [totalProjects, totalRuns, completedRuns, failedRuns, loading, error],
+    [
+      selectedProjectName,
+      totalRuns,
+      completedRuns,
+      failedRuns,
+      loading,
+      error,
+    ],
   );
 }

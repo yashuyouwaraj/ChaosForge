@@ -64,7 +64,7 @@ export default function DashboardPage() {
               className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4
     "
             >
-              {/* PROJECTS */}
+              {/* SELECTED PROJECT */}
 
               <div
                 className="
@@ -81,16 +81,17 @@ export default function DashboardPage() {
           text-slate-500
         "
                 >
-                  Projects
+                  Selected Project
                 </p>
 
                 <h3
                   className="
-          mt-3 text-3xl
+          mt-3 truncate text-2xl
           font-black
         "
+                  title={overview.selectedProjectName || "No project selected"}
                 >
-                  {overview.totalProjects}
+                  {overview.selectedProjectName || "No project selected"}
                 </h3>
               </div>
 
