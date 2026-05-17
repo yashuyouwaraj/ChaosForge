@@ -12,7 +12,7 @@ const WORKER_READY_POLL_MS = Number(
 );
 
 const WORKER_WAKE_TIMEOUT_MS = Number(
-  process.env.WORKER_WAKE_TIMEOUT_MS || 30000,
+  process.env.WORKER_WAKE_TIMEOUT_MS || 60000,
 );
 
 const WORKER_WAKE_RETRY_MS = Number(
@@ -134,6 +134,7 @@ const wakeConfiguredWorkers = async () => {
   return {
     workerCount: workerUrls.length,
     readyWorkers: wakeResults.filter((result) => result.ready).length,
+    results: wakeResults,
   };
 };
 

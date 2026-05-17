@@ -3,7 +3,7 @@ const express = require("express");
 const { getSystemHealth } = require("../services/health.service");
 const { wakeGrafanaInBackground } = require("../services/grafana-readiness.service");
 const {
-  wakeConfiguredWorkersInBackground,
+  wakeConfiguredWorkers,
 } = require("../services/worker-readiness.service");
 const { getIOIfReady } = require("../websocket/socket");
 const { getIncidentTimeline } = require("../services/incidentTimeline");
@@ -39,16 +39,25 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.post("/wake", (req, res) => {
-  const workersWakeStarted = wakeConfiguredWorkersInBackground();
+router.post("/wake", async (req, res) => {
+  try {
+    wakeGrafanaInBackground();
 
-  wakeGrafanaInBackground();
+    const workers = await wakeConfiguredWorkers();
 
-  res.json({
-    status: "wake_started",
-    grafanaWakeStarted: true,
-    workersWakeStarted,
-  });
+    res.json({
+      status: workers.readyWorkers > 0 ? "ready" : "wake_attempted",
+      grafanaWakeStarted: true,
+      workersWakeStarted: workers.workerCount > 0,
+      workers,
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: "error",
+      message: "Failed to wake infrastructure",
+      error: err.message,
+    });
+  }
 });
 
 module.exports = router;
