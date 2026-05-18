@@ -66,6 +66,46 @@ export const getPrometheusUrl = () => {
     return "http://localhost:9090";
 };
 
+export const getPrometheusWakeUrl = () => {
+    const envUrl =
+      process.env.NEXT_PUBLIC_PROMETHEUS_WAKE_URL ||
+      process.env.NEXT_PUBLIC_PROMETHEUS_URL;
+
+    if (envUrl) {
+      return cleanUrl(envUrl);
+    }
+
+    if (process.env.NODE_ENV !== "production") {
+      return "http://localhost:9090";
+    }
+
+    return "";
+};
+
+export const wakePrometheus = () => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 8000);
+  const prometheusWakeUrl = getPrometheusWakeUrl();
+
+  if (!prometheusWakeUrl) {
+    window.clearTimeout(timeoutId);
+    return;
+  }
+
+  fetch(prometheusWakeUrl, {
+    method: "GET",
+    mode: "no-cors",
+    cache: "no-store",
+    signal: controller.signal,
+  })
+    .catch(() => {})
+    .finally(() => window.clearTimeout(timeoutId));
+};
+
 export const getPrometheusGraphUrl = (path= "") => {
     return `${getPrometheusUrl()}${path}`;
 }

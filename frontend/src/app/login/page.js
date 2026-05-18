@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { getUsableStoredToken } from "../../lib/auth-token";
-import { wakeGrafana } from "../../lib/observability";
+import { wakeGrafana, wakePrometheus } from "../../lib/observability";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -38,6 +38,7 @@ export default function Login() {
       localStorage.removeItem("currentRunId");
       localStorage.removeItem("currentRunActive");
       localStorage.setItem("token", res.token);
+      wakePrometheus();
       window.location.href = "/projects";
     } catch (err) {
       setError(err.message || "Login failed");
