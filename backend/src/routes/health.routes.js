@@ -2,10 +2,6 @@ const express = require("express");
 
 const { getSystemHealth } = require("../services/health.service");
 const { wakeGrafanaInBackground } = require("../services/grafana-readiness.service");
-const {
-  getConfiguredWorkerCount,
-  wakeConfiguredWorkersInBackground,
-} = require("../services/worker-readiness.service");
 const { getIOIfReady } = require("../websocket/socket");
 const { getIncidentTimeline } = require("../services/incidentTimeline");
 
@@ -44,14 +40,9 @@ router.post("/wake", async (req, res) => {
   try {
     wakeGrafanaInBackground();
 
-    const configuredWorkerCount = getConfiguredWorkerCount();
-    const workersWakeStarted = wakeConfiguredWorkersInBackground();
-
     res.json({
       status: "wake_started",
       grafanaWakeStarted: true,
-      workersWakeStarted,
-      configuredWorkerCount,
     });
   } catch (err) {
     res.status(500).json({
@@ -61,29 +52,5 @@ router.post("/wake", async (req, res) => {
     });
   }
 });
-
-const wakeWorkers = async (req, res) => {
-  try {
-    const configuredWorkerCount = getConfiguredWorkerCount();
-    const workersWakeStarted = wakeConfiguredWorkersInBackground({
-      force: true,
-    });
-
-    res.json({
-      status: "workers_wake_started",
-      workersWakeStarted,
-      configuredWorkerCount,
-    });
-  } catch (err) {
-    res.status(500).json({
-      status: "error",
-      message: "Failed to wake workers",
-      error: err.message,
-    });
-  }
-};
-
-router.get("/wake-workers", wakeWorkers);
-router.post("/wake-workers", wakeWorkers);
 
 module.exports = router;

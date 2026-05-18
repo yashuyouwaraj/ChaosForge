@@ -9,6 +9,7 @@ const Run = require("../modules/run/run.model");
 const { completeFinishedActiveRuns } = require("../modules/run/run.service");
 const { getGrafanaHealthUrl } = require("./grafana-readiness.service");
 const { generateInfrastructureInsights } = require("./analysisEngine");
+const { getPrometheusHealthUrl } = require("./prometheus-readiness.service");
 
 const KAFKA_HEALTH_TIMEOUT_MS = Number(
   process.env.KAFKA_HEALTH_TIMEOUT_MS || 3000,
@@ -89,7 +90,32 @@ const getGrafanaHealth = async () => {
   }
 };
 
+const getPrometheusHealth = async()=>{
+  const url = getPrometheusHealthUrl()
 
+  if(!url){
+    return "disabled"
+  }
+
+  const controller = new AbortController()
+
+  const timeoutId = setTimeout(
+    ()=> controller.abort(),
+    SERVICE_HEALTH_TIMEOUT_MS,
+  )
+
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal
+    })
+
+    return response.ok ? "connected" : "error"
+  } catch {
+    return "error"
+  } finally{
+    clearTimeout(timeoutId)
+  }
+}
 
 const getActiveRunTotal = async () => {
   try {
@@ -109,9 +135,10 @@ const getSystemHealth = async () => {
   let redisStatus = "disconnected";
   let kafkaWorkerCount = 0;
 
-  const [kafkaStatus, grafanaStatus, activeRuns] = await Promise.all([
+  const [kafkaStatus, grafanaStatus, prometheusStatus, activeRuns] = await Promise.all([
     getKafkaHealth(),
     getGrafanaHealth(),
+    getPrometheusHealth(),
     getActiveRunTotal(),
   ]);
 
@@ -141,6 +168,7 @@ const getSystemHealth = async () => {
       connected: kafkaWorkerCount,
     },
     grafana: grafanaStatus,
+    prometheus: prometheusStatus,
     websockets: {
       connectedClients: getConnectedClients(),
     },

@@ -49,7 +49,7 @@ const generateTraffic = async (config, projectId, url, options = {}) => {
       connectedWorkers: workerReadiness.connectedWorkers,
     });
 
-    throw new Error("Workers did not wake before the readiness timeout.");
+    throw new Error("Workers did not become ready before the readiness timeout.");
   }
 
   await Run.updateOne(
