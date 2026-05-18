@@ -32,6 +32,14 @@ services:
 
       USE_KAFKA: "true"
 
+      PROMETHEUS_BASE_URL: ${PROMETHEUS_BASE_URL:-http://prometheus:9090}
+
+      PROMETHEUS_HEALTH_URL: ${PROMETHEUS_HEALTH_URL:-http://prometheus:9090/-/healthy}
+
+      GRAFANA_URL: ${GRAFANA_URL:-http://grafana:3000}
+
+      GRAFANA_HEALTH_URL: ${GRAFANA_HEALTH_URL:-http://grafana:3000/api/health}
+
     depends_on:
       - redis
       - kafka
@@ -68,7 +76,21 @@ services:
       - mongo
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+
+      args:
+        API_URL: ${API_URL:-http://backend:3001}
+
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+
+        NEXT_PUBLIC_SOCKET_URL: ${NEXT_PUBLIC_SOCKET_URL:-http://localhost:3001}
+
+        NEXT_PUBLIC_GRAFANA_URL: ${NEXT_PUBLIC_GRAFANA_URL:-http://localhost:5000}
+
+        NEXT_PUBLIC_GRAFANA_WAKE_URL: ${NEXT_PUBLIC_GRAFANA_WAKE_URL:-http://localhost:5000}
+
+        NEXT_PUBLIC_PROMETHEUS_URL: ${NEXT_PUBLIC_PROMETHEUS_URL:-http://localhost:9090}
 
     profiles:
       - app
@@ -76,9 +98,17 @@ services:
     restart: unless-stopped
 
     environment:
-      NEXT_PUBLIC_API_URL: http://backend:3001
+      API_URL: ${API_URL:-http://backend:3001}
 
-      NEXT_PUBLIC_SOCKET_URL: http://backend:3001
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+
+      NEXT_PUBLIC_SOCKET_URL: ${NEXT_PUBLIC_SOCKET_URL:-http://localhost:3001}
+
+      NEXT_PUBLIC_GRAFANA_URL: ${NEXT_PUBLIC_GRAFANA_URL:-http://localhost:5000}
+
+      NEXT_PUBLIC_GRAFANA_WAKE_URL: ${NEXT_PUBLIC_GRAFANA_WAKE_URL:-http://localhost:5000}
+
+      NEXT_PUBLIC_PROMETHEUS_URL: ${NEXT_PUBLIC_PROMETHEUS_URL:-http://localhost:9090}
 
     ports:
       - "3000:3000"

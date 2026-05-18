@@ -35,7 +35,7 @@ import { ActiveSimulations } from "@/components/dashboard/ActiveSimulations";
 import { LiveLogStream } from "@/components/dashboard/LiveLogStream";
 
 import { InfrastructureTopology } from "@/components/dashboard/InfrastructureTopology";
-import { useInfrastructureHealth } from "@/hooks/useInfrastructureHealth";
+import { usePlatform } from "@/components/providers/PlatformProvider";
 import { usePlatformOverview } from "@/hooks/usePlatformOverview";
 import { api } from "@/lib/api";
 import { wakeGrafana, wakePrometheus } from "@/lib/observability";
@@ -76,8 +76,9 @@ const wakeWorkerUrls = async () => {
 
 export default function DashboardPage() {
   const overview = usePlatformOverview();
+  const { infrastructure } = usePlatform();
   const { infrastructureSummary, loading: infrastructureLoading } =
-    useInfrastructureHealth();
+    infrastructure || {};
   const [wakeStatus, setWakeStatus] = useState("");
   const [isWakingWorkers, setIsWakingWorkers] = useState(false);
 
