@@ -18,7 +18,7 @@ const useKafka = process.env.USE_KAFKA === "true";
 let workerStatus = "starting";
 
 const startHealthServer = () => {
-  const port = process.env.WORKER_HEALTH_PORT || process.env.PORT;
+  const port = process.env.WORKER_HEALTH_PORT;
 
   if (!port) {
     return;
@@ -37,6 +37,15 @@ const startHealthServer = () => {
         timestamp: new Date().toISOString(),
       }));
 
+      return;
+    }
+
+    if (req.url === "/metrics") {
+      res.writeHead(404, {
+        "Content-Type": "text/plain",
+      });
+
+      res.end("Worker metrics are not exposed on this process");
       return;
     }
 

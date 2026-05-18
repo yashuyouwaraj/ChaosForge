@@ -1,9 +1,9 @@
 import { AppShell } from "@/components/layout/AppShell";
 
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
-
-import { GrafanaPanel } from "@/components/dashboard/GrafanaPanel";
-import { PrometheusPanel } from "@/components/dashboard/PrometheusPanel";
+import { ObservabilitySummary } from "@/components/observability/ObservabilitySummary";
+import { GrafanaPanel } from "@/components/observability/GrafanaPanel";
+import { PrometheusPanel } from "@/components/observability/PrometheusPanel";
 import { PageHeader } from "@/components/shared/PageHeader";
 
 export default function ObservabilityPage() {
@@ -22,6 +22,7 @@ export default function ObservabilityPage() {
     and distributed monitoring systems.
   "
           />
+          <ObservabilitySummary />
 
           <GrafanaPanel title="ChaosForge Metrics" path="/d" />
 
