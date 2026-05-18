@@ -4,6 +4,9 @@ const { getSystemHealth } = require("../services/health.service");
 const {
   wakeGrafanaInBackground,
 } = require("../services/grafana-readiness.service");
+const {
+  wakePrometheusInBackground,
+} = require("../services/prometheus-readiness.service");
 const { getIOIfReady } = require("../websocket/socket");
 const { getIncidentTimeline } = require("../services/incidentTimeline");
 const { PLATFORM_EVENTS } = require("../websocket/events");
@@ -38,10 +41,12 @@ router.get("/", async (req, res) => {
 router.post("/wake", async (req, res) => {
   try {
     wakeGrafanaInBackground();
+    wakePrometheusInBackground();
 
     res.json({
       status: "wake_started",
       grafanaWakeStarted: true,
+      prometheusWakeStarted: true,
     });
   } catch (err) {
     res.status(500).json({

@@ -14,6 +14,7 @@ export default function Login() {
 
   useEffect(() => {
     wakeGrafana();
+    wakePrometheus();
     api("/health/wake", "POST").catch(() => {});
 
     if (getUsableStoredToken()) {
@@ -38,6 +39,7 @@ export default function Login() {
       localStorage.removeItem("currentRunId");
       localStorage.removeItem("currentRunActive");
       localStorage.setItem("token", res.token);
+      wakeGrafana();
       wakePrometheus();
       window.location.href = "/projects";
     } catch (err) {

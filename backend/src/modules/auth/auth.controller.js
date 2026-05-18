@@ -1,9 +1,13 @@
 const { signup, login, upgradePlan, createAuthToken } = require("./auth.service");
 const User = require("../user/user.model");
 const { wakeGrafanaInBackground } = require("../../services/grafana-readiness.service");
+const {
+  wakePrometheusInBackground,
+} = require("../../services/prometheus-readiness.service");
 
 const wakeInfrastructureInBackground = () => {
   wakeGrafanaInBackground();
+  wakePrometheusInBackground();
 };
 
 const signupHandler = async (req, res) => {

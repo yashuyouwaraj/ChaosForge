@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { getUsableStoredToken } from "../../lib/auth-token";
+import { wakeGrafana, wakePrometheus } from "../../lib/observability";
 
 export default function Signup() {
   const [email, setEmail] = useState("");
@@ -12,6 +13,10 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    wakeGrafana();
+    wakePrometheus();
+    api("/health/wake", "POST").catch(() => {});
+
     if (getUsableStoredToken()) {
       window.location.href = "/projects";
     }
@@ -32,6 +37,8 @@ export default function Signup() {
       await api("/auth/signup", "POST", { email, password });
       const res = await api("/auth/login", "POST", { email, password });
       localStorage.setItem("token", res.token);
+      wakeGrafana();
+      wakePrometheus();
       window.location.href = "/projects";
     } catch (err) {
       setError(err.message || "Signup failed. Please try again.");

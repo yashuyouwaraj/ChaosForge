@@ -38,6 +38,7 @@ import { InfrastructureTopology } from "@/components/dashboard/InfrastructureTop
 import { useInfrastructureHealth } from "@/hooks/useInfrastructureHealth";
 import { usePlatformOverview } from "@/hooks/usePlatformOverview";
 import { api } from "@/lib/api";
+import { wakeGrafana, wakePrometheus } from "@/lib/observability";
 
 const WORKER_WAKE_TIMEOUT_MS = 12000;
 
@@ -81,6 +82,8 @@ export default function DashboardPage() {
   const [isWakingWorkers, setIsWakingWorkers] = useState(false);
 
   useEffect(() => {
+    wakeGrafana();
+    wakePrometheus();
     api("/health/wake", "POST").catch(() => {});
     wakeWorkerUrls().catch(() => {});
   }, []);
