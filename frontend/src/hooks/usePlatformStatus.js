@@ -10,9 +10,23 @@ import {
   useRun,
 } from "@/components/providers/RunProvider";
 
+import {
+  usePlatform,
+} from "@/components/providers/PlatformProvider";
+
 export function usePlatformStatus() {
-  const { selectedRun } =
-    useRun();
+  const {
+    selectedRun,
+  } = useRun();
+
+  const {
+    infrastructure,
+    incidents,
+  } = usePlatform();
+
+  const {
+    infrastructureSummary,
+  } = infrastructure;
 
   return useMemo(
     () => ({
@@ -20,7 +34,9 @@ export function usePlatformStatus() {
         socket.connected,
 
       simulation:
-        Boolean(selectedRun?.isActive),
+        Boolean(
+          selectedRun?.isActive,
+        ),
 
       runId:
         selectedRun?.runId,
@@ -28,9 +44,35 @@ export function usePlatformStatus() {
       runStatus:
         selectedRun?.status,
 
-      observability: true,
+      observability:
+        infrastructureSummary
+          ?.services
+          ?.grafana ===
+          "connected" &&
+        infrastructureSummary
+          ?.services
+          ?.prometheus ===
+          "connected",
+
+      infrastructure:
+        infrastructureSummary
+          ?.overall ===
+        "healthy",
+
+      activeIncidents:
+        incidents?.filter(
+          (incident) =>
+            incident.severity ===
+              "critical" ||
+            incident.severity ===
+              "warning",
+        ).length || 0,
     }),
 
-    [selectedRun],
+    [
+      selectedRun,
+      infrastructureSummary,
+      incidents,
+    ],
   );
 }
