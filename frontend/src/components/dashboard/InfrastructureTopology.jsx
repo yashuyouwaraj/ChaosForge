@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 
-import { useInfrastructureHealth } from "@/hooks/useInfrastructureHealth";
+import { usePlatform } from "@/components/providers/PlatformProvider";
 
 const statusStyles = {
   healthy: "bg-green-500",
@@ -48,7 +48,7 @@ const getNodes = (health) => [
   {
     name: "Workers",
 
-    status: (health?.kafkaWorkers?.connected ?? 0) ? "healthy" : "warning",
+    status: (health?.kafkaWorkers?.connected ?? 0) > 0 ? "healthy" : "warning",
   },
 
   {
@@ -66,12 +66,17 @@ const getNodes = (health) => [
   {
     name: "Observability",
 
-    status: health?.status === "ok" ? "healthy" : "warning",
+    status:
+      health?.grafana === "connected" && health?.prometheus === "connected"
+        ? "healthy"
+        : "warning",
   },
 ];
 
 export function InfrastructureTopology() {
-  const { health } = useInfrastructureHealth();
+  const { infrastructure } = usePlatform();
+
+  const { health } = infrastructure || {};
 
   const nodes = getNodes(health);
 
@@ -161,10 +166,10 @@ export function InfrastructureTopology() {
 
                 <p
                   className="
-                    mt-2 text-sm
-                    uppercase tracking-[0.2em]
-                    text-muted-foreground
-                  "
+    mt-2 text-xs
+    uppercase tracking-[0.2em]
+    text-muted-foreground
+  "
                 >
                   {node.status}
                 </p>

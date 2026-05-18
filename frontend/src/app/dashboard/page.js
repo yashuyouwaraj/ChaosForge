@@ -35,16 +35,17 @@ import { ActiveSimulations } from "@/components/dashboard/ActiveSimulations";
 import { LiveLogStream } from "@/components/dashboard/LiveLogStream";
 
 import { InfrastructureTopology } from "@/components/dashboard/InfrastructureTopology";
+import { useInfrastructureHealth } from "@/hooks/useInfrastructureHealth";
 import { usePlatformOverview } from "@/hooks/usePlatformOverview";
 import { api } from "@/lib/api";
 
 const WORKER_WAKE_TIMEOUT_MS = 12000;
 
-const getWorkerWakeUrls = () => (
-  process.env.NEXT_PUBLIC_WORKER_WAKE_URLS || ""
-).split(",")
-  .map((url) => url.trim())
-  .filter(Boolean);
+const getWorkerWakeUrls = () =>
+  (process.env.NEXT_PUBLIC_WORKER_WAKE_URLS || "")
+    .split(",")
+    .map((url) => url.trim())
+    .filter(Boolean);
 
 const wakeWorkerUrl = async (url) => {
   const controller = new AbortController();
@@ -74,6 +75,8 @@ const wakeWorkerUrls = async () => {
 
 export default function DashboardPage() {
   const overview = usePlatformOverview();
+  const { infrastructureSummary, loading: infrastructureLoading } =
+    useInfrastructureHealth();
   const [wakeStatus, setWakeStatus] = useState("");
   const [isWakingWorkers, setIsWakingWorkers] = useState(false);
 
@@ -119,7 +122,7 @@ export default function DashboardPage() {
   "
           >
             <div
-              className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4
+              className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-5
     "
             >
               {/* SELECTED PROJECT */}
@@ -244,6 +247,38 @@ export default function DashboardPage() {
                   {overview.failedRuns}
                 </h3>
               </div>
+
+              {/* Active RUNS */}
+
+              <div
+                className="
+        rounded-2xl
+        border border-red-400/20
+        bg-red-400/[0.04]
+        p-5
+      "
+              >
+                <p
+                  className="
+          text-xs uppercase
+          tracking-[0.2em]
+          text-slate-500
+        "
+                >
+                  Active Runs
+                </p>
+
+                <h3
+                  className="
+          mt-3 text-3xl
+          font-black text-red-400
+        "
+                >
+                  {infrastructureLoading
+                    ? "..."
+                    : (infrastructureSummary?.activeRuns ?? 0)}
+                </h3>
+              </div>
             </div>
           </PageHeader>
 
@@ -254,11 +289,17 @@ export default function DashboardPage() {
             <InfrastructureHealthGrid />
           </DashboardSection>
 
+          {/* INFRA */}
+          <DashboardSection
+            title="Infrastructure Health"
+            description="Realtime distributed system status."
+          >
+            <InfrastructureStatusCards />
+          </DashboardSection>
+
           <DashboardSection>
             <RunSelector />
           </DashboardSection>
-
-          <CreateSimulationPanel />
 
           <div className="flex flex-wrap items-center gap-3">
             <Button
@@ -280,13 +321,7 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* INFRA */}
-          <DashboardSection
-            title="Infrastructure Health"
-            description="Realtime distributed system status."
-          >
-            <InfrastructureStatusCards />
-          </DashboardSection>
+          <CreateSimulationPanel />
 
           <DashboardSection
             title="Realtime Telemetry"

@@ -1,6 +1,5 @@
 "use client";
-
-import { useInfrastructureHealth } from "@/hooks/useInfrastructureHealth";
+import { usePlatform } from "@/components/providers/PlatformProvider";
 
 const getStatusColor = (value) => {
   if (typeof value === "number") {
@@ -38,28 +37,33 @@ const formatValue = (value) => {
 };
 
 export function InfrastructureHealthGrid() {
-  const { health, loading } = useInfrastructureHealth();
-  
+  const { infrastructure } = usePlatform();
+
+  const { health, loading, infrastructureSummary } = infrastructure || {};
 
   const cards = [
     {
-      label: "Redis",
-      value: health?.redis || "unknown",
+      label: "CPU Load",
+
+      value:
+        typeof health?.cpuLoad?.[0] === "number"
+          ? `${health.cpuLoad[0].toFixed(2)}%`
+          : "0.00%",
     },
 
     {
-      label: "Kafka",
-      value: health?.kafka || "unknown",
-    },
+      label: "System Uptime",
 
+      value: health?.uptime ? `${Math.floor(health.uptime / 60)} min` : "0 min",
+    },
     {
       label: "WebSockets",
-      value: health?.websockets ? "Connected" : "Disconnected",
+      value: infrastructureSummary?.websocketClients || 0,
     },
 
     {
-      label: "Active Runs",
-      value: health?.activeRuns ?? 0,
+      label: "Kafka Workers",
+      value: infrastructureSummary?.workers || 0,
     },
 
     {

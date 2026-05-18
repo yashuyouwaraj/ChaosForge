@@ -19,6 +19,27 @@ const SERVICE_HEALTH_TIMEOUT_MS = Number(
   process.env.SERVICE_HEALTH_TIMEOUT_MS || 2500,
 );
 
+let previousCpuUsage = process.cpuUsage();
+let previousCpuSampleAt = process.hrtime.bigint();
+
+const getProcessCpuPercent = () => {
+  const currentUsage = process.cpuUsage();
+  const currentSampleAt = process.hrtime.bigint();
+
+  const userMicros = currentUsage.user - previousCpuUsage.user;
+  const systemMicros = currentUsage.system - previousCpuUsage.system;
+  const elapsedMicros = Number(currentSampleAt - previousCpuSampleAt) / 1000;
+
+  previousCpuUsage = currentUsage;
+  previousCpuSampleAt = currentSampleAt;
+
+  if (elapsedMicros <= 0) {
+    return 0;
+  }
+
+  return Number((((userMicros + systemMicros) / elapsedMicros) * 100).toFixed(2));
+};
+
 const withTimeout = async (promise, message) => {
   let timeoutId;
 
@@ -159,7 +180,7 @@ const getSystemHealth = async () => {
       heapUsed: process.memoryUsage().heapUsed,
       heapTotal: process.memoryUsage().heapTotal,
     },
-    cpuLoad: os.loadavg(),
+    cpuLoad: [getProcessCpuPercent(), ...os.loadavg().slice(1)],
     platform: os.platform(),
     nodeVersion: process.version,
     redis: redisStatus,

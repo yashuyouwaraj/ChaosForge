@@ -3,6 +3,7 @@ import "../styles/globals.css";
 import { ProjectProvider } from "@/components/providers/ProjectProvider";
 import { RunProvider } from "@/components/providers/RunProvider";
 import { AuthProvider } from "@/components/providers/AuthProvider";
+import { PlatformProvider } from "@/components/providers/PlatformProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,7 +30,9 @@ export default function RootLayout({ children }) {
       <body className="min-h-full flex flex-col">
         <AuthProvider>
           <ProjectProvider>
-            <RunProvider>{children}</RunProvider>
+            <PlatformProvider>
+              <RunProvider>{children}</RunProvider>
+            </PlatformProvider>
           </ProjectProvider>
         </AuthProvider>
       </body>

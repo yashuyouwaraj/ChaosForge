@@ -1,133 +1,107 @@
 "use client";
 
 import { InfraStatusCard } from "@/components/dashboard/InfraStatusCard";
+import { usePlatform } from "@/components/providers/PlatformProvider";
+import { useInfrastructureHealth } from "@/hooks/useInfrastructureHealth";
 
-import {
-  useInfrastructureHealth,
-} from "@/hooks/useInfrastructureHealth";
-
-const formatStatusValue = (value) => {
+const formatStatus = (value) => {
   if (!value) {
     return "Unknown";
   }
 
-  return value.charAt(0).toUpperCase() +
-    value.slice(1);
+  return value.charAt(0).toUpperCase() + value.slice(1);
 };
 
-const getKafkaWorkerCardStatus = (
-  kafka,
-  workers,
-) => {
-  if (
-    kafka === "connected" &&
-    workers > 0
-  ) {
+const normalizeStatus = (status) => {
+  if (status === "connected") {
     return "healthy";
   }
 
-  if (
-    kafka === "connected" ||
-    kafka === "disabled" ||
-    !kafka
-  ) {
+  if (status === "disabled") {
     return "warning";
   }
 
-  return "critical";
-};
-
-const getGrafanaCardStatus = (grafana) => {
-  if (grafana === "connected") {
-    return "healthy";
+  if (status === "error") {
+    return "critical";
   }
 
-  if (!grafana) {
-    return "warning";
-  }
-
-  return "critical";
+  return "warning";
 };
-
-const getWebsocketCardStatus = (clients) =>
-  clients > 0
-    ? "healthy"
-    : "warning";
 
 export function InfrastructureStatusCards() {
-  const {
-    health,
-    loading,
-  } =
-    useInfrastructureHealth();
+  const { infrastructure } = usePlatform();
 
-  const kafka =
-    health?.kafka;
+  const { loading, infrastructureSummary } = infrastructure || {};
 
-  const kafkaWorkers =
-    health?.kafkaWorkers
-      ?.connected ?? 0;
-
-  const grafana =
-    health?.grafana;
-
-  const websocketClients =
-    health?.websockets
-      ?.connectedClients ?? 0;
-
-  const valueOrLoading = (value) =>
-    loading ? "..." : value;
+  const valueOrLoading = (value) => (loading ? "..." : value);
 
   return (
     <div
       className="
         grid gap-6
-        md:grid-cols-2
-        xl:grid-cols-4
+        sm:grid-cols-2
+        2xl:grid-cols-3
       "
     >
+      {/* OVERALL HEALTH */}
+
       <InfraStatusCard
-        title="Kafka Workers"
-        status={getKafkaWorkerCardStatus(
-          kafka,
-          kafkaWorkers,
-        )}
+        title="Overall Health"
+        status={infrastructureSummary?.overall || "warning"}
+        value={valueOrLoading(formatStatus(infrastructureSummary?.overall))}
+      />
+
+      {/* REDIS */}
+
+      <InfraStatusCard
+        title="Redis"
+        status={normalizeStatus(infrastructureSummary?.services?.redis)}
         value={valueOrLoading(
-          kafkaWorkers,
+          formatStatus(infrastructureSummary?.services?.redis),
         )}
       />
+
+      {/* KAFKA */}
+
+      <InfraStatusCard
+        title="Kafka"
+        status={normalizeStatus(infrastructureSummary?.services?.kafka)}
+        value={valueOrLoading(
+          formatStatus(infrastructureSummary?.services?.kafka),
+        )}
+      />
+
+      {/* GRAFANA */}
 
       <InfraStatusCard
         title="Grafana"
-        status={getGrafanaCardStatus(
-          grafana,
-        )}
+        status={normalizeStatus(infrastructureSummary?.services?.grafana)}
         value={valueOrLoading(
-          formatStatusValue(grafana),
+          formatStatus(infrastructureSummary?.services?.grafana),
         )}
       />
 
-      <InfraStatusCard
-        title="WebSockets"
-        status={getWebsocketCardStatus(
-          websocketClients,
-        )}
-        value={valueOrLoading(
-          websocketClients,
-        )}
-      />
+      {/* PROMETHEUS */}
 
       <InfraStatusCard
         title="Prometheus"
+        status={normalizeStatus(infrastructureSummary?.services?.prometheus)}
+        value={valueOrLoading(
+          formatStatus(infrastructureSummary?.services?.prometheus),
+        )}
+      />
+
+      {/* WEBSOCKETS */}
+
+      <InfraStatusCard
+        title="WebSocket Clients"
         status={
-          health?.status === "ok"
-            ? "healthy"
-            : "warning"
+          infrastructureSummary?.websocketClients > 0 ? "healthy" : "warning"
         }
         value={valueOrLoading(
-          health?.status === "ok"
-            ? "Active"
-            : "Unknown",
+          infrastructureSummary?.websocketClients > 0
+            ? "Connected"
+            : "Disconnected",
         )}
       />
     </div>
