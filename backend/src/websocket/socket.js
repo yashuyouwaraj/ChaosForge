@@ -2,9 +2,8 @@ const { Server } = require("socket.io");
 const logger = require("../utils/logger");
 const { registerControlHandlers } = require("../control/control.socket");
 const { connectRedis } = require("../config/redis");
-const {
-  activeWebSocketClients,
-} = require("../metrics/prometheus");
+const { activeWebSocketClients } = require("../metrics/prometheus");
+const { getRunLogsEvent } = require("./events");
 
 const LOG_QUEUE_KEY = "socket:logs:queue";
 const LOG_FLUSH_INTERVAL_MS = 100;
@@ -69,10 +68,7 @@ const flushLogBuffer = (projectId, runId) => {
 
   const logsToSend = buffer.splice(0, buffer.length);
 
-  io.to(`run-${runId}`).emit(
-    `logs-${projectId}-${runId}`,
-    logsToSend,
-  );
+  io.to(`run-${runId}`).emit(getRunLogsEvent(projectId, runId), logsToSend);
 
   if (buffer.length === 0) {
     logBuffers.delete(key);
@@ -142,10 +138,7 @@ const startLogFlushLoop = () => {
       const [projectId, runId] = key.split(":");
       const logsToSend = buffer.splice(0, buffer.length);
 
-      io.to(`run-${runId}`).emit(
-        `logs-${projectId}-${runId}`,
-        logsToSend,
-      );
+      io.to(`run-${runId}`).emit(getRunLogsEvent(projectId, runId), logsToSend);
 
       if (buffer.length === 0) {
         logBuffers.delete(key);

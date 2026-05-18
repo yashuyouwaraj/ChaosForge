@@ -1,10 +1,12 @@
 const express = require("express");
 
 const { getSystemHealth } = require("../services/health.service");
-const { wakeGrafanaInBackground } = require("../services/grafana-readiness.service");
+const {
+  wakeGrafanaInBackground,
+} = require("../services/grafana-readiness.service");
 const { getIOIfReady } = require("../websocket/socket");
 const { getIncidentTimeline } = require("../services/incidentTimeline");
-
+const { PLATFORM_EVENTS } = require("../websocket/events");
 
 const router = express.Router();
 
@@ -15,12 +17,9 @@ router.get("/", async (req, res) => {
     const io = getIOIfReady();
 
     if (io) {
-      io.emit("infrastructure-alerts", health.alerts || []);
-      io.emit("ai-insights", health.insights || []);
-      io.emit(
-        "incident-timeline",
-        incidentTimeline,
-      );
+      io.emit(PLATFORM_EVENTS.INFRASTRUCTURE_ALERTS, health.alerts || []);
+      io.emit(PLATFORM_EVENTS.AI_INSIGHTS, health.insights || []);
+      io.emit(PLATFORM_EVENTS.INCIDENT_TIMELINE, incidentTimeline);
     }
 
     res.json({
