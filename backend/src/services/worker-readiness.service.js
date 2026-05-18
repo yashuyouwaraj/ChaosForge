@@ -42,6 +42,8 @@ const getConfiguredWorkerUrls = () => {
     .filter(Boolean);
 };
 
+const getConfiguredWorkerCount = () => getConfiguredWorkerUrls().length;
+
 const toHealthUrl = (url) => {
   const normalizedUrl = url.replace(/\/+$/, "");
   return normalizedUrl.endsWith("/health")
@@ -316,6 +318,7 @@ const ensureKafkaWorkersReady = async () => {
 
 module.exports = {
   ensureKafkaWorkersReady,
+  getConfiguredWorkerCount,
   wakeConfiguredWorkers,
   wakeConfiguredWorkersInBackground,
 };

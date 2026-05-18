@@ -3,6 +3,7 @@ const express = require("express");
 const { getSystemHealth } = require("../services/health.service");
 const { wakeGrafanaInBackground } = require("../services/grafana-readiness.service");
 const {
+  getConfiguredWorkerCount,
   wakeConfiguredWorkersInBackground,
 } = require("../services/worker-readiness.service");
 const { getIOIfReady } = require("../websocket/socket");
@@ -43,12 +44,14 @@ router.post("/wake", async (req, res) => {
   try {
     wakeGrafanaInBackground();
 
+    const configuredWorkerCount = getConfiguredWorkerCount();
     const workersWakeStarted = wakeConfiguredWorkersInBackground();
 
     res.json({
       status: "wake_started",
       grafanaWakeStarted: true,
       workersWakeStarted,
+      configuredWorkerCount,
     });
   } catch (err) {
     res.status(500).json({
@@ -59,8 +62,9 @@ router.post("/wake", async (req, res) => {
   }
 });
 
-router.get("/wake-workers", async (req, res) => {
+const wakeWorkers = async (req, res) => {
   try {
+    const configuredWorkerCount = getConfiguredWorkerCount();
     const workersWakeStarted = wakeConfiguredWorkersInBackground({
       force: true,
     });
@@ -68,6 +72,7 @@ router.get("/wake-workers", async (req, res) => {
     res.json({
       status: "workers_wake_started",
       workersWakeStarted,
+      configuredWorkerCount,
     });
   } catch (err) {
     res.status(500).json({
@@ -76,6 +81,9 @@ router.get("/wake-workers", async (req, res) => {
       error: err.message,
     });
   }
-});
+};
+
+router.get("/wake-workers", wakeWorkers);
+router.post("/wake-workers", wakeWorkers);
 
 module.exports = router;

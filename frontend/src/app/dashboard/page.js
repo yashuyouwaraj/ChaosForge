@@ -38,6 +38,40 @@ import { InfrastructureTopology } from "@/components/dashboard/InfrastructureTop
 import { usePlatformOverview } from "@/hooks/usePlatformOverview";
 import { api } from "@/lib/api";
 
+const WORKER_WAKE_TIMEOUT_MS = 12000;
+
+const getWorkerWakeUrls = () => (
+  process.env.NEXT_PUBLIC_WORKER_WAKE_URLS || ""
+).split(",")
+  .map((url) => url.trim())
+  .filter(Boolean);
+
+const wakeWorkerUrl = async (url) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, WORKER_WAKE_TIMEOUT_MS);
+
+  try {
+    await fetch(url, {
+      method: "GET",
+      mode: "no-cors",
+      cache: "no-store",
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+};
+
+const wakeWorkerUrls = async () => {
+  const workerWakeUrls = getWorkerWakeUrls();
+
+  await Promise.allSettled(workerWakeUrls.map(wakeWorkerUrl));
+
+  return workerWakeUrls.length;
+};
+
 export default function DashboardPage() {
   const overview = usePlatformOverview();
   const [wakeStatus, setWakeStatus] = useState("");
@@ -45,7 +79,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     api("/health/wake", "POST").catch(() => {});
-    api("/health/wake-workers").catch(() => {});
+    wakeWorkerUrls().catch(() => {});
   }, []);
 
   const handleWakeWorkers = async () => {
@@ -53,8 +87,13 @@ export default function DashboardPage() {
     setWakeStatus("");
 
     try {
-      await api("/health/wake-workers");
-      setWakeStatus("Worker wake request sent");
+      const workerCount = await wakeWorkerUrls();
+
+      setWakeStatus(
+        workerCount > 0
+          ? `Worker wake GET sent to ${workerCount} worker${workerCount === 1 ? "" : "s"}`
+          : "No worker wake URLs configured in the frontend",
+      );
     } catch (err) {
       setWakeStatus(err.message || "Worker wake request failed");
     } finally {
