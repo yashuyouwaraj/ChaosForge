@@ -58,7 +58,7 @@ export function IncidentTimeline() {
             text-3xl font-black
           "
         >
-          Incident Timeline
+          Operational Event Stream
         </h3>
 
         <p
@@ -66,7 +66,7 @@ export function IncidentTimeline() {
             mt-3 text-muted-foreground
           "
         >
-          Historical operational infrastructure events.
+         Realtime distributed infrastructure activity and operational intelligence.
         </p>
       </div>
 

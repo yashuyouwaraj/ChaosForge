@@ -4,9 +4,7 @@ import { motion } from "framer-motion";
 
 import { useRunAiInsights } from "@/hooks/useRunAiInsights";
 
-import {
-  useRun,
-} from "@/components/providers/RunProvider";
+import { useRun } from "@/components/providers/RunProvider";
 
 const styles = {
   info:
@@ -43,7 +41,7 @@ export function RunAiInsights() {
               text-2xl font-bold
             "
           >
-            Run Analysis Stable
+            AI Operations Stable
           </h3>
 
           <p
@@ -96,18 +94,51 @@ export function RunAiInsights() {
               "
             >
               <div>
+                {/* BADGES */}
+
                 <div
                   className="
-                    inline-flex rounded-full
-                    bg-white/5 px-3 py-1
-                    text-xs font-semibold
-                    uppercase tracking-[0.2em]
+                    flex flex-wrap
+                    items-center gap-3
                   "
                 >
-                  {
-                    insight.severity
-                  }
+                  {/* SEVERITY */}
+
+                  <div
+                    className="
+                      inline-flex
+                      rounded-full
+                      bg-white/5
+                      px-3 py-1
+                      text-xs font-semibold
+                      uppercase
+                      tracking-[0.2em]
+                    "
+                  >
+                    {
+                      insight.severity
+                    }
+                  </div>
+
+                  {/* TYPE */}
+
+                  <div
+                    className="
+                      inline-flex
+                      rounded-full
+                      bg-white/5
+                      px-3 py-1
+                      text-xs font-semibold
+                      uppercase
+                      tracking-[0.2em]
+                      text-slate-300
+                    "
+                  >
+                    {insight.type}
+                  </div>
                 </div>
+
+                {/* TITLE */}
 
                 <h3
                   className="
@@ -120,6 +151,8 @@ export function RunAiInsights() {
                   }
                 </h3>
 
+                {/* DESCRIPTION */}
+
                 <p
                   className="
                     mt-4 leading-7
@@ -130,6 +163,8 @@ export function RunAiInsights() {
                     insight.description
                   }
                 </p>
+
+                {/* RECOMMENDATION */}
 
                 {insight.recommendation && (
                   <div
@@ -142,7 +177,8 @@ export function RunAiInsights() {
                   >
                     <p
                       className="
-                        text-sm font-semibold
+                        text-sm
+                        font-semibold
                         text-cyan-300
                       "
                     >
@@ -163,10 +199,13 @@ export function RunAiInsights() {
                 )}
               </div>
 
+              {/* AI ICON */}
+
               <div
                 className="
                   flex h-12 w-12
-                  items-center justify-center
+                  items-center
+                  justify-center
                   rounded-2xl
                   bg-white/5
                   text-xl
