@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 
-import { CreateSimulationPanel } from "@/components/dashboard/CreateSimulationPanel";
+import { CreateSimulationPanel } from "@/components/simulations/CreateSimulationPanel";
 
 import { InfrastructureAlerts } from "@/components/dashboard/InfrastructureAlerts";
 
@@ -30,7 +30,7 @@ import { LatencyBuckets } from "@/components/dashboard/LatencyBuckets";
 
 import { RealtimeCharts } from "@/components/dashboard/RealtimeCharts";
 
-import { ActiveSimulations } from "@/components/dashboard/ActiveSimulations";
+import { ActiveSimulations } from "@/components/simulations/ActiveSimulations";
 
 import { LiveLogStream } from "@/components/dashboard/LiveLogStream";
 
