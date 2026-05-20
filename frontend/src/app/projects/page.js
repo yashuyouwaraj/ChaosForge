@@ -5,7 +5,11 @@ import { useRouter } from "next/navigation";
 
 import { AppShell } from "@/components/layout/AppShell";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { MetricCard } from "@/components/shared/MetricCard";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { WorkspaceSection } from "@/components/shared/WorkspaceSection";
 import { clearAuthStorage } from "@/lib/auth-token";
 import { api } from "@/lib/api";
 
@@ -15,10 +19,301 @@ const authErrorMessages = new Set([
   "User not found",
 ]);
 
+const comparisonMetrics = [
+  ["success", "Success Rate", true],
+  ["rps", "RPS", true],
+  ["avgLatency", "Avg Latency", false],
+  ["p95Latency", "P95 Latency", false],
+  ["failureRate", "Failure Rate", false],
+];
+
 const isAuthError = (err) => authErrorMessages.has(err?.message);
 
 const getProjectId = (project, index) =>
   project._id || project.id || `project-${index}`;
+
+const getStatusTone = (status) => {
+  if (status === "completed") {
+    return "success";
+  }
+
+  if (status === "failed") {
+    return "error";
+  }
+
+  return status || "info";
+};
+
+const getDeltaTone = (delta, higherIsBetter) => {
+  if (Number(delta || 0) === 0) {
+    return "text-slate-100";
+  }
+
+  const improved = higherIsBetter ? delta > 0 : delta < 0;
+  return improved ? "text-emerald-300" : "text-red-300";
+};
+
+function ProjectCard({
+  project,
+  projectId,
+  isExpanded,
+  runCount,
+  latestRun,
+  onToggle,
+  onOpenDashboard,
+}) {
+  return (
+    <article className="glass overflow-hidden rounded-[28px]">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="
+          flex w-full cursor-pointer items-center
+          justify-between gap-5 p-6 text-left
+          transition hover:bg-white/[0.03]
+        "
+      >
+        <div className="min-w-0">
+          <h3 className="truncate text-2xl font-bold">
+            {project.name || "Untitled project"}
+          </h3>
+
+          <p className="mt-3 break-all font-mono text-xs text-muted-foreground">
+            {projectId}
+          </p>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-3">
+          {latestRun?.status ? (
+            <StatusBadge status={getStatusTone(latestRun.status)}>
+              {latestRun.status}
+            </StatusBadge>
+          ) : null}
+
+          <span className="rounded-full border border-white/10 bg-black/20 px-4 py-2 text-sm text-muted-foreground">
+            {runCount} runs
+          </span>
+
+          <span className="text-xl text-slate-400">
+            {isExpanded ? "-" : "+"}
+          </span>
+        </div>
+      </button>
+
+      <div className="border-t border-white/10 px-6 py-4">
+        <button
+          type="button"
+          onClick={() => onOpenDashboard(projectId, latestRun?.runId)}
+          className="
+            rounded-2xl border border-cyan-400/20
+            bg-cyan-500/10 px-5 py-3
+            text-sm font-semibold text-cyan-300
+            transition hover:bg-cyan-500/20
+          "
+        >
+          Open Dashboard
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function RunHistoryTable({ runs, onOpenDashboard }) {
+  if (runs.length === 0) {
+    return (
+      <EmptyState
+        title="No runs yet"
+        description="Launch a simulation to start building run history for this project."
+      />
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto rounded-2xl border border-white/10 bg-black/20">
+      <table className="w-full">
+        <thead>
+          <tr className="border-b border-white/10 text-left text-sm text-muted-foreground">
+            <th className="px-4 py-4">Run ID</th>
+            <th className="px-4 py-4">Status</th>
+            <th className="px-4 py-4">RPS</th>
+            <th className="px-4 py-4">Avg Latency</th>
+            <th className="px-4 py-4">Failures</th>
+            <th className="px-4 py-4">Success</th>
+            <th className="px-4 py-4">Created</th>
+            <th className="px-4 py-4">Action</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {runs.map((run) => (
+            <tr key={run.runId} className="border-b border-white/5">
+              <td className="max-w-[16rem] truncate px-4 py-5 font-mono text-sm">
+                {run.runId}
+              </td>
+              <td className="px-4 py-5">
+                <StatusBadge status={getStatusTone(run.status)}>
+                  {run.status || "unknown"}
+                </StatusBadge>
+              </td>
+              <td className="px-4 py-5">{run.rps || 0}</td>
+              <td className="px-4 py-5">{run.avgLatency || 0}ms</td>
+              <td className="px-4 py-5 text-red-300">{run.failure || 0}</td>
+              <td className="px-4 py-5 text-green-300">{run.success || 0}</td>
+              <td className="px-4 py-5 text-sm text-muted-foreground">
+                {run.createdAt ? new Date(run.createdAt).toLocaleString() : "-"}
+              </td>
+              <td className="px-4 py-5">
+                <button
+                  type="button"
+                  onClick={() => onOpenDashboard(run.runId)}
+                  className="
+                    rounded-xl border border-cyan-400/20
+                    bg-cyan-500/10 px-4 py-2
+                    text-sm font-semibold text-cyan-300
+                    transition hover:bg-cyan-500/20
+                  "
+                >
+                  Open
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ComparisonPanel({
+  runs,
+  selectedRuns,
+  comparison,
+  comparing,
+  error,
+  onSelectRun,
+  onCompare,
+}) {
+  if (runs.length < 2) {
+    return (
+      <EmptyState
+        title="Run comparison unavailable"
+        description="At least two completed or recorded runs are required for comparison."
+      />
+    );
+  }
+
+  return (
+    <div className="rounded-[28px] border border-white/10 bg-black/20 p-6">
+      <div className="grid gap-6 xl:grid-cols-[0.8fr,1.2fr]">
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-cyan-400">
+            Regression Intelligence
+          </p>
+          <h3 className="mt-3 text-2xl font-black">Run Comparison</h3>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            Compare a baseline run against a newer run using the existing
+            ChaosForge comparison API.
+          </p>
+
+          <div className="mt-5 space-y-3">
+            <select
+              value={selectedRuns.runA || ""}
+              onChange={(event) => onSelectRun("runA", event.target.value)}
+              className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none"
+            >
+              <option value="">Select baseline run</option>
+              {runs.map((run) => (
+                <option key={run.runId} value={run.runId}>
+                  {run.runId.slice(0, 8)}... ({run.rps || 0} RPS)
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={selectedRuns.runB || ""}
+              onChange={(event) => onSelectRun("runB", event.target.value)}
+              className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none"
+            >
+              <option value="">Select comparison run</option>
+              {runs.map((run) => (
+                <option key={run.runId} value={run.runId}>
+                  {run.runId.slice(0, 8)}... ({run.rps || 0} RPS)
+                </option>
+              ))}
+            </select>
+
+            <button
+              type="button"
+              onClick={onCompare}
+              disabled={comparing}
+              className="
+                w-full rounded-xl bg-cyan-500
+                px-5 py-3 text-sm font-bold
+                text-black transition hover:bg-cyan-400
+                disabled:opacity-50
+              "
+            >
+              {comparing ? "Comparing..." : "Compare Runs"}
+            </button>
+          </div>
+
+          {error ? (
+            <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-300">
+              {error}
+            </div>
+          ) : null}
+        </div>
+
+        <div>
+          {!comparison ? (
+            <EmptyState
+              title="Choose two runs"
+              description="Select a baseline and comparison run to inspect performance drift."
+              className="h-full"
+            />
+          ) : (
+            <div className="space-y-5">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {comparisonMetrics.map(([key, label, higherIsBetter]) => {
+                  const delta = Number(comparison?.deltas?.[key] || 0);
+
+                  return (
+                    <MetricCard
+                      key={key}
+                      label={label}
+                      value={`${delta > 0 ? "+" : ""}${delta}%`}
+                      subtext={comparison?.trends?.[key] || "same"}
+                      valueClassName={getDeltaTone(delta, higherIsBetter)}
+                      className="bg-white/[0.03]"
+                    />
+                  );
+                })}
+              </div>
+
+              {comparison?.insights?.length > 0 ? (
+                <div className="rounded-2xl border border-amber-400/20 bg-amber-500/5 p-4">
+                  <p className="text-sm font-semibold text-amber-300">
+                    Key Insights
+                  </p>
+                  <ul className="mt-3 space-y-2">
+                    {comparison.insights.map((insight, index) => (
+                      <li
+                        key={`${insight}-${index}`}
+                        className="text-sm leading-6 text-slate-200"
+                      >
+                        {insight}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function ProjectsPage() {
   const router = useRouter();
@@ -27,6 +322,12 @@ export default function ProjectsPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingProjects, setLoadingProjects] = useState(true);
+  const [expandedProject, setExpandedProject] = useState(null);
+  const [runs, setRuns] = useState({});
+  const [selectedRuns, setSelectedRuns] = useState({ runA: "", runB: "" });
+  const [comparison, setComparison] = useState(null);
+  const [comparisonError, setComparisonError] = useState("");
+  const [comparing, setComparing] = useState(false);
 
   const projectCount = projects.length;
   const canCreateProject = name.trim().length > 0 && !loading;
@@ -39,37 +340,66 @@ export default function ProjectsPage() {
     [projects],
   );
 
-  const handleAuthError = useCallback((err) => {
-    if (!isAuthError(err)) {
-      return false;
-    }
-
-    clearAuthStorage();
-    router.replace("/login");
-    return true;
-  }, [router]);
-
-  const loadProjects = useCallback(async ({ silent = false } = {}) => {
-    try {
-      if (!silent) {
-        setLoadingProjects(true);
+  const handleAuthError = useCallback(
+    (err) => {
+      if (!isAuthError(err)) {
+        return false;
       }
 
-      const data = await api("/projects");
-      setProjects(Array.isArray(data) ? data : []);
-      setError("");
-    } catch (err) {
-      if (handleAuthError(err)) {
-        return;
-      }
+      clearAuthStorage();
+      router.replace("/login");
+      return true;
+    },
+    [router],
+  );
 
-      setError(err.message || "Unable to load projects.");
-    } finally {
-      if (!silent) {
-        setLoadingProjects(false);
+  const loadProjects = useCallback(
+    async ({ silent = false } = {}) => {
+      try {
+        if (!silent) {
+          setLoadingProjects(true);
+        }
+
+        const data = await api("/projects");
+        setProjects(Array.isArray(data) ? data : []);
+        setError("");
+      } catch (err) {
+        if (handleAuthError(err)) {
+          return;
+        }
+
+        setError(err.message || "Unable to load projects.");
+      } finally {
+        if (!silent) {
+          setLoadingProjects(false);
+        }
       }
-    }
-  }, [handleAuthError]);
+    },
+    [handleAuthError],
+  );
+
+  const fetchRuns = useCallback(
+    async (projectId) => {
+      try {
+        const data = await api(`/runs/${projectId}`);
+        setRuns((prev) => ({
+          ...prev,
+          [projectId]: Array.isArray(data) ? data : [],
+        }));
+      } catch (err) {
+        if (handleAuthError(err)) {
+          return;
+        }
+
+        setError(err.message || "Unable to load project runs.");
+        setRuns((prev) => ({
+          ...prev,
+          [projectId]: [],
+        }));
+      }
+    },
+    [handleAuthError],
+  );
 
   const createProject = async (event) => {
     event.preventDefault();
@@ -102,13 +432,71 @@ export default function ProjectsPage() {
     }
   };
 
-  const openDashboard = (projectId) => {
+  const toggleProject = async (projectId) => {
+    if (expandedProject === projectId) {
+      setExpandedProject(null);
+      return;
+    }
+
+    setExpandedProject(projectId);
+    setComparison(null);
+    setComparisonError("");
+    setSelectedRuns({ runA: "", runB: "" });
+
+    if (!runs[projectId]) {
+      await fetchRuns(projectId);
+    }
+  };
+
+  const openDashboard = (projectId, runId = "") => {
     localStorage.setItem("projectId", projectId);
-    localStorage.removeItem("currentRunId");
+
+    if (runId) {
+      localStorage.setItem("currentRunId", runId);
+    } else {
+      localStorage.removeItem("currentRunId");
+    }
+
     localStorage.removeItem("currentRunActive");
 
-    const params = new URLSearchParams({ projectId });
+    const params = new URLSearchParams({
+      projectId,
+      ...(runId && { runId }),
+    });
+
     router.push(`/dashboard?${params.toString()}`);
+  };
+
+  const compareRuns = async () => {
+    if (!selectedRuns.runA || !selectedRuns.runB) {
+      setComparisonError("Select two runs to compare.");
+      return;
+    }
+
+    if (selectedRuns.runA === selectedRuns.runB) {
+      setComparisonError("Select two different runs.");
+      return;
+    }
+
+    try {
+      setComparing(true);
+      setComparisonError("");
+
+      const data = await api(
+        `/runs/compare?runA=${selectedRuns.runA}&runB=${selectedRuns.runB}`,
+      );
+
+      setComparison(data);
+    } catch (err) {
+      if (handleAuthError(err)) {
+        return;
+      }
+
+      setComparison(null);
+      setComparisonError(err.message || "Failed to compare runs.");
+    } finally {
+      setComparing(false);
+    }
   };
 
   useEffect(() => {
@@ -125,131 +513,117 @@ export default function ProjectsPage() {
             description="Create and select infrastructure workspaces for simulation orchestration, telemetry, and dashboards."
           />
 
-          <section className="glass rounded-[32px] p-8">
-            <div className="grid gap-8 xl:grid-cols-[1fr,0.9fr] xl:items-end">
-              <div>
-                <p className="text-sm uppercase tracking-[0.3em] text-cyan-400">
-                  Project Management
-                </p>
-
-                <h2 className="mt-4 text-4xl font-black">Create Project</h2>
-
-                <p className="mt-3 max-w-2xl text-muted-foreground">
-                  Provision a focused workspace, then launch simulations from
-                  the simulation or dashboard control surfaces.
-                </p>
-              </div>
-
-              <form onSubmit={createProject} className="flex gap-4">
-                <input
-                  placeholder="Project name"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  className="
-                    h-14 min-w-0 flex-1 rounded-2xl
-                    border border-white/10 bg-black/20
-                    px-5 outline-none transition
-                    focus:border-cyan-400/60
-                  "
-                />
-
-                <button
-                  type="submit"
-                  disabled={!canCreateProject}
-                  className="
-                    rounded-2xl bg-cyan-500
-                    px-8 font-bold text-black
-                    transition hover:scale-[1.02]
-                    hover:bg-cyan-400
-                    disabled:opacity-50
-                  "
-                >
-                  {loading ? "Creating..." : "Create"}
-                </button>
-              </form>
-            </div>
-
-            {error ? (
-              <div
+          <WorkspaceSection
+            eyebrow="Project Management"
+            title="Create Project"
+            description="Provision a focused workspace, then launch simulations from the simulation or dashboard control surfaces."
+          >
+            <form onSubmit={createProject} className="flex max-w-3xl gap-4">
+              <input
+                placeholder="Project name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
                 className="
-                  mt-6 rounded-2xl border
-                  border-red-500/20 bg-red-500/5
-                  px-5 py-4 text-sm text-red-300
+                  h-14 min-w-0 flex-1 rounded-2xl
+                  border border-white/10 bg-black/20
+                  px-5 outline-none transition
+                  focus:border-cyan-400/60
+                "
+              />
+
+              <button
+                type="submit"
+                disabled={!canCreateProject}
+                className="
+                  rounded-2xl bg-cyan-500
+                  px-8 font-bold text-black
+                  transition hover:scale-[1.02]
+                  hover:bg-cyan-400
+                  disabled:opacity-50
                 "
               >
+                {loading ? "Creating..." : "Create"}
+              </button>
+            </form>
+
+            {error ? (
+              <div className="mt-6 rounded-2xl border border-red-500/20 bg-red-500/5 px-5 py-4 text-sm text-red-300">
                 {error}
               </div>
             ) : null}
-          </section>
+          </WorkspaceSection>
 
-          <section className="space-y-5">
-            <div className="flex flex-wrap items-end justify-between gap-4">
-              <div>
-                <p className="text-sm uppercase tracking-[0.3em] text-cyan-400">
-                  Workspaces
-                </p>
-                <h2 className="mt-3 text-3xl font-black">
-                  My Projects
-                </h2>
-              </div>
-
+          <WorkspaceSection
+            eyebrow="Workspaces"
+            title="My Projects"
+            description="Open a project to inspect its run history, compare runs, or jump into the realtime dashboard."
+            headerAction={
               <div className="rounded-full border border-white/10 bg-black/20 px-4 py-2 text-sm text-muted-foreground">
                 {projectCount} {projectCount === 1 ? "project" : "projects"}
               </div>
-            </div>
-
+            }
+          >
             {loadingProjects ? (
-              <div className="glass rounded-[28px] p-8 text-center text-muted-foreground">
-                Loading projects...
-              </div>
+              <EmptyState
+                title="Loading projects"
+                description="Fetching your infrastructure workspaces."
+              />
             ) : sortedProjects.length === 0 ? (
-              <div className="glass rounded-[28px] p-8 text-center text-muted-foreground">
-                No projects yet. Create one to start orchestrating simulations.
-              </div>
+              <EmptyState
+                title="No projects yet"
+                description="Create one to start orchestrating simulations."
+              />
             ) : (
-              <div className="grid gap-5 lg:grid-cols-2">
+              <div className="space-y-5">
                 {sortedProjects.map((project, index) => {
                   const projectId = getProjectId(project, index);
+                  const projectRuns = runs[projectId] || [];
+                  const latestRun = projectRuns[0];
+                  const isExpanded = expandedProject === projectId;
 
                   return (
-                    <article
-                      key={projectId}
-                      className="
-                        glass rounded-[28px] p-6
-                        transition hover:border-cyan-400/30
-                      "
-                    >
-                      <div className="flex items-start justify-between gap-5">
-                        <div className="min-w-0">
-                          <h3 className="truncate text-2xl font-bold">
-                            {project.name || "Untitled project"}
-                          </h3>
+                    <div key={projectId} className="space-y-5">
+                      <ProjectCard
+                        project={project}
+                        projectId={projectId}
+                        isExpanded={isExpanded}
+                        runCount={projectRuns.length}
+                        latestRun={latestRun}
+                        onToggle={() => toggleProject(projectId)}
+                        onOpenDashboard={openDashboard}
+                      />
 
-                          <p className="mt-3 break-all font-mono text-xs text-muted-foreground">
-                            {projectId}
-                          </p>
+                      {isExpanded ? (
+                        <div className="space-y-5 rounded-[28px] border border-white/10 bg-black/10 p-5">
+                          <RunHistoryTable
+                            runs={projectRuns}
+                            onOpenDashboard={(runId) =>
+                              openDashboard(projectId, runId)
+                            }
+                          />
+
+                          <ComparisonPanel
+                            runs={projectRuns}
+                            selectedRuns={selectedRuns}
+                            comparison={comparison}
+                            comparing={comparing}
+                            error={comparisonError}
+                            onSelectRun={(field, value) =>
+                              setSelectedRuns((prev) => ({
+                                ...prev,
+                                [field]: value,
+                              }))
+                            }
+                            onCompare={compareRuns}
+                          />
                         </div>
-
-                        <button
-                          type="button"
-                          onClick={() => openDashboard(projectId)}
-                          className="
-                            shrink-0 rounded-2xl border
-                            border-cyan-400/20 bg-cyan-500/10
-                            px-5 py-3 text-sm font-semibold
-                            text-cyan-300 transition
-                            hover:bg-cyan-500/20
-                          "
-                        >
-                          Open Dashboard
-                        </button>
-                      </div>
-                    </article>
+                      ) : null}
+                    </div>
                   );
                 })}
               </div>
             )}
-          </section>
+          </WorkspaceSection>
         </div>
       </AppShell>
     </ProtectedRoute>
