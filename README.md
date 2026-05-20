@@ -372,13 +372,6 @@ docs/demo/chaosforge-demo.gif
 docs/demo/chaosforge-demo.mp4
 ```
 
-Suggested demo account for documentation captures:
-
-```text
-Email: aman@gmail.com
-Password: 123456
-```
-
 ## Local Setup
 
 Prerequisites:
