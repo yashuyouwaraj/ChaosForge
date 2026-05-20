@@ -9,6 +9,7 @@ const { markRunComplete } = require('../metrics/metrics.store');
 const { v4: uuidv4 } = require('uuid');
 const { initControl } = require('../control/control.store');
 const { getIO } = require('../websocket/socket');
+const { validateConfig } = require('../modules/testConfig/testConfig.validator');
 const {
   addIncident,
   getIncidentTimeline,
@@ -44,6 +45,18 @@ router.post('/test/:projectId', authMiddleware, async (req, res) => {
     return res.status(400).json({ error: 'url and config required' });
   }
 
+  let normalizedUrl;
+  let normalizedConfig;
+
+  try {
+    normalizedUrl = new URL(url).toString();
+    normalizedConfig = validateConfig(config);
+  } catch (err) {
+    return res.status(400).json({
+      error: err.message || 'Invalid simulation config',
+    });
+  }
+
   const runId = uuidv4();
   await initControl(projectId, runId);
 
@@ -52,8 +65,8 @@ router.post('/test/:projectId', authMiddleware, async (req, res) => {
     runId,
     projectId,
     owner: req.user.id,
-    config,
-    url,
+    config: normalizedConfig,
+    url: normalizedUrl,
     status: 'starting',
     createdAt: new Date(),
   });
@@ -67,7 +80,7 @@ router.post('/test/:projectId', authMiddleware, async (req, res) => {
     metadata: {
       projectId,
       runId,
-      pattern: config.pattern || 'stages',
+      pattern: normalizedConfig.pattern || 'stages',
     },
   });
 
@@ -75,7 +88,7 @@ router.post('/test/:projectId', authMiddleware, async (req, res) => {
 
   // Start execution in background through the traffic service.
   // With USE_KAFKA=true, requests are published to Kafka and split across workers.
-  generateTraffic(config, projectId, url, {
+  generateTraffic(normalizedConfig, projectId, normalizedUrl, {
     runId,
     controlInitialized: true,
     owner: req.user.id,

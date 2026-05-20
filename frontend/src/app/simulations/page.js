@@ -29,9 +29,9 @@ export default function SimulationsPage() {
 
           <ActiveSimulations />
 
-          <SimulationHistoryPanel />
-
           <RunComparisonPanel />
+
+          <SimulationHistoryPanel />
         </div>
       </AppShell>
     </ProtectedRoute>

@@ -20,6 +20,7 @@ const simulateProcessing = async (
   requestId,
   projectId,
   runId,
+  method = "GET",
 ) => {
   let attempt = 0;
 
@@ -40,9 +41,12 @@ const simulateProcessing = async (
         projectId,
         attempt: attempt + 1,
         url,
+        method,
       });
 
-      const res = await axios.get(url, {
+      const res = await axios({
+        method,
+        url,
         timeout: 5000,
       });
 

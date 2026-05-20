@@ -32,7 +32,7 @@ const runConsumer = async () => {
           return;
         }
 
-        const { requestId, projectId, runId, url } = data;
+        const { requestId, projectId, runId, url, method } = data;
 
         logger.info({
           requestId,
@@ -40,7 +40,7 @@ const runConsumer = async () => {
         });
 
         // 💀 NO AWAIT → parallel execution
-        simulateProcessing(url, requestId, projectId, runId);
+        simulateProcessing(url, requestId, projectId, runId, method);
 
       } catch (err) {
         logger.error({

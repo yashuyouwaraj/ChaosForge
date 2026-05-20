@@ -171,7 +171,7 @@ const runRequestMode = async (config, projectId, url, runId) => {
 
       for (let i = 0; i < rate && sent < requestCount; i++) {
         promises.push(
-          simulateProcessing(url, uuidv4(), projectId, runId)
+          simulateProcessing(url, uuidv4(), projectId, runId, config.method)
         );
         sent++;
       }
@@ -203,6 +203,7 @@ const runRequestMode = async (config, projectId, url, runId) => {
           url,
           runId,
           requestId,
+          method: config.method,
         }),
       });
       sent++;
@@ -268,7 +269,7 @@ const runStages = async (config, projectId, url, runId) => {
 
         for (let i = 0; i < rate; i++) {
           promises.push(
-            simulateProcessing(url, uuidv4(), projectId, runId)
+            simulateProcessing(url, uuidv4(), projectId, runId, config.method)
           );
           sent++;
         }
@@ -305,6 +306,7 @@ const runStages = async (config, projectId, url, runId) => {
             url,
             runId,
             requestId,
+            method: config.method,
           }),
         });
         sent++;

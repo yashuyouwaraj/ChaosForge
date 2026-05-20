@@ -9,7 +9,19 @@ const validateConfig = (config) => {
     concurrency = 10,
     pattern = "constant", // "constant" | "stages"
     stages = [], // [{ durationSec, rate }]
+    method = "GET",
   } = config;
+
+  const normalizedConcurrency = Number(concurrency);
+  const normalizedRate = Number(rate);
+
+  if (!Number.isFinite(normalizedConcurrency) || normalizedConcurrency <= 0) {
+    throw new Error("concurrency must be greater than 0");
+  }
+
+  if (!["GET", "POST"].includes(String(method).toUpperCase())) {
+    throw new Error("method must be GET or POST");
+  }
 
   if (pattern === "stages") {
     const normalized = normalizeStages(stages);
@@ -20,10 +32,11 @@ const validateConfig = (config) => {
       mode,
       totalRequests,
       duration,
-      rate,
-      concurrency,
+      rate: normalizedRate,
+      concurrency: normalizedConcurrency,
       pattern,
       stages: normalized,
+      method: String(method).toUpperCase(),
     };
   }
 
@@ -39,10 +52,11 @@ const validateConfig = (config) => {
     mode,
     totalRequests,
     duration,
-    rate,
-    concurrency,
+    rate: normalizedRate,
+    concurrency: normalizedConcurrency,
     pattern,
     stages: [],
+    method: String(method).toUpperCase(),
   };
 };
 

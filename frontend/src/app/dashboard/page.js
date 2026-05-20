@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 
-import { CreateSimulationPanel } from "@/components/simulations/CreateSimulationPanel";
+import { CreateSimulationPanel } from "@/components/dashboard/CreateSimulationPanel";
 
 import { InfrastructureAlerts } from "@/components/dashboard/InfrastructureAlerts";
 
@@ -325,7 +325,7 @@ export default function DashboardPage() {
             )}
           </div>
 
-          <CreateSimulationPanel />
+          {/* <CreateSimulationPanel /> */}
 
           <DashboardSection
             title="Realtime Telemetry"
@@ -356,12 +356,12 @@ export default function DashboardPage() {
             <RunAiInsights />
           </DashboardSection>
 
-          <DashboardSection
+          {/* <DashboardSection
             title="Simulation Command Center"
             description="Realtime distributed load orchestration."
           >
             <ActiveSimulations />
-          </DashboardSection>
+          </DashboardSection> */}
 
           <DashboardSection
             title="Realtime Infrastructure Feed"

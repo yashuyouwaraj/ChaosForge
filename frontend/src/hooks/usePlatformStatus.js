@@ -21,11 +21,11 @@ export function usePlatformStatus() {
 
   const {
     infrastructure,
-    incidents,
   } = usePlatform();
 
   const {
     infrastructureSummary,
+    health,
   } = infrastructure;
 
   return useMemo(
@@ -60,11 +60,11 @@ export function usePlatformStatus() {
         "healthy",
 
       activeIncidents:
-        incidents?.filter(
-          (incident) =>
-            incident.severity ===
+        health?.alerts?.filter(
+          (alert) =>
+            alert.severity ===
               "critical" ||
-            incident.severity ===
+            alert.severity ===
               "warning",
         ).length || 0,
     }),
@@ -72,7 +72,7 @@ export function usePlatformStatus() {
     [
       selectedRun,
       infrastructureSummary,
-      incidents,
+      health?.alerts,
     ],
   );
 }
