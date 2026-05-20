@@ -1,4 +1,5 @@
 # ChaosForge
+![ChaosForge](Landing.png)
 
 ChaosForge is a distributed load-testing and real-time workflow visualization platform for running staged traffic simulations against HTTP services. It is built around a control-plane model: users create projects, start simulations, watch live telemetry, inspect operational signals, and compare run behavior from a Next.js dashboard while the backend coordinates workers, metrics, and system state.
 
