@@ -10,6 +10,8 @@ import { MetricCard } from "@/components/shared/MetricCard";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { WorkspaceSection } from "@/components/shared/WorkspaceSection";
+import { useProject } from "@/components/providers/ProjectProvider";
+import { useRun } from "@/components/providers/RunProvider";
 import { clearAuthStorage } from "@/lib/auth-token";
 import { api } from "@/lib/api";
 
@@ -317,6 +319,8 @@ function ComparisonPanel({
 
 export default function ProjectsPage() {
   const router = useRouter();
+  const { setProjectId } = useProject();
+  const { setSelectedRun } = useRun();
   const [projects, setProjects] = useState([]);
   const [name, setName] = useState("");
   const [error, setError] = useState("");
@@ -449,6 +453,13 @@ export default function ProjectsPage() {
   };
 
   const openDashboard = (projectId, runId = "") => {
+    setProjectId(projectId);
+    setSelectedRun({
+      projectId,
+      runId: runId || null,
+      status: null,
+    });
+
     localStorage.setItem("projectId", projectId);
 
     if (runId) {

@@ -6,6 +6,9 @@ import {
   useEffect,
   useState,
 } from "react";
+import {
+  usePathname,
+} from "next/navigation";
 
 import { api } from "@/lib/api";
 import socket, {
@@ -23,6 +26,7 @@ const isActiveStatus = (
   status === "paused";
 
 export function RunProvider({ children }) {
+  const pathname = usePathname();
   const [selectedRunState, setSelectedRunState] = useState({
     projectId: null,
     runId: null,
@@ -31,7 +35,9 @@ export function RunProvider({ children }) {
   });
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(
+      window.location.search,
+    );
     const projectId =
       params.get("projectId") ||
       localStorage.getItem("projectId");
@@ -57,7 +63,7 @@ export function RunProvider({ children }) {
           "currentRunActive",
         ) === "true",
     });
-  }, []);
+  }, [pathname]);
 
   useEffect(() => {
     if (!selectedRunState.projectId || !selectedRunState.runId) {

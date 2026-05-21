@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const incidentRoutes = require("./routes/incidents.routes");
 
 const metricsRoutes = require("./routes/metrics.routes");
 const testRoutes = require("./routes/test.routes");
@@ -14,13 +15,8 @@ const runRoutes = require("./modules/run/run.routes");
 
 const healthRoutes = require("./routes/health.routes");
 
-const {
-  client,
-  httpRequestsTotal,
-} = require("./metrics/prometheus");
-const {
-  getPrometheusSimulationMetrics,
-} = require("./metrics/metrics.store");
+const { client, httpRequestsTotal } = require("./metrics/prometheus");
+const { getPrometheusSimulationMetrics } = require("./metrics/metrics.store");
 
 const app = express();
 
@@ -118,14 +114,13 @@ app.use("/", metricsRoutes);
 
 app.use("/", testRoutes);
 
+app.use("/api/incidents", incidentRoutes);
+
 /**
  * 💀 PROMETHEUS METRICS ENDPOINT
  */
 app.get("/metrics", async (req, res) => {
-  res.set(
-    "Content-Type",
-    client.register.contentType,
-  );
+  res.set("Content-Type", client.register.contentType);
 
   const inProcessMetrics = await client.register.metrics();
   const redisSimulationMetrics = await getPrometheusSimulationMetrics();
@@ -137,9 +132,9 @@ app.get("/metrics", async (req, res) => {
 
   const visibleInProcessMetrics = inProcessMetrics
     .split("\n")
-    .filter((line) => (
-      !hiddenInProcessMetricNames.some((name) => line.includes(name))
-    ))
+    .filter(
+      (line) => !hiddenInProcessMetricNames.some((name) => line.includes(name)),
+    )
     .join("\n");
 
   res.end(`${visibleInProcessMetrics}\n${redisSimulationMetrics}`);

@@ -6,6 +6,9 @@ import {
   useEffect,
   useState,
 } from "react";
+import {
+  usePathname,
+} from "next/navigation";
 
 const ProjectContext =
   createContext(null);
@@ -13,25 +16,55 @@ const ProjectContext =
 export function ProjectProvider({
   children,
 }) {
+  const pathname = usePathname();
   const [
     projectId,
     setProjectId,
   ] = useState(null);
 
   useEffect(() => {
-    const stored =
+    const params = new URLSearchParams(
+      window.location.search,
+    );
+    const urlProjectId =
+      params.get(
+        "projectId",
+      );
+    const storedProjectId =
       localStorage.getItem(
         "projectId",
       );
+    const nextProjectId =
+      urlProjectId ||
+      storedProjectId ||
+      null;
 
-    if (stored) {
-      setProjectId(stored);
+    setProjectId(
+      (currentProjectId) =>
+        currentProjectId ===
+        nextProjectId
+          ? currentProjectId
+          : nextProjectId,
+    );
+
+    if (urlProjectId) {
+      localStorage.setItem(
+        "projectId",
+        urlProjectId,
+      );
     }
-  }, []);
+  }, [pathname]);
 
   const updateProject =
     (id) => {
       setProjectId(id);
+
+      if (!id) {
+        localStorage.removeItem(
+          "projectId",
+        );
+        return;
+      }
 
       localStorage.setItem(
         "projectId",
