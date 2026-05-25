@@ -38,22 +38,38 @@ const styles = {
   },
 };
 
-export function IncidentReportTimeline({ runId }) {
-  const [incidents, setIncidents] = useState([]);
+export function IncidentReportTimeline({
+  incidents: providedIncidents,
+  runId,
+}) {
+  const [loadedIncidents, setLoadedIncidents] = useState([]);
+  const incidents = providedIncidents || loadedIncidents;
 
   useEffect(() => {
+    if (providedIncidents || !runId) {
+      return;
+    }
+
+    let ignore = false;
+
     const load = async () => {
       try {
-        const data = await api(`/incidents/${runId}`);
+        const data = await api(`/api/incidents/${runId}`);
 
-        setIncidents(data);
+        if (!ignore) {
+          setLoadedIncidents(Array.isArray(data) ? data : []);
+        }
       } catch (err) {
         console.error(err);
       }
     };
 
     load();
-  }, [runId]);
+
+    return () => {
+      ignore = true;
+    };
+  }, [providedIncidents, runId]);
 
   return (
     <div

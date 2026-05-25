@@ -65,7 +65,7 @@ const groups = [
 
       {
         label: "Reports",
-        href: "/reports",
+        href : "/reports",
         icon: FileText,
       },
     ],

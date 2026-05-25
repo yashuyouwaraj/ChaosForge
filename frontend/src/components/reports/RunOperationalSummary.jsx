@@ -1,6 +1,43 @@
-export function RunOperationalSummary({
-  run,
-}) {
+"use client";
+
+import { useEffect, useState } from "react";
+
+import { loadRunDetails } from "./reportData";
+
+export function RunOperationalSummary({ run: providedRun, runId }) {
+  const [loadedRun, setLoadedRun] = useState(null);
+  const run = providedRun || loadedRun;
+
+  useEffect(() => {
+    if (providedRun || !runId) {
+      return;
+    }
+
+    let ignore = false;
+
+    const loadRun = async () => {
+      try {
+        const data = await loadRunDetails(runId);
+
+        if (!ignore) {
+          setLoadedRun(data);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    loadRun();
+
+    return () => {
+      ignore = true;
+    };
+  }, [providedRun, runId]);
+
+  if (!run) {
+    return null;
+  }
+
   const successRate =
     run.totalRequests > 0
       ? (

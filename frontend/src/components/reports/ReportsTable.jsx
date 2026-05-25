@@ -2,16 +2,23 @@
 
 import { useEffect, useState } from "react";
 
+import { useProject } from "@/components/providers/ProjectProvider";
 import { api } from "@/lib/api";
 
 import { ReportSummaryCard } from "./ReportSummaryCard";
 
 export function ReportsTable() {
+  const { projectId: selectedProjectId } =
+    useProject() || {};
+
   const [runs, setRuns] =
     useState([]);
 
   const [loading, setLoading] =
     useState(true);
+
+  const [projectName, setProjectName] =
+    useState("");
 
   useEffect(() => {
     let ignore = false;
@@ -19,6 +26,43 @@ export function ReportsTable() {
     const loadReports =
       async () => {
         try {
+          setLoading(true);
+
+          if (selectedProjectId) {
+            const [project, projectRuns] =
+              await Promise.all([
+                api(
+                  `/projects/${selectedProjectId}`,
+                ),
+                api(
+                  `/runs/${selectedProjectId}`,
+                ),
+              ]);
+
+            if (!ignore) {
+              setProjectName(
+                project?.name ||
+                  "Selected Project",
+              );
+              setRuns(
+                Array.isArray(projectRuns)
+                  ? projectRuns.map(
+                      (run) => ({
+                        ...run,
+                        projectId:
+                          selectedProjectId,
+                        projectName:
+                          project?.name ||
+                          "Selected Project",
+                      }),
+                    )
+                  : [],
+              );
+            }
+
+            return;
+          }
+
           const projects =
             await api(
               "/projects",
@@ -40,6 +84,7 @@ export function ReportsTable() {
               (run) => {
                 allRuns.push({
                   ...run,
+                  projectId,
 
                   projectName:
                     project.name,
@@ -49,6 +94,7 @@ export function ReportsTable() {
           }
 
           if (!ignore) {
+            setProjectName("");
             setRuns(
               allRuns,
             );
@@ -67,7 +113,7 @@ export function ReportsTable() {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [selectedProjectId]);
 
   if (loading) {
     return (
@@ -103,8 +149,9 @@ export function ReportsTable() {
             mt-3 text-muted-foreground
           "
         >
-          Historical simulation
-          reports will appear here.
+          {selectedProjectId
+            ? "This project does not have simulation reports yet."
+            : "Historical simulation reports will appear here."}
         </p>
       </div>
     );
@@ -112,6 +159,24 @@ export function ReportsTable() {
 
   return (
     <div className="space-y-6">
+      {selectedProjectId && (
+        <div
+          className="
+            rounded-2xl
+            border border-white/10
+            bg-black/20
+            px-5 py-4
+            text-sm text-slate-300
+          "
+        >
+          Showing reports for{" "}
+          <span className="font-semibold text-cyan-300">
+            {projectName ||
+              "Selected Project"}
+          </span>
+        </div>
+      )}
+
       {runs.map((run) => (
         <ReportSummaryCard
           key={run.runId}

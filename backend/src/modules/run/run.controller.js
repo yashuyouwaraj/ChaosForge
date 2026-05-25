@@ -1,4 +1,4 @@
-const { getRunsByProject } = require("./run.service");
+const { completeFinishedActiveRuns, getRunsByProject } = require("./run.service");
 const logger = require("../../utils/logger");
 const Run = require("./run.model");
 const {compareRuns} = require("./run.compare.service")
@@ -24,6 +24,39 @@ const getRuns = async (req, res) => {
   }
 };
 
+const getRunDetails = async (req, res) => {
+  try {
+    const { runId } = req.params;
+
+    if (!runId) {
+      return res.status(400).json({ error: "runId is required" });
+    }
+
+    await completeFinishedActiveRuns({ runId, owner: req.user.id });
+
+    const run = await Run.findOne({ runId });
+
+    if (!run) {
+      return res.status(404).json({ error: "Run not found" });
+    }
+
+    if (run.owner.toString() !== req.user.id) {
+      return res
+        .status(403)
+        .json({ message: "Access denied. You do not own this run." });
+    }
+
+    return res.json(run);
+  } catch (err) {
+    logger.error({
+      message: "Error fetching run details",
+      error: err.message,
+      runId: req.params.runId,
+    });
+    return res.status(500).json({ error: "Failed to fetch run details" });
+  }
+};
+
 const compare = async(req,res)=>{
     const {runA, runB} = req.query;
 
@@ -45,4 +78,4 @@ const compare = async(req,res)=>{
     return res.json(comparison);
 }
 
-module.exports = { getRuns, compare };
+module.exports = { getRuns, getRunDetails, compare };

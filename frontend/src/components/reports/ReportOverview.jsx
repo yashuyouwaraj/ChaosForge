@@ -2,20 +2,25 @@
 
 import { useEffect, useState } from "react";
 
-import { api } from "@/lib/api";
+import { loadRunDetails } from "./reportData";
 
-export function ReportOverview({ runId }) {
-  const [run, setRun] = useState(null);
+export function ReportOverview({ run: providedRun, runId }) {
+  const [loadedRun, setLoadedRun] = useState(null);
+  const run = providedRun || loadedRun;
 
   useEffect(() => {
+    if (providedRun || !runId) {
+      return;
+    }
+
     let ignore = false;
 
     const loadRun = async () => {
       try {
-        const data = await api(`/runs/details/${runId}`);
+        const data = await loadRunDetails(runId);
 
         if (!ignore) {
-          setRun(data);
+          setLoadedRun(data);
         }
       } catch (err) {
         console.error(err);
@@ -27,7 +32,7 @@ export function ReportOverview({ runId }) {
     return () => {
       ignore = true;
     };
-  }, [runId]);
+  }, [providedRun, runId]);
 
   if (!run) {
     return null;

@@ -5,7 +5,7 @@ import {
   useState,
 } from "react";
 
-import { api } from "@/lib/api";
+import { loadRunDetails } from "./reportData";
 
 const styles = {
   healthy:
@@ -22,28 +22,41 @@ const styles = {
 };
 
 export function LatencyDistribution({
+  run: providedRun,
   runId,
 }) {
-  const [run, setRun] =
+  const [loadedRun, setLoadedRun] =
     useState(null);
+  const run =
+    providedRun || loadedRun;
 
   useEffect(() => {
+    if (providedRun || !runId) {
+      return;
+    }
+
+    let ignore = false;
+
     const load =
       async () => {
         try {
           const data =
-            await api(
-              `/runs/details/${runId}`,
-            );
+            await loadRunDetails(runId);
 
-          setRun(data);
+          if (!ignore) {
+            setLoadedRun(data);
+          }
         } catch (err) {
           console.error(err);
         }
       };
 
     load();
-  }, [runId]);
+
+    return () => {
+      ignore = true;
+    };
+  }, [providedRun, runId]);
 
   if (!run) {
     return null;
@@ -181,4 +194,4 @@ export function LatencyDistribution({
       </div>
     </div>
   );
-}d
+}

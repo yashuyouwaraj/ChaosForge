@@ -2,24 +2,37 @@
 
 import { useEffect, useState } from "react";
 
-import { api } from "@/lib/api";
+import { loadRunDetails } from "./reportData";
 
-export function FailureBreakdown({ runId }) {
-  const [run, setRun] = useState(null);
+export function FailureBreakdown({ run: providedRun, runId }) {
+  const [loadedRun, setLoadedRun] = useState(null);
+  const run = providedRun || loadedRun;
 
   useEffect(() => {
+    if (providedRun || !runId) {
+      return;
+    }
+
+    let ignore = false;
+
     const load = async () => {
       try {
-        const data = await api(`/runs/details/${runId}`);
+        const data = await loadRunDetails(runId);
 
-        setRun(data);
+        if (!ignore) {
+          setLoadedRun(data);
+        }
       } catch (err) {
         console.error(err);
       }
     };
 
     load();
-  }, [runId]);
+
+    return () => {
+      ignore = true;
+    };
+  }, [providedRun, runId]);
 
   if (!run) {
     return null;

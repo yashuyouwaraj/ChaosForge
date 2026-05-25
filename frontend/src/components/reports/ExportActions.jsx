@@ -1,4 +1,22 @@
-export function ExportActions() {
+"use client";
+
+import { useRouter } from "next/navigation";
+
+export function ExportActions({ run }) {
+  const router = useRouter();
+  const runId = run?.runId;
+  const projectId = run?.projectId;
+
+  const openReport = () => {
+    if (!runId) {
+      return;
+    }
+
+    const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : "";
+
+    router.push(`/reports/${runId}${query}`);
+  };
+
   return (
     <div
       className="
@@ -35,6 +53,8 @@ export function ExportActions() {
       </button>
 
       <button
+        disabled={!runId}
+        onClick={openReport}
         className="
           rounded-2xl
           bg-cyan-500
@@ -43,6 +63,9 @@ export function ExportActions() {
           text-black
           transition
           hover:scale-[1.02]
+          disabled:cursor-not-allowed
+          disabled:opacity-50
+          disabled:hover:scale-100
         "
       >
         Open Report
