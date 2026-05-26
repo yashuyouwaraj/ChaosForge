@@ -3,6 +3,23 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { api } from "@/lib/api";
+import { percentDelta, pointDelta, rate, toNumber } from "@/lib/metrics";
+
+const roundDelta = (value) => {
+  if (value == null) {
+    return null;
+  }
+
+  return Math.round(value);
+};
+
+const formatPointDelta = (value) => {
+  if (value == null) {
+    return null;
+  }
+
+  return Math.round(value * 10) / 10;
+};
 
 export function useRegressionAnalysis(projectId, runId) {
   const [currentRun, setCurrentRun] = useState(null);
@@ -41,56 +58,86 @@ export function useRegressionAnalysis(projectId, runId) {
   }, [projectId, runId]);
 
   const analysis = useMemo(() => {
-    if (!currentRun || !previousRun) {
+    if (!currentRun) {
       return null;
     }
 
-    const calculateDelta = (current, previous) => {
-      if (!previous || previous === 0) {
-        return 0;
-      }
+    if (!previousRun) {
+      return {
+        hasPreviousRun: false,
 
-      return Math.round(((current - previous) / previous) * 100);
-    };
+        operationalTrend: "No baseline",
 
-    const p95Delta = calculateDelta(
-      currentRun.p95Latency || 0,
-      previousRun.p95Latency || 0,
+        narrative:
+          "No previous execution is available yet. Regression intelligence will compare this run once another completed run exists for the project.",
+
+        insights: [
+          "This is the first comparable execution for the selected project.",
+        ],
+
+        deltas: null,
+
+        currentRun,
+
+        previousRun: null,
+      };
+    }
+
+    const p95Delta = roundDelta(
+      percentDelta(currentRun.p95Latency, previousRun.p95Latency),
     );
 
-    const avgLatencyDelta = calculateDelta(
-      currentRun.avgLatency || 0,
-      previousRun.avgLatency || 0,
+    const avgLatencyDelta = roundDelta(
+      percentDelta(currentRun.avgLatency, previousRun.avgLatency),
     );
 
-    const failureDelta = calculateDelta(
-      currentRun.failure || 0,
-      previousRun.failure || 0,
+    const failureRateCurrent = rate(
+      currentRun.failure,
+      currentRun.totalRequests,
     );
 
-    const rpsDelta = calculateDelta(currentRun.rps || 0, previousRun.rps || 0);
+    const failureRatePrevious = rate(
+      previousRun.failure,
+      previousRun.totalRequests,
+    );
 
-    const successRateCurrent =
-      currentRun.totalRequests > 0
-        ? Math.round((currentRun.success / currentRun.totalRequests) * 100)
-        : 100;
+    const failureDelta = formatPointDelta(
+      pointDelta(failureRateCurrent, failureRatePrevious),
+    );
 
-    const successRatePrevious =
-      previousRun.totalRequests > 0
-        ? Math.round((previousRun.success / previousRun.totalRequests) * 100)
-        : 100;
+    const rpsDelta = roundDelta(percentDelta(currentRun.rps, previousRun.rps));
 
-    const successDelta = successRateCurrent - successRatePrevious;
+    const successRateCurrent = rate(
+      currentRun.success,
+      currentRun.totalRequests,
+    );
+
+    const successRatePrevious = rate(
+      previousRun.success,
+      previousRun.totalRequests,
+    );
+
+    const successDelta = formatPointDelta(
+      pointDelta(successRateCurrent, successRatePrevious),
+    );
 
     const insights = [];
 
-    if (p95Delta > 20) {
+    if (p95Delta == null && toNumber(currentRun.p95Latency) > 0) {
+      insights.push(
+        "P95 latency is now measurable, but the previous run had no valid latency baseline.",
+      );
+    } else if (p95Delta > 20) {
       insights.push(
         `P95 latency increased by ${p95Delta}% indicating degraded tail performance under distributed load.`,
       );
     }
 
-    if (avgLatencyDelta > 15) {
+    if (avgLatencyDelta == null && toNumber(currentRun.avgLatency) > 0) {
+      insights.push(
+        "Average latency is now measurable, but the previous run had no valid latency baseline.",
+      );
+    } else if (avgLatencyDelta > 15) {
       insights.push(
         `Average latency increased by ${avgLatencyDelta}% suggesting infrastructure saturation.`,
       );
@@ -98,7 +145,7 @@ export function useRegressionAnalysis(projectId, runId) {
 
     if (failureDelta > 10) {
       insights.push(
-        `Failure rate increased by ${failureDelta}% during simulation execution.`,
+        `Failure rate increased by ${failureDelta} percentage points during simulation execution.`,
       );
     }
 
@@ -110,15 +157,44 @@ export function useRegressionAnalysis(projectId, runId) {
 
     if (successDelta < -5) {
       insights.push(
-        `Operational success rate declined by ${Math.abs(successDelta)}%.`,
+        `Operational success rate declined by ${Math.abs(successDelta)} percentage points.`,
       );
     }
 
     let operationalTrend = "Stable";
 
-    if (p95Delta > 25 || failureDelta > 15) {
+    const latencyDegraded =
+      p95Delta == null
+        ? toNumber(currentRun.p95Latency) > toNumber(previousRun.p95Latency)
+        : p95Delta > 25;
+
+    const avgLatencyDegraded =
+      avgLatencyDelta == null
+        ? toNumber(currentRun.avgLatency) > toNumber(previousRun.avgLatency)
+        : avgLatencyDelta > 20;
+
+    const successDegraded = successDelta != null && successDelta < -5;
+
+    const failureDegraded = failureDelta != null && failureDelta > 5;
+
+    const latencyImproved =
+      p95Delta != null && avgLatencyDelta != null && p95Delta < -10 && avgLatencyDelta <= 0;
+
+    const reliabilityImproved =
+      (successDelta == null || successDelta >= 0) &&
+      (failureDelta == null || failureDelta <= 0);
+
+    if (
+      (latencyDegraded || avgLatencyDegraded) &&
+      (successDegraded || failureDegraded)
+    ) {
       operationalTrend = "Degraded";
-    } else if (rpsDelta > 20 && failureDelta <= 0) {
+    } else if (successDegraded || failureDegraded) {
+      operationalTrend = "Degraded";
+    } else if (
+      reliabilityImproved &&
+      (latencyImproved || (rpsDelta != null && rpsDelta > 20))
+    ) {
       operationalTrend = "Improved";
     }
 
@@ -131,13 +207,17 @@ the infrastructure ${
           ? "experienced degraded operational behavior under sustained load"
           : "maintained relatively stable distributed performance"
     } with ${
-      p95Delta > 0
+      p95Delta == null
+        ? "a newly established latency baseline."
+        : p95Delta > 0
         ? "elevated tail latency characteristics."
         : "stable latency distribution."
     }
       `.trim();
 
     return {
+      hasPreviousRun: true,
+
       operationalTrend,
 
       narrative,

@@ -25,6 +25,12 @@ const deltaStyles = {
 };
 
 const trendStyles = {
+  "No baseline": `
+    border-slate-500/20
+    bg-slate-500/10
+    text-slate-300
+  `,
+
   Improved: `
     border-green-500/20
     bg-green-500/10
@@ -45,7 +51,7 @@ const trendStyles = {
 };
 
 const getDeltaType = (value, reverse = false) => {
-  if (value === 0) {
+  if (value == null || value === 0) {
     return "neutral";
   }
 
@@ -56,6 +62,14 @@ const getDeltaType = (value, reverse = false) => {
   return value > 0 ? "positive" : "negative";
 };
 
+const formatDelta = (value, unit = "%") => {
+  if (value == null) {
+    return "N/A";
+  }
+
+  return `${value}${unit}`;
+};
+
 export function RegressionAnalysis({ projectId, runId }) {
   const analysis = useRegressionAnalysis(projectId, runId);
 
@@ -63,7 +77,8 @@ export function RegressionAnalysis({ projectId, runId }) {
     return null;
   }
 
-  const { operationalTrend, narrative, insights, deltas } = analysis;
+  const { operationalTrend, narrative, insights, deltas, hasPreviousRun } =
+    analysis;
 
   return (
     <div
@@ -149,205 +164,207 @@ export function RegressionAnalysis({ projectId, runId }) {
 
       {/* DELTAS */}
 
-      <div
-        className="
-          mt-8 grid gap-5
-          md:grid-cols-2
-          xl:grid-cols-5
-        "
-      >
+      {hasPreviousRun && deltas ? (
+        <div
+          className="
+            mt-8 grid gap-5
+            md:grid-cols-2
+            xl:grid-cols-5
+          "
+        >
         {/* P95 */}
 
-        <motion.div
-          initial={{
-            opacity: 0,
-            y: 20,
-          }}
-          animate={{
-            opacity: 1,
-            y: 0,
-          }}
-          className={`
-            rounded-2xl
-            border p-6
-            ${deltaStyles[getDeltaType(deltas.p95Latency, true)]}
-          `}
-        >
-          <p
-            className="
-              text-xs uppercase
-              tracking-[0.2em]
-            "
+          <motion.div
+            initial={{
+              opacity: 0,
+              y: 20,
+            }}
+            animate={{
+              opacity: 1,
+              y: 0,
+            }}
+            className={`
+              rounded-2xl
+              border p-6
+              ${deltaStyles[getDeltaType(deltas.p95Latency, true)]}
+            `}
           >
-            P95 Latency
-          </p>
+            <p
+              className="
+                text-xs uppercase
+                tracking-[0.2em]
+              "
+            >
+              P95 Latency
+            </p>
 
-          <h3
-            className="
-              mt-4 text-5xl
-              font-black
-            "
-          >
-            {deltas.p95Latency}%
-          </h3>
-        </motion.div>
+            <h3
+              className="
+                mt-4 text-5xl
+                font-black
+              "
+            >
+              {formatDelta(deltas.p95Latency)}
+            </h3>
+          </motion.div>
 
         {/* AVG */}
 
-        <motion.div
-          initial={{
-            opacity: 0,
-            y: 20,
-          }}
-          animate={{
-            opacity: 1,
-            y: 0,
-          }}
-          transition={{
-            delay: 0.05,
-          }}
-          className={`
-            rounded-2xl
-            border p-6
-            ${deltaStyles[getDeltaType(deltas.avgLatency, true)]}
-          `}
-        >
-          <p
-            className="
-              text-xs uppercase
-              tracking-[0.2em]
-            "
+          <motion.div
+            initial={{
+              opacity: 0,
+              y: 20,
+            }}
+            animate={{
+              opacity: 1,
+              y: 0,
+            }}
+            transition={{
+              delay: 0.05,
+            }}
+            className={`
+              rounded-2xl
+              border p-6
+              ${deltaStyles[getDeltaType(deltas.avgLatency, true)]}
+            `}
           >
-            Avg Latency
-          </p>
+            <p
+              className="
+                text-xs uppercase
+                tracking-[0.2em]
+              "
+            >
+              Avg Latency
+            </p>
 
-          <h3
-            className="
-              mt-4 text-5xl
-              font-black
-            "
-          >
-            {deltas.avgLatency}%
-          </h3>
-        </motion.div>
+            <h3
+              className="
+                mt-4 text-5xl
+                font-black
+              "
+            >
+              {formatDelta(deltas.avgLatency)}
+            </h3>
+          </motion.div>
 
         {/* FAILURE */}
 
-        <motion.div
-          initial={{
-            opacity: 0,
-            y: 20,
-          }}
-          animate={{
-            opacity: 1,
-            y: 0,
-          }}
-          transition={{
-            delay: 0.1,
-          }}
-          className={`
-            rounded-2xl
-            border p-6
-            ${deltaStyles[getDeltaType(deltas.failure, true)]}
-          `}
-        >
-          <p
-            className="
-              text-xs uppercase
-              tracking-[0.2em]
-            "
+          <motion.div
+            initial={{
+              opacity: 0,
+              y: 20,
+            }}
+            animate={{
+              opacity: 1,
+              y: 0,
+            }}
+            transition={{
+              delay: 0.1,
+            }}
+            className={`
+              rounded-2xl
+              border p-6
+              ${deltaStyles[getDeltaType(deltas.failure, true)]}
+            `}
           >
-            Failure Rate
-          </p>
+            <p
+              className="
+                text-xs uppercase
+                tracking-[0.2em]
+              "
+            >
+              Failure Rate
+            </p>
 
-          <h3
-            className="
-              mt-4 text-5xl
-              font-black
-            "
-          >
-            {deltas.failure}%
-          </h3>
-        </motion.div>
+            <h3
+              className="
+                mt-4 text-5xl
+                font-black
+              "
+            >
+              {formatDelta(deltas.failure, "%")}
+            </h3>
+          </motion.div>
 
         {/* RPS */}
 
-        <motion.div
-          initial={{
-            opacity: 0,
-            y: 20,
-          }}
-          animate={{
-            opacity: 1,
-            y: 0,
-          }}
-          transition={{
-            delay: 0.15,
-          }}
-          className={`
-            rounded-2xl
-            border p-6
-            ${deltaStyles[getDeltaType(deltas.rps)]}
-          `}
-        >
-          <p
-            className="
-              text-xs uppercase
-              tracking-[0.2em]
-            "
+          <motion.div
+            initial={{
+              opacity: 0,
+              y: 20,
+            }}
+            animate={{
+              opacity: 1,
+              y: 0,
+            }}
+            transition={{
+              delay: 0.15,
+            }}
+            className={`
+              rounded-2xl
+              border p-6
+              ${deltaStyles[getDeltaType(deltas.rps)]}
+            `}
           >
-            Throughput
-          </p>
+            <p
+              className="
+                text-xs uppercase
+                tracking-[0.2em]
+              "
+            >
+              Throughput
+            </p>
 
-          <h3
-            className="
-              mt-4 text-5xl
-              font-black
-            "
-          >
-            {deltas.rps}%
-          </h3>
-        </motion.div>
+            <h3
+              className="
+                mt-4 text-5xl
+                font-black
+              "
+            >
+              {formatDelta(deltas.rps)}
+            </h3>
+          </motion.div>
 
         {/* SUCCESS */}
 
-        <motion.div
-          initial={{
-            opacity: 0,
-            y: 20,
-          }}
-          animate={{
-            opacity: 1,
-            y: 0,
-          }}
-          transition={{
-            delay: 0.2,
-          }}
-          className={`
-            rounded-2xl
-            border p-6
-            ${deltaStyles[getDeltaType(deltas.successRate)]}
-          `}
-        >
-          <p
-            className="
-              text-xs uppercase
-              tracking-[0.2em]
-            "
+          <motion.div
+            initial={{
+              opacity: 0,
+              y: 20,
+            }}
+            animate={{
+              opacity: 1,
+              y: 0,
+            }}
+            transition={{
+              delay: 0.2,
+            }}
+            className={`
+              rounded-2xl
+              border p-6
+              ${deltaStyles[getDeltaType(deltas.successRate)]}
+            `}
           >
-            Success Rate
-          </p>
+            <p
+              className="
+                text-xs uppercase
+                tracking-[0.2em]
+              "
+            >
+              Success Rate
+            </p>
 
-          <h3
-            className="
-              mt-4 text-5xl
-              font-black
-            "
-          >
-            {deltas.successRate}%
-          </h3>
-        </motion.div>
-      </div>
+            <h3
+              className="
+                mt-4 text-5xl
+                font-black
+              "
+            >
+              {formatDelta(deltas.successRate, "%")}
+            </h3>
+          </motion.div>
+        </div>
+      ) : null}
 
       {/* INSIGHTS */}
 

@@ -14,6 +14,9 @@ import { api } from "@/lib/api";
 import { FailureHeatmap } from "./FailureHeatmap";
 import { InfrastructureStabilityTimeline } from "./InfrastructureStabilityTimeline";
 import { RegressionAnalysis } from "./RegressionAnalysis";
+import { PredictiveRiskPanel } from "./PredictiveRiskPanel";
+import { AnomalyCenter } from "./AnomalyCenter";
+import { RemediationCenter } from "./RemediationCenter";
 
 export function ReportDetailContent({ projectId, runId }) {
   const [run, setRun] = useState(null);
@@ -110,6 +113,12 @@ export function ReportDetailContent({ projectId, runId }) {
       <AiPostmortemSummary incidents={incidents} run={run} runId={runId} />
 
       <RegressionAnalysis projectId={projectId} runId={runId} />
+
+      <PredictiveRiskPanel projectId={projectId} runId={runId} />
+
+      <AnomalyCenter projectId={projectId} runId={runId} run={run} />
+
+      <RemediationCenter projectId={projectId} runId={runId} />
 
       <FailureBreakdown run={run} />
 
