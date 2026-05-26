@@ -43,6 +43,97 @@ const formatDate = (value) => {
   return new Date(value).toLocaleString();
 };
 
+const formatRunConfig = (config = {}) => {
+  if (config.pattern === "requests") {
+    const totalRequests = Number(config.totalRequests || 0);
+    const rate = Number(config.rate || config.concurrency || 0);
+    const duration =
+      totalRequests > 0 && rate > 0
+        ? `~${Math.ceil(totalRequests / rate)}s`
+        : null;
+
+    return [
+      "requests",
+      totalRequests > 0 ? `${totalRequests} req` : null,
+      rate > 0 ? `${rate} RPS` : null,
+      duration,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  }
+
+  if (Array.isArray(config.stages) && config.stages.length > 0) {
+    const duration = config.stages.reduce(
+      (total, stage) => total + Number(stage.durationSec || 0),
+      0,
+    );
+    const peakRate = Math.max(
+      0,
+      ...config.stages.map((stage) => Number(stage.rate || 0)),
+    );
+
+    const label =
+      config.stages.length === 1
+        ? "duration"
+        : `${config.stages.length} stages`;
+
+    return [
+      label,
+      duration > 0 ? `${duration}s` : null,
+      peakRate > 0 ? `${peakRate} peak RPS` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  }
+
+  return config.pattern || "simulation";
+};
+
+const getRunConfigDetails = (config = {}) => {
+  if (config.pattern === "requests") {
+    const totalRequests = Number(config.totalRequests || 0);
+    const rate = Number(config.rate || config.concurrency || 0);
+    const duration =
+      totalRequests > 0 && rate > 0
+        ? `~${Math.ceil(totalRequests / rate)}s`
+        : "Auto";
+
+    return {
+      label: "Request Count",
+      details: [
+        totalRequests > 0 ? `${totalRequests} req` : "Target req",
+        rate > 0 ? `${rate} RPS` : "Rate auto",
+        duration,
+      ],
+    };
+  }
+
+  if (Array.isArray(config.stages) && config.stages.length > 0) {
+    const duration = config.stages.reduce(
+      (total, stage) => total + Number(stage.durationSec || 0),
+      0,
+    );
+    const peakRate = Math.max(
+      0,
+      ...config.stages.map((stage) => Number(stage.rate || 0)),
+    );
+
+    return {
+      label: config.stages.length === 1 ? "Duration" : "Stages",
+      details: [
+        duration > 0 ? `${duration}s` : "Duration",
+        peakRate > 0 ? `${peakRate} peak RPS` : "Peak rate",
+        config.stages.length > 1 ? `${config.stages.length} stages` : null,
+      ].filter(Boolean),
+    };
+  }
+
+  return {
+    label: formatRunConfig(config),
+    details: [],
+  };
+};
+
 export function SimulationHistoryPanel() {
   const { projectId, runs, loading, error, refresh } = useSimulationRuns({
     poll: true,
@@ -105,6 +196,7 @@ export function SimulationHistoryPanel() {
         <div className="mt-6 grid gap-4 xl:grid-cols-2">
           {runs.map((run) => {
             const isSelected = selectedRun?.runId === run.runId;
+            const configDetails = getRunConfigDetails(run.config);
 
             return (
               <article
@@ -215,9 +307,25 @@ export function SimulationHistoryPanel() {
                     <CheckCircle2 size={15} />
                     {run.status || "completed"}
                   </span>
-                  <span className="inline-flex items-center gap-2">
-                    <Gauge size={15} />
-                    {run.config?.pattern || "simulation"}
+                  <span className="flex min-w-0 items-start gap-2">
+                    <Gauge size={15} className="mt-0.5 shrink-0" />
+                    <span className="min-w-0">
+                      <span className="block font-semibold text-slate-200">
+                        {configDetails.label}
+                      </span>
+                      {configDetails.details.length > 0 && (
+                        <span className="mt-1 flex flex-wrap gap-1.5">
+                          {configDetails.details.map((detail) => (
+                            <span
+                              key={detail}
+                              className="rounded-md border border-white/10 bg-white/[0.04] px-2 py-0.5 text-xs text-slate-400"
+                            >
+                              {detail}
+                            </span>
+                          ))}
+                        </span>
+                      )}
+                    </span>
                   </span>
                 </div>
               </article>

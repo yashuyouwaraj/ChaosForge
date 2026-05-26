@@ -13,6 +13,7 @@ import { loadRunDetails } from "./reportData";
 import { api } from "@/lib/api";
 import { FailureHeatmap } from "./FailureHeatmap";
 import { InfrastructureStabilityTimeline } from "./InfrastructureStabilityTimeline";
+import { RegressionAnalysis } from "./RegressionAnalysis";
 
 export function ReportDetailContent({ projectId, runId }) {
   const [run, setRun] = useState(null);
@@ -106,11 +107,9 @@ export function ReportDetailContent({ projectId, runId }) {
 
       <RunOperationalSummary run={run} />
 
-      <AiPostmortemSummary
-        incidents={incidents}
-        run={run}
-        runId={runId}
-      />
+      <AiPostmortemSummary incidents={incidents} run={run} runId={runId} />
+
+      <RegressionAnalysis projectId={projectId} runId={runId} />
 
       <FailureBreakdown run={run} />
 
@@ -118,7 +117,7 @@ export function ReportDetailContent({ projectId, runId }) {
 
       <LatencyTrendChart run={run} runId={runId} />
 
-      <FailureHeatmap run={run} runId={runId}/>
+      <FailureHeatmap run={run} runId={runId} />
 
       <InfrastructureStabilityTimeline run={run} runId={runId} />
 
