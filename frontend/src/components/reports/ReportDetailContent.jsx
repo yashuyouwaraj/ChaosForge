@@ -17,6 +17,8 @@ import { RegressionAnalysis } from "./RegressionAnalysis";
 import { PredictiveRiskPanel } from "./PredictiveRiskPanel";
 import { AnomalyCenter } from "./AnomalyCenter";
 import { RemediationCenter } from "./RemediationCenter";
+import { InfrastructureMemoryCenter } from "./InfrastructureMemoryCenter";
+import { OperationalInsightCenter } from "./OperationalInsightCenter";
 
 export function ReportDetailContent({ projectId, runId }) {
   const [run, setRun] = useState(null);
@@ -110,6 +112,12 @@ export function ReportDetailContent({ projectId, runId }) {
 
       <RunOperationalSummary run={run} />
 
+      <OperationalInsightCenter
+        projectId={projectId || run.projectId}
+        runId={runId}
+        run={run}
+      />
+
       <AiPostmortemSummary incidents={incidents} run={run} runId={runId} />
 
       <RegressionAnalysis projectId={projectId} runId={runId} />
@@ -119,6 +127,8 @@ export function ReportDetailContent({ projectId, runId }) {
       <AnomalyCenter projectId={projectId} runId={runId} run={run} />
 
       <RemediationCenter projectId={projectId} runId={runId} />
+
+      <InfrastructureMemoryCenter projectId={projectId || run.projectId} />
 
       <FailureBreakdown run={run} />
 
