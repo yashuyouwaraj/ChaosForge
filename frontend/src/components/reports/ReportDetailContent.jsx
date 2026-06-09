@@ -22,6 +22,9 @@ import { OperationalInsightCenter } from "./OperationalInsightCenter";
 import { RootCauseCenter } from "./RootCauseCenter";
 import { IncidentCorrelationGraph } from "./IncidentCorrelationGraph";
 import { IncidentReplayCenter } from "./IncidentReplayCenter";
+import { RunbookCenter } from "./RunbookCenter";
+import { ExecutiveSummaryCenter } from "./ExecutiveSummaryCenter";
+import { HealthScoreCenter } from "./HealthScoreCenter";
 
 export function ReportDetailContent({ projectId, runId }) {
   const [run, setRun] = useState(null);
@@ -113,9 +116,15 @@ export function ReportDetailContent({ projectId, runId }) {
     <>
       <ReportOverview run={run} runId={runId} />
 
+      <ExecutiveSummaryCenter projectId={projectId} runId={runId} />
+
+      <HealthScoreCenter projectId={projectId} runId={runId} />
+
       <RunOperationalSummary run={run} />
 
       <RootCauseCenter projectId={projectId} runId={runId} />
+
+      <RunbookCenter projectId={projectId} runId={runId} />
 
       <IncidentCorrelationGraph projectId={projectId} runId={runId} />
 
