@@ -20,6 +20,8 @@ import { RemediationCenter } from "./RemediationCenter";
 import { InfrastructureMemoryCenter } from "./InfrastructureMemoryCenter";
 import { OperationalInsightCenter } from "./OperationalInsightCenter";
 import { RootCauseCenter } from "./RootCauseCenter";
+import { IncidentCorrelationGraph } from "./IncidentCorrelationGraph";
+import { IncidentReplayCenter } from "./IncidentReplayCenter";
 
 export function ReportDetailContent({ projectId, runId }) {
   const [run, setRun] = useState(null);
@@ -114,6 +116,10 @@ export function ReportDetailContent({ projectId, runId }) {
       <RunOperationalSummary run={run} />
 
       <RootCauseCenter projectId={projectId} runId={runId} />
+
+      <IncidentCorrelationGraph projectId={projectId} runId={runId} />
+
+      <IncidentReplayCenter />
 
       <OperationalInsightCenter
         projectId={projectId || run.projectId}
