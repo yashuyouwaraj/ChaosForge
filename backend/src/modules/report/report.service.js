@@ -1,15 +1,35 @@
-const buildCSV = (metrics) => {
+const buildCSV = (report) => {
   const rows = [
     ["Metric", "Value"],
-    ["Total Requests", metrics.totalRequests],
-    ["Success", metrics.success],
-    ["Failure", metrics.failure],
-    ["Avg Latency", metrics.avgLatency],
-    ["P95 Latency", metrics.p95Latency],
-    ["RPS", metrics.rps],
+
+    ["Run ID", report.runId],
+
+    ["Project ID", report.projectId],
+
+    ["Total Requests", report.overview.totalRequests],
+
+    ["Success", report.overview.success],
+
+    ["Failure", report.overview.failure],
+
+    ["Average Latency", report.overview.avgLatency],
+
+    ["P95 Latency", report.overview.p95Latency],
+
+    ["Requests Per Second", report.overview.rps],
+
+    [],
+
+    ["Error Type", "Count"],
+
+    ["Timeout", report.errorTypes?.timeout || 0],
+
+    ["Network", report.errorTypes?.network || 0],
+
+    ["Server", report.errorTypes?.server || 0],
   ];
 
-  return rows.map((r) => r.join(",")).join("\n");
+  return rows.map((row) => row.join(",")).join("\n");
 };
 
 const drawSectionTitle = (doc, title) => {

@@ -60,7 +60,7 @@ const recordRequest = async (
   const multi = redis.multi();
   multi.hIncrBy(metricsKey, "totalRequests", 1);
   multi.hIncrBy(metricsKey, isSuccess ? "success" : "failure", 1);
-  multi.hIncrBy(metricsKey, "totalLatency", String(latency));
+  multi.hIncrBy(metricsKey, "totalLatency", Math.round(latency));
   multi.hIncrBy(metricsKey, `latencyBucket:${getLatencyBucket(latency)}`, 1);
   multi.hSetNX(metricsKey, "startedAt", String(recordedAt));
   multi.hSet(metricsKey, "lastRequestAt", String(recordedAt));
