@@ -11,10 +11,16 @@ const logger = require("../../utils/logger");
 const { v4: uuidv4 } = require("uuid");
 const { initControl } = require("../../control/control.store");
 const { markRunComplete } = require("../../metrics/metrics.store");
+const {
+  trackProjectCreated,
+  trackSimulation,
+} = require("../usage/usage.service");
+const plans = require("../../config/plan");
 
 const createProject = async (req, res) => {
   const { name } = req.body;
-  const project = await projectService.create(name, req.user.id);
+  const project = await projectService.create(name, req.user.id, req.user.plan);
+  await trackProjectCreated(req.user.id);
 
   return res.json(project);
 };
@@ -49,9 +55,16 @@ const runProjectTraffic = async (req, res) => {
     return res.status(404).json({ message: "User not found" });
   }
 
-  if (user.plan === "free" && count > 50) {
+  const runConfig = {
+    pattern: "requests",
+    totalRequests: count,
+    rate: Number.parseInt(rate, 10) || 50,
+  };
+  const planLimits = plans[user.plan] || plans.free;
+
+  if (runConfig.rate > planLimits.maxRps) {
     return res.status(403).json({
-      message: "Upgrade to Pro for traffic counts above 50",
+      message: `Your ${user.plan} plan supports up to ${planLimits.maxRps} RPS.`,
     });
   }
 
@@ -67,11 +80,6 @@ const runProjectTraffic = async (req, res) => {
 
   const runId = uuidv4();
   await initControl(id, runId);
-  const runConfig = {
-    pattern: "requests",
-    totalRequests: count,
-    rate: Number.parseInt(rate, 10) || 50,
-  };
 
   await Run.create({
     owner: req.user.id,
@@ -80,6 +88,10 @@ const runProjectTraffic = async (req, res) => {
     status: "starting",
     config: runConfig,
     url,
+  });
+  await trackSimulation({
+    userId: req.user.id,
+    config: runConfig,
   });
 
   const startLog = {

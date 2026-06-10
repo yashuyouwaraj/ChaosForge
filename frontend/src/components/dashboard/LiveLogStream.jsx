@@ -102,7 +102,7 @@ export function LiveLogStream() {
                   text-xs opacity-50
                 "
               >
-                {new Date(log.timestamp || Date.now()).toLocaleTimeString()}
+                {log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : ""}
               </p>
             </div>
           </motion.div>

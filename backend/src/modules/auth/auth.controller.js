@@ -1,4 +1,4 @@
-const { signup, login, upgradePlan, createAuthToken } = require("./auth.service");
+const { signup, login } = require("./auth.service");
 const User = require("../user/user.model");
 const { wakeGrafanaInBackground } = require("../../services/grafana-readiness.service");
 const {
@@ -16,7 +16,12 @@ const signupHandler = async (req, res) => {
     const user = await signup(email, password);
     wakeInfrastructureInBackground();
 
-    res.json(user);
+    res.status(201).json({
+      id: user._id,
+      email: user.email,
+      role: user.role,
+      plan: user.plan,
+    });
   } catch (error) {
     res.status(error.statusCode || 500).json({
       message: error.message || "Signup failed",
@@ -37,18 +42,6 @@ const loginHandler = async (req, res) => {
   }
 };
 
-const upgradeHandler = async (req, res) => {
-  const { plan } = req.body;
-  const user = await upgradePlan(req.user.email, plan);
-  const token = createAuthToken(user);
-
-  res.json({
-    message: "Plan upgraded successfully",
-    plan: user.plan,
-    token,
-  });
-};
-
 const getMe = async (req, res) => {
   const user = await User.findOne({ email: req.user.email });
 
@@ -63,4 +56,4 @@ const getMe = async (req, res) => {
   });
 };
 
-module.exports = { signupHandler, loginHandler, upgradeHandler, getMe };
+module.exports = { signupHandler, loginHandler, getMe };

@@ -39,13 +39,15 @@ export function ProjectProvider({
       storedProjectId ||
       null;
 
-    setProjectId(
-      (currentProjectId) =>
-        currentProjectId ===
-        nextProjectId
-          ? currentProjectId
-          : nextProjectId,
-    );
+    queueMicrotask(() => {
+      setProjectId(
+        (currentProjectId) =>
+          currentProjectId ===
+          nextProjectId
+            ? currentProjectId
+            : nextProjectId,
+      );
+    });
 
     if (urlProjectId) {
       localStorage.setItem(

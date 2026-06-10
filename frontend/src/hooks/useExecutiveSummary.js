@@ -11,7 +11,7 @@ export function useExecutiveSummary(projectId, runId) {
 
   const prediction = usePredictiveRisk(projectId, runId);
 
-  const insights = useOperationalInsights(projectId, runId);
+  const { insights } = useOperationalInsights(projectId, runId);
 
   const summary = useMemo(() => {
     const findings = [];

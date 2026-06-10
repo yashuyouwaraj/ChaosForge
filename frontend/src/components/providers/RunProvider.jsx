@@ -2,8 +2,10 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 import {
@@ -49,19 +51,20 @@ export function RunProvider({ children }) {
       return;
     }
 
-    setSelectedRunState({
-      projectId,
-      runId,
-      status:
+    queueMicrotask(() => {
+      const isActive =
         localStorage.getItem(
           "currentRunActive",
-        ) === "true"
+        ) === "true";
+
+      setSelectedRunState({
+        projectId,
+        runId,
+        status: isActive
           ? "running"
           : null,
-      isActive:
-        localStorage.getItem(
-          "currentRunActive",
-        ) === "true",
+        isActive,
+      });
     });
   }, [pathname]);
 
@@ -241,7 +244,7 @@ export function RunProvider({ children }) {
     selectedRunState.runId,
   ]);
 
-  const setSelectedRun = (nextRun) => {
+  const setSelectedRun = useCallback((nextRun) => {
     setSelectedRunState({
       projectId:
         nextRun?.projectId ||
@@ -293,15 +296,20 @@ export function RunProvider({ children }) {
         "currentRunActive",
       );
     }
-  };
+  }, []);
+
+  const value = useMemo(
+    () => ({
+      selectedRun:
+        selectedRunState,
+      setSelectedRun,
+    }),
+    [selectedRunState, setSelectedRun],
+  );
 
   return (
     <RunContext.Provider
-      value={{
-        selectedRun:
-          selectedRunState,
-        setSelectedRun,
-      }}
+      value={value}
     >
       {children}
     </RunContext.Provider>

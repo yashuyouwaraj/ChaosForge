@@ -137,7 +137,9 @@ export function useActiveSimulations() {
 
   useEffect(() => {
     if (!projectId) {
-      setRuns([]);
+      queueMicrotask(() => {
+        setRuns([]);
+      });
       return;
     }
 

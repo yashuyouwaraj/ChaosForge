@@ -4,6 +4,32 @@ import { Activity } from "lucide-react";
 
 import { useHealthScore } from "@/hooks/useHealthScore";
 
+const STATUS_STYLES = {
+  Excellent: {
+    border: "border-emerald-500/20",
+    bg: "bg-emerald-500/5",
+    text: "text-emerald-300",
+  },
+
+  Good: {
+    border: "border-cyan-500/20",
+    bg: "bg-cyan-500/5",
+    text: "text-cyan-300",
+  },
+
+  Warning: {
+    border: "border-yellow-500/20",
+    bg: "bg-yellow-500/5",
+    text: "text-yellow-300",
+  },
+
+  Critical: {
+    border: "border-red-500/20",
+    bg: "bg-red-500/5",
+    text: "text-red-300",
+  },
+};
+
 export function HealthScoreCenter({ projectId, runId }) {
   const score = useHealthScore(projectId, runId);
 
@@ -16,33 +42,7 @@ export function HealthScoreCenter({ projectId, runId }) {
           ? "Warning"
           : "Critical";
 
-  const statusStyles = {
-    Excellent: {
-      border: "border-emerald-500/20",
-      bg: "bg-emerald-500/5",
-      text: "text-emerald-300",
-    },
-
-    Good: {
-      border: "border-cyan-500/20",
-      bg: "bg-cyan-500/5",
-      text: "text-cyan-300",
-    },
-
-    Warning: {
-      border: "border-yellow-500/20",
-      bg: "bg-yellow-500/5",
-      text: "text-yellow-300",
-    },
-
-    Critical: {
-      border: "border-red-500/20",
-      bg: "bg-red-500/5",
-      text: "text-red-300",
-    },
-  };
-
-  const style = statusStyles[status];
+  const style = STATUS_STYLES[status];
 
   return (
     <div

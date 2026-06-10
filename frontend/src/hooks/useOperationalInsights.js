@@ -19,10 +19,9 @@ export function useOperationalInsights(projectId, runId, runSnapshot = null) {
 
   const infrastructureMemory = useInfrastructureMemory(projectId);
 
-  const memory = infrastructureMemory.memory || [];
-
   const insights = useMemo(() => {
     const next = [];
+    const memory = infrastructureMemory.memory || [];
 
     if (!prediction) {
       return [];
@@ -140,7 +139,7 @@ behavior.
     }
 
     return next;
-  }, [prediction, anomalies, recommendations, memory]);
+  }, [prediction, anomalies, recommendations, infrastructureMemory.memory]);
 
   return {
     insights,

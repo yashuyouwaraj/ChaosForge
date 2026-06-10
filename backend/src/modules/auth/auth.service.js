@@ -1,7 +1,8 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const { createUser } = require("../user/user.model");
 const User = require("../user/user.model");
+
+const ALLOWED_PLANS = new Set(["free", "pro", "enterprise"]);
 
 const createAuthToken = (user) => {
   return jwt.sign(
@@ -30,7 +31,7 @@ const signup = async (email, password) => {
 };
 
 const login = async (email, password) => {
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email }).select("+password");
 
   if (!user) {
     const error = new Error("User not found");
@@ -50,10 +51,18 @@ const login = async (email, password) => {
 };
 
 const upgradePlan = async (email, plan) => {
-  const user = await User.findOne({ email });
+  if (!ALLOWED_PLANS.has(plan)) {
+    const error = new Error("Invalid plan");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const user = await User.findOneAndUpdate(
+    { email },
+    { $set: { plan } },
+    { new: true, runValidators: true },
+  );
   if (!user) throw new Error("User not found");
-  user.plan = plan;
-  await user.save();
   return user;
 };
 

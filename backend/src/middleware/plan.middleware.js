@@ -1,15 +1,40 @@
-const plans = require("../config/plans");
+const plans = require("../config/plan");
+
+const getSimulationLimits = (config = {}) => {
+  const stageRates = Array.isArray(config.stages)
+    ? config.stages.map((stage) => Number(stage.rate) || 0)
+    : [];
+
+  const stageDuration = Array.isArray(config.stages)
+    ? config.stages.reduce(
+        (total, stage) => total + (Number(stage.durationSec) || 0),
+        0,
+      )
+    : 0;
+
+  const maxRps = Math.max(
+    Number(config.maxRps) || 0,
+    Number(config.rps) || 0,
+    Number(config.rate) || 0,
+    ...stageRates,
+  );
+
+  const duration = Math.max(
+    Number(config.duration) || 0,
+    Number(config.durationSec) || 0,
+    stageDuration,
+  );
+
+  return { maxRps, duration };
+};
 
 const enforcePlan = (req, res, next) => {
   const plan = req.user.plan || "free";
 
   const limits = plans[plan] || plans.free;
 
-  const config = req.body.config || {};
-
-  const maxRps = config.maxRps || config.rps || 0;
-
-  const duration = config.duration || 0;
+  const config = req.normalizedConfig || req.body.config || {};
+  const { maxRps, duration } = getSimulationLimits(config);
 
   if (maxRps > limits.maxRps) {
     return res.status(403).json({
@@ -27,3 +52,4 @@ const enforcePlan = (req, res, next) => {
 };
 
 module.exports = enforcePlan;
+module.exports.getSimulationLimits = getSimulationLimits;

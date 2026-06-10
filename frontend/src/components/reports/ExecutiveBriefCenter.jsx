@@ -5,36 +5,36 @@ import { Briefcase, Shield, TrendingUp, AlertTriangle } from "lucide-react";
 
 import { useExecutiveBrief } from "@/hooks/useExecutiveBrief";
 
+const STATUS_STYLES = {
+  Excellent: {
+    border: "border-emerald-500/20",
+    bg: "bg-emerald-500/5",
+    text: "text-emerald-300",
+  },
+
+  Good: {
+    border: "border-cyan-500/20",
+    bg: "bg-cyan-500/5",
+    text: "text-cyan-300",
+  },
+
+  Warning: {
+    border: "border-yellow-500/20",
+    bg: "bg-yellow-500/5",
+    text: "text-yellow-300",
+  },
+
+  Critical: {
+    border: "border-red-500/20",
+    bg: "bg-red-500/5",
+    text: "text-red-300",
+  },
+};
+
 export function ExecutiveBriefCenter({ projectId, runId, run }) {
   const brief = useExecutiveBrief(projectId, runId, run);
 
-  const statusStyles = {
-    Excellent: {
-      border: "border-emerald-500/20",
-      bg: "bg-emerald-500/5",
-      text: "text-emerald-300",
-    },
-
-    Good: {
-      border: "border-cyan-500/20",
-      bg: "bg-cyan-500/5",
-      text: "text-cyan-300",
-    },
-
-    Warning: {
-      border: "border-yellow-500/20",
-      bg: "bg-yellow-500/5",
-      text: "text-yellow-300",
-    },
-
-    Critical: {
-      border: "border-red-500/20",
-      bg: "bg-red-500/5",
-      text: "text-red-300",
-    },
-  };
-
-  const style = statusStyles[brief.assessment] || statusStyles.Good;
+  const style = STATUS_STYLES[brief.assessment] || STATUS_STYLES.Good;
 
   return (
     <div

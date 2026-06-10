@@ -12,6 +12,7 @@ const projectRoutes = require("./modules/project/project.routes");
 const paymentRoutes = require("./modules/payment/payment.routes");
 const reportRoutes = require("./modules/report/report.routes");
 const runRoutes = require("./modules/run/run.routes");
+const usageRoutes = require("./modules/usage/usage.routes");
 
 const healthRoutes = require("./routes/health.routes");
 
@@ -107,6 +108,8 @@ app.use("/payment", paymentRoutes.router);
 app.use("/report", reportRoutes.router);
 
 app.use("/runs", runRoutes);
+
+app.use("/usage", usageRoutes.router);
 
 app.use("/health", healthRoutes);
 

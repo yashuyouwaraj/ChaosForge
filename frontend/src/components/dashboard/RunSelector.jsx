@@ -20,7 +20,9 @@ export function RunSelector() {
 
   useEffect(() => {
     if (!projectId) {
-      setRuns([]);
+      queueMicrotask(() => {
+        setRuns([]);
+      });
       return;
     }
 
@@ -94,7 +96,7 @@ export function RunSelector() {
       ignore = true;
       window.clearInterval(intervalId);
     };
-  }, [projectId]);
+  }, [projectId, setSelectedRun]);
 
   const activeRuns = runs.filter((run) => isActiveStatus(run.status));
   const hasRuns = activeRuns.length > 0;

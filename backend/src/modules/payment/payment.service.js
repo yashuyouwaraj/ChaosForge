@@ -3,14 +3,16 @@ const Stripe = require("stripe");
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 
-const createCheckoutSession = async (email) => {
+const createCheckoutSession = async ({ email, userId }) => {
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ["card", "upi"],
     mode: "payment",
     customer_email: email,
+    client_reference_id: userId,
 
     metadata: {
       plan: "pro",
+      userId,
     },
     line_items: [
       {

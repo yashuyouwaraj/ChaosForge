@@ -1,7 +1,19 @@
 const Project = require("./project.model");
+const plans = require("../../config/plan");
 let projectCache = {};
 
-const create = async (name, owner) => {
+const create = async (name, owner, plan = "free") => {
+  const limits = plans[plan] || plans.free;
+  const existingCount = await Project.countDocuments({ owner });
+
+  if (existingCount >= limits.maxProjects) {
+    const error = new Error(
+      `Your ${plan} plan supports up to ${limits.maxProjects} projects.`,
+    );
+    error.statusCode = 403;
+    throw error;
+  }
+
   const project = new Project({ name, owner });
   const savedProject = await project.save();
 
