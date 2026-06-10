@@ -1,48 +1,51 @@
-const express = require('express');
+const express = require("express");
 const logger = require("../utils/logger");
-const {sendMessage} = require('../services/producer.service');
-const {generateTraffic} = require('../services/traffic.service');
-const authMiddleware = require('../middleware/auth.middleware');
-const roleMiddleware = require('../middleware/role.middleware');
-const Run = require('../modules/run/run.model');
-const { markRunComplete } = require('../metrics/metrics.store');
-const { v4: uuidv4 } = require('uuid');
-const { initControl } = require('../control/control.store');
-const { getIO } = require('../websocket/socket');
-const { validateConfig } = require('../modules/testConfig/testConfig.validator');
+const { sendMessage } = require("../services/producer.service");
+const { generateTraffic } = require("../services/traffic.service");
+const authMiddleware = require("../middleware/auth.middleware");
+const roleMiddleware = require("../middleware/role.middleware");
+const Run = require("../modules/run/run.model");
+const { markRunComplete } = require("../metrics/metrics.store");
+const { v4: uuidv4 } = require("uuid");
+const { initControl } = require("../control/control.store");
+const enforcePlan = require("../middleware/plan.middleware");
+const { getIO } = require("../websocket/socket");
+const {
+  validateConfig,
+} = require("../modules/testConfig/testConfig.validator");
 const {
   addIncident,
   getIncidentTimeline,
-} = require('../services/incidentTimeline');
+} = require("../services/incidentTimeline");
 const router = express.Router();
 
-router.get('/traffic',authMiddleware,async(req,res)=>{
-    const count = req.query.count || 10;
+router.get("/traffic", authMiddleware, async (req, res) => {
+  const count = req.query.count || 10;
 
-    const requestId = req.requestId ;
+  const requestId = req.requestId;
 
-    logger.info({requestId, message:`Generating ${count} requests`})
-    
-    await generateTraffic(count, requestId);
+  logger.info({ requestId, message: `Generating ${count} requests` });
 
-    res.send(`Generated ${count} requests ✅`)
-})
+  await generateTraffic(count, requestId);
 
-router.get('/send',async(req,res)=>{
-    await sendMessage();
-    res.send("Message sent to Kafka ✅")
-})
+  res.send(`Generated ${count} requests ✅`);
+});
 
-router.get("/admin",authMiddleware,roleMiddleware("admin"),(req,res)=>{
-    res.send("Welcome Admin! This is a protected route.")
-})
+router.get("/send", async (req, res) => {
+  await sendMessage();
+  res.send("Message sent to Kafka ✅");
+});
 
-router.post('/test/:projectId', authMiddleware, async (req, res) => {
+router.get("/admin", authMiddleware, roleMiddleware("admin"), (req, res) => {
+  res.send("Welcome Admin! This is a protected route.");
+});
+
+router.post("/test/:projectId", authMiddleware,enforcePlan, async (req, res) => {
   const { projectId } = req.params;
   const { url, config } = req.body;
 
   if (!url || !config) {
-    return res.status(400).json({ error: 'url and config required' });
+    return res.status(400).json({ error: "url and config required" });
   }
 
   let normalizedUrl;
@@ -53,7 +56,7 @@ router.post('/test/:projectId', authMiddleware, async (req, res) => {
     normalizedConfig = validateConfig(config);
   } catch (err) {
     return res.status(400).json({
-      error: err.message || 'Invalid simulation config',
+      error: err.message || "Invalid simulation config",
     });
   }
 
@@ -67,24 +70,24 @@ router.post('/test/:projectId', authMiddleware, async (req, res) => {
     owner: req.user.id,
     config: normalizedConfig,
     url: normalizedUrl,
-    status: 'starting',
+    status: "starting",
     createdAt: new Date(),
   });
   await run.save();
 
   addIncident({
-    type: 'simulation',
-    severity: 'info',
-    title: 'Simulation Started',
+    type: "simulation",
+    severity: "info",
+    title: "Simulation Started",
     message: `Run ${runId} started.`,
     metadata: {
       projectId,
       runId,
-      pattern: normalizedConfig.pattern || 'stages',
+      pattern: normalizedConfig.pattern || "stages",
     },
   });
 
-  getIO().emit('incident-timeline', getIncidentTimeline());
+  getIO().emit("incident-timeline", getIncidentTimeline());
 
   // Start execution in background through the traffic service.
   // With USE_KAFKA=true, requests are published to Kafka and split across workers.
@@ -92,38 +95,43 @@ router.post('/test/:projectId', authMiddleware, async (req, res) => {
     runId,
     controlInitialized: true,
     owner: req.user.id,
-  }).then(async () => {
-    getIO().emit('incident-timeline', getIncidentTimeline());
-    getIO().emit(`complete-${projectId}-${runId}`);
-  }).catch(async (err) => {
-    logger.error('Error in generateTraffic', err);
-    await Run.findOneAndUpdate({ projectId, runId }, { status: 'failed' }).catch((error) => {
-      logger.error({
-        message: 'Failed to mark run as failed',
-        runId,
-        error: error.message,
+  })
+    .then(async () => {
+      getIO().emit("incident-timeline", getIncidentTimeline());
+      getIO().emit(`complete-${projectId}-${runId}`);
+    })
+    .catch(async (err) => {
+      logger.error("Error in generateTraffic", err);
+      await Run.findOneAndUpdate(
+        { projectId, runId },
+        { status: "failed" },
+      ).catch((error) => {
+        logger.error({
+          message: "Failed to mark run as failed",
+          runId,
+          error: error.message,
+        });
       });
+
+      markRunComplete(runId);
+
+      addIncident({
+        type: "simulation",
+        severity: "critical",
+        title: "Simulation Failed",
+        message: `Run ${runId} failed.`,
+        metadata: {
+          projectId,
+          runId,
+          error: err.message,
+        },
+      });
+
+      getIO().emit("incident-timeline", getIncidentTimeline());
+      getIO().emit(`complete-${projectId}-${runId}`);
     });
 
-    markRunComplete(runId);
-
-    addIncident({
-      type: 'simulation',
-      severity: 'critical',
-      title: 'Simulation Failed',
-      message: `Run ${runId} failed.`,
-      metadata: {
-        projectId,
-        runId,
-        error: err.message,
-      },
-    });
-
-    getIO().emit('incident-timeline', getIncidentTimeline());
-    getIO().emit(`complete-${projectId}-${runId}`);
-  });
-
-  res.json({ runId, status: 'starting', message: 'Test queued' });
+  res.json({ runId, status: "starting", message: "Test queued" });
 });
 
 module.exports = router;
