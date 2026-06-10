@@ -25,6 +25,7 @@ import { IncidentReplayCenter } from "./IncidentReplayCenter";
 import { RunbookCenter } from "./RunbookCenter";
 import { ExecutiveSummaryCenter } from "./ExecutiveSummaryCenter";
 import { HealthScoreCenter } from "./HealthScoreCenter";
+import { ExecutiveBriefCenter } from "./ExecutiveBriefCenter";
 
 export function ReportDetailContent({ projectId, runId }) {
   const [run, setRun] = useState(null);
@@ -115,6 +116,8 @@ export function ReportDetailContent({ projectId, runId }) {
   return (
     <>
       <ReportOverview run={run} runId={runId} />
+
+      <ExecutiveBriefCenter projectId={projectId} runId={runId} run={run} />
 
       <ExecutiveSummaryCenter projectId={projectId} runId={runId} />
 

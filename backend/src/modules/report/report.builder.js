@@ -3,7 +3,7 @@ const Run = require("../run/run.model");
 
 async function buildOperationalReport({ runId, projectId }) {
   // First, try to fetch from MongoDB (saved run data)
-  const savedRun = await Run.findOne({ projectId, runId });
+  const savedRun = await Run.findOne({ projectId, runId }); 
 
   let metrics;
 
