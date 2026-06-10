@@ -324,6 +324,7 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState([]);
   const [name, setName] = useState("");
   const [error, setError] = useState("");
+  const [errorDetails, setErrorDetails] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [expandedProject, setExpandedProject] = useState(null);
@@ -412,12 +413,14 @@ export default function ProjectsPage() {
 
     if (!projectName) {
       setError("Project name is required.");
+      setErrorDetails(null);
       return;
     }
 
     try {
       setLoading(true);
       setError("");
+      setErrorDetails(null);
 
       await api("/projects", "POST", {
         name: projectName,
@@ -431,6 +434,7 @@ export default function ProjectsPage() {
       }
 
       setError(err.message || "Unable to create project.");
+      setErrorDetails(err.details || null);
     } finally {
       setLoading(false);
     }
@@ -558,9 +562,50 @@ export default function ProjectsPage() {
             </form>
 
             {error ? (
-              <div className="mt-6 rounded-2xl border border-red-500/20 bg-red-500/5 px-5 py-4 text-sm text-red-300">
-                {error}
-              </div>
+              errorDetails?.currentPlan ? (
+                <div className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-6 space-y-4">
+                  <div>
+                    <p className="text-sm font-semibold text-amber-300">Project Limit Reached</p>
+                    <p className="mt-2 text-sm text-slate-200">
+                      Your <span className="font-semibold capitalize">{errorDetails.currentPlan}</span> plan supports up to <span className="font-semibold">{errorDetails.currentLimit} projects</span>. You have already created <span className="font-semibold">{errorDetails.currentProjects}</span>.
+                    </p>
+                  </div>
+
+                  <div className="pt-2 space-y-3 border-t border-amber-500/10">
+                    <p className="text-sm text-slate-300">Upgrade to <span className="font-semibold">Pro</span> to unlock:</p>
+                    <ul className="space-y-2 text-sm text-slate-300">
+                      <li className="flex items-center gap-2">
+                        <span className="text-green-400">✓</span>
+                        <span><span className="font-semibold">{errorDetails.proLimit} projects</span> instead of {errorDetails.currentLimit}</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="text-green-400">✓</span>
+                        <span><span className="font-semibold">10x higher RPS</span> limits (10,000 vs 100)</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="text-green-400">✓</span>
+                        <span><span className="font-semibold">12x longer duration</span> (1 hour vs 5 minutes)</span>
+                      </li>
+                    </ul>
+                  </div>
+
+                  <button
+                    onClick={() => router.push("/billing")}
+                    className="
+                      w-full mt-4 bg-gradient-to-r from-amber-500 to-orange-500
+                      hover:from-amber-600 hover:to-orange-600
+                      text-white font-semibold py-2 px-4
+                      rounded-lg transition
+                    "
+                  >
+                    Upgrade to Pro
+                  </button>
+                </div>
+              ) : (
+                <div className="mt-6 rounded-2xl border border-red-500/20 bg-red-500/5 px-5 py-4 text-sm text-red-300">
+                  {error}
+                </div>
+              )
             ) : null}
           </WorkspaceSection>
 

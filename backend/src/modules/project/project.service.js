@@ -11,6 +11,13 @@ const create = async (name, owner, plan = "free") => {
       `Your ${plan} plan supports up to ${limits.maxProjects} projects.`,
     );
     error.statusCode = 403;
+    error.code = "PROJECT_LIMIT_EXCEEDED";
+    error.details = {
+      currentPlan: plan,
+      currentLimit: limits.maxProjects,
+      currentProjects: existingCount,
+      proLimit: plans.pro?.maxProjects || 100,
+    };
     throw error;
   }
 

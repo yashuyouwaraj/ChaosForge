@@ -29,7 +29,17 @@ export const api = async (url, method = "GET", body = null) => {
         typeof data === "string"
           ? data
           : data?.message || data?.error || "Request failed";
-      throw new Error(message);
+      const error = new Error(message);
+      
+      // Attach additional error details from the response
+      if (data?.details) {
+        error.details = data.details;
+      }
+      if (data?.code) {
+        error.code = data.code;
+      }
+      
+      throw error;
     }
 
     return data;
