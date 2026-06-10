@@ -1,13 +1,23 @@
 "use client";
 
-import { Bell } from "lucide-react";
-
-import { Menu } from "lucide-react";
+import { Bell, LogOut, Menu } from "lucide-react";
 
 import { usePlatformStatus } from "@/hooks/usePlatformStatus";
+import { useAuth } from "@/components/providers/AuthProvider";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function Navbar({ onOpenSidebar }) {
   const status = usePlatformStatus();
+  const { user, logout, loading } = useAuth();
+  const displayName = user?.name || user?.email || "User";
+  const avatarInitial = displayName.trim().charAt(0).toUpperCase() || "U";
 
   return (
     <header
@@ -228,19 +238,92 @@ export function Navbar({ onOpenSidebar }) {
 
           {/* AVATAR */}
 
-          <div
-            className="
-              flex h-12 w-12
-              items-center
-              justify-center
-              rounded-2xl
-              bg-cyan-400/10
-              text-lg font-bold
-              text-cyan-300
-            "
-          >
-            Y
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label="Open user menu"
+                className="
+                  flex h-12 w-12
+                  items-center
+                  justify-center
+                  rounded-2xl
+                  bg-cyan-400/10
+                  text-lg font-bold
+                  text-cyan-300
+                  transition
+                  hover:bg-cyan-400/15
+                  focus:outline-none
+                  focus:ring-2
+                  focus:ring-cyan-400/40
+                "
+              >
+                {loading ? "" : avatarInitial}
+              </button>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent
+              align="end"
+              sideOffset={10}
+              className="
+                w-64 rounded-2xl
+                border border-white/10
+                bg-[#020617]
+                p-2 text-slate-100
+                shadow-2xl shadow-black/40
+              "
+            >
+              <DropdownMenuLabel
+                className="
+                  px-3 py-3
+                "
+              >
+                <p
+                  className="
+                    text-sm font-semibold
+                    text-white
+                  "
+                >
+                  {displayName}
+                </p>
+
+                {user?.email && user.email !== displayName && (
+                  <p
+                    className="
+                      mt-1 truncate
+                      text-xs text-slate-400
+                    "
+                  >
+                    {user.email}
+                  </p>
+                )}
+              </DropdownMenuLabel>
+
+              <DropdownMenuSeparator
+                className="
+                  bg-white/10
+                "
+              />
+
+              <DropdownMenuItem
+                onSelect={logout}
+                className="
+                  mt-1 cursor-pointer
+                  rounded-xl px-3 py-3
+                  text-sm text-red-300
+                  focus:bg-red-500/10
+                  focus:text-red-200
+                "
+              >
+                <LogOut
+                  className="
+                    h-4 w-4
+                  "
+                />
+                Logout
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </header>

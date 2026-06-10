@@ -1,3 +1,4 @@
+import { SubscriptionCenter } from "@/components/billing/SubscriptionCenter";
 import { AppShell } from "@/components/layout/AppShell";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -17,7 +18,7 @@ export default function Page() {
     and ChaosForge platform plans.
   "
       />
-      <div className="text-3xl font-bold">Coming Soon</div>
+      <SubscriptionCenter />
     </AppShell>
     </ProtectedRoute>
   );
