@@ -46,17 +46,19 @@ export function useSubscriptionCenter() {
 
     loadData();
 
-    // If coming from payment page, poll for updates every 2 seconds for 30 seconds
+    // If coming from payment page, poll for updates more aggressively
     if (fromPayment) {
       let pollCount = 0;
+      const maxPolls = 20; // Poll for up to 40 seconds
+      
       const interval = setInterval(async () => {
-        if (!ignore && pollCount < 15) {
+        if (!ignore && pollCount < maxPolls) {
           await load();
           pollCount++;
         } else {
           clearInterval(interval);
         }
-      }, 2000);
+      }, 2000); // Every 2 seconds
 
       return () => {
         ignore = true;

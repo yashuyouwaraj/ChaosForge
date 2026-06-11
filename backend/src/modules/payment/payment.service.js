@@ -1,9 +1,11 @@
 const Stripe = require("stripe");
+const plans = require("../../config/plan");
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
+const createCheckoutSession = async ({ email, userId, plan }) => {
+  const selectedPlan = plans[plan];
 
-const createCheckoutSession = async ({ email, userId }) => {
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ["card", "upi"],
     mode: "payment",
@@ -11,7 +13,7 @@ const createCheckoutSession = async ({ email, userId }) => {
     client_reference_id: userId,
 
     metadata: {
-      plan: "pro",
+      plan: plan,
       userId,
     },
     line_items: [
@@ -19,14 +21,16 @@ const createCheckoutSession = async ({ email, userId }) => {
         price_data: {
           currency: "inr",
           product_data: {
-            name: "ChaosForge Pro Plan",
+            name: `ChaosForge ${selectedPlan.name}`,
           },
-          unit_amount: 50000, // Rs 500
+          unit_amount: selectedPlan.price * 100, // Convert to cents
         },
         quantity: 1,
       },
     ],
-    success_url: process.env.STRIPE_SUCCESS_URL || "http://localhost:3000/success?session_id={CHECKOUT_SESSION_ID}",
+    success_url:
+      process.env.STRIPE_SUCCESS_URL ||
+      "http://localhost:3000/success?session_id={CHECKOUT_SESSION_ID}",
     cancel_url: process.env.STRIPE_CANCEL_URL || "http://localhost:3000/cancel",
   });
   return session.url;

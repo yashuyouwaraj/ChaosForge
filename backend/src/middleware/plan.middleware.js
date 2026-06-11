@@ -36,15 +36,15 @@ const enforcePlan = (req, res, next) => {
   const config = req.normalizedConfig || req.body.config || {};
   const { maxRps, duration } = getSimulationLimits(config);
 
-  if (maxRps > limits.maxRps) {
+  if (maxRps > plans[plan].limits.maxRps) {
     return res.status(403).json({
-      message: `Your ${plan} plan supports up to ${limits.maxRps} RPS.`,
+      message: `Your ${plan} plan supports up to ${plans[plan].limits.maxRps} RPS.`,
     });
   }
 
-  if (duration > limits.maxDuration) {
+  if (duration > plans[plan].limits.maxDuration) {
     return res.status(403).json({
-      message: `Your ${plan} plan supports simulations up to ${limits.maxDuration} seconds.`,
+      message: `Your ${plan} plan supports simulations up to ${plans[plan].limits.maxDuration} seconds.`,
     });
   }
 

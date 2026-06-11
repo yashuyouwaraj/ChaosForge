@@ -12,6 +12,7 @@ import PaymentHistory from "./PaymentHistory";
 import { PlanLimitsCard } from "./PlanLimitsCard";
 import { SubscriptionHealthCard } from "./SubscriptionHealthCard";
 import { FeatureAccessMatrix } from "./FeatureAccessMatrix";
+import { PricingCenter } from "./PricingCenter";
 
 export function SubscriptionCenter() {
   const { user, usage, payments, loading } = useSubscriptionCenter();
@@ -37,7 +38,9 @@ export function SubscriptionCenter() {
     >
       <SubscriptionOverview user={user} />
 
-      <UsageOverview usage={usage} />
+      <PricingCenter currentPlan = {user?.plan} />
+
+      <UsageOverview usage={usage} plan={user?.plan} />
 
       <PlanLimitsCard plan={user?.plan} />
 

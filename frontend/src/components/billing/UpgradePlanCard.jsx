@@ -7,7 +7,7 @@ import { api } from "@/lib/api";
 export function UpgradePlanCard() {
   const upgrade = async () => {
     try {
-      const result = await api("/payment/checkout", "POST");
+      const result = await api("/payment/checkout", "POST", { plan: "pro" });
 
       window.location.href = result.url;
     } catch (err) {

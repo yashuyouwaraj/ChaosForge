@@ -158,6 +158,7 @@ const checkout = async (req, res) => {
   const url = await createCheckoutSession({
     email: req.user.email,
     userId: req.user.id,
+    plan: req.body.plan,
   });
   console.log("Checkout session created for:", req.user.email);
   res.json({ url });

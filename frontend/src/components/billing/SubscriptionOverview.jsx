@@ -5,7 +5,22 @@ import { Crown, Rocket } from "lucide-react";
 import PlanBadge from "./PlanBadge";
 
 export function SubscriptionOverview({ user }) {
-  const isPro = user?.plan === "pro";
+  const plan = user?.plan || "free";
+
+  const isPro = plan === "pro";
+  const isEnterprise = plan === "enterprise";
+
+  const title = isEnterprise
+    ? "ChaosForge Enterprise"
+    : isPro
+      ? "ChaosForge Pro"
+      : "ChaosForge Free";
+
+  const subtitle = isEnterprise
+    ? "Enterprise Infrastructure Intelligence Tier"
+    : isPro
+      ? "Operational Intelligence Tier"
+      : "Developer Access Tier";
 
   return (
     <div
@@ -33,25 +48,41 @@ export function SubscriptionOverview({ user }) {
 
           <h2
             className="
-              mt-3 text-5xl
+              mt-3 text-6xl
               font-black
             "
           >
-            Current Plan
+            {title}
           </h2>
+
+          <p
+            className="
+              mt-4 text-lg
+              text-muted-foreground
+            "
+          >
+            {subtitle}
+          </p>
         </div>
 
-        {isPro ? (
+        {isEnterprise ? (
           <Crown
             className="
-              h-10 w-10
+              h-12 w-12
               text-yellow-400
+            "
+          />
+        ) : isPro ? (
+          <Crown
+            className="
+              h-12 w-12
+              text-cyan-400
             "
           />
         ) : (
           <Rocket
             className="
-              h-10 w-10
+              h-12 w-12
               text-cyan-400
             "
           />
@@ -59,18 +90,20 @@ export function SubscriptionOverview({ user }) {
       </div>
 
       <div className="mt-8">
-        <PlanBadge plan={user?.plan || "free"} />
+        <PlanBadge plan={plan} />
       </div>
 
       <p
         className="
-          mt-6 max-w-2xl
+          mt-6 max-w-3xl
           text-muted-foreground
+          leading-7
         "
       >
-        Your active subscription determines simulation limits, infrastructure
-        intelligence access, advanced analytics and future enterprise
-        capabilities.
+        Your active subscription determines simulation limits,
+        infrastructure intelligence access, operational analytics,
+        AI-driven insights, reporting capabilities, and future
+        enterprise platform features across ChaosForge workloads.
       </p>
     </div>
   );
