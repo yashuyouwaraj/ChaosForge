@@ -24,6 +24,17 @@ const userSchema = new mongoose.Schema(
       enum: ["free", "pro", "enterprise"],
       default: "free",
     },
+
+    planStatus: {
+      type: String,
+      enum: ["active", "expired"],
+      default: "active",
+    },
+
+    planExpiresAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     toJSON: {

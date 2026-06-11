@@ -37,8 +37,32 @@ export function SubscriptionHealthCard({ user, payments }) {
 
         <Stat label="Payments" value={payments?.length || 0} />
 
-        <Stat label="Status" value="Operational" />
+        <Stat 
+          label="Status" 
+          value="Operational" 
+        />
       </div>
+
+      {user?.plan !== "free" && user?.planExpiresAt && (
+        <div
+          className="
+            mt-8 rounded-[24px]
+            border border-cyan-500/20
+            bg-cyan-500/5
+            p-5
+          "
+        >
+          <p className="text-sm text-cyan-400">Subscription Expires</p>
+          <h3
+            className="
+              mt-3 text-xl
+              font-black
+            "
+          >
+            {new Date(user.planExpiresAt).toLocaleDateString()}
+          </h3>
+        </div>
+      )}
     </div>
   );
 }

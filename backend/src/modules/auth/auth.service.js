@@ -11,6 +11,8 @@ const createAuthToken = (user) => {
       email: user.email,
       role: user.role,
       plan: user.plan,
+      planStatus: user.planStatus,
+      planExpiresAt: user.planExpiresAt,
     },
     process.env.JWT_SECRET,
     { expiresIn: "1h" },
@@ -23,6 +25,9 @@ const signup = async (email, password) => {
   const user = new User({
     email,
     password: hashed,
+    plan: "free",
+    planStatus: "active",
+    planExpiresAt: null,
   });
 
   await user.save();
@@ -59,7 +64,11 @@ const upgradePlan = async (email, plan) => {
 
   const user = await User.findOneAndUpdate(
     { email },
-    { $set: { plan } },
+    { $set: { 
+      plan,
+      planStatus: "active",
+      planExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+     } },
     { new: true, runValidators: true },
   );
   if (!user) throw new Error("User not found");

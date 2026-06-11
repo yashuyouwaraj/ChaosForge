@@ -35,6 +35,9 @@ const paymentSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  expiresAt: {
+    type: Date,
+  },
 });
 
 module.exports = mongoose.model("Payment", paymentSchema);

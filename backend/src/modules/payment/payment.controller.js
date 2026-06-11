@@ -45,6 +45,7 @@ const recordPaidSession = async ({ session, stripeEventId = null }) => {
     status: "success",
     sessionId: session.id,
     date: new Date(),
+    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
   };
 
   const paymentUpdate = {
@@ -147,7 +148,11 @@ const confirmPayment = async (req, res) => {
     const { user } = await recordPaidSession({ session });
     console.log("User upgraded to pro via confirmation endpoint:", user.email, user.plan);
 
-    res.json({ message: "Payment confirmed", plan: user.plan });
+    res.json({ 
+      message: "Payment confirmed", 
+      plan: user.plan,
+      planExpiresAt: user.planExpiresAt,
+    });
   } catch (err) {
     console.error("Confirm payment failed:", err);
     res.status(500).json({ message: "Confirm payment failed" });

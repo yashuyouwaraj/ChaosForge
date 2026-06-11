@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const User = require("../modules/user/user.model");
+const { getEffectivePlan, getPlanStatus, updateExpiredPlans } = require("../utils/plan.util");
 
 const authMiddleware = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -31,11 +32,16 @@ const authMiddleware = async (req, res, next) => {
       });
     }
 
+    // Check and update expired plans in database
+    await updateExpiredPlans(user._id);
+
     req.user = {
       id: user._id.toString(),
       email: user.email,
       role: user.role,
-      plan: user.plan,
+      plan: getEffectivePlan(user),
+      planStatus: getPlanStatus(user),
+      planExpiresAt: user.planExpiresAt,
     };
 
     next();

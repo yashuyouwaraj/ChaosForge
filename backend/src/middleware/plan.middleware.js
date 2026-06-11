@@ -1,4 +1,5 @@
 const plans = require("../config/plan");
+const { getEffectivePlan } = require("../utils/plan.util");
 
 const getSimulationLimits = (config = {}) => {
   const stageRates = Array.isArray(config.stages)
@@ -29,7 +30,9 @@ const getSimulationLimits = (config = {}) => {
 };
 
 const enforcePlan = (req, res, next) => {
-  const plan = req.user.plan || "free";
+  // Get effective plan (checks expiration)
+  const effectivePlan = getEffectivePlan(req.user);
+  const plan = effectivePlan || "free";
 
   const limits = plans[plan] || plans.free;
 

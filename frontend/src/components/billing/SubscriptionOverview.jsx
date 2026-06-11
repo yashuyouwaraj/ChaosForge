@@ -22,6 +22,16 @@ export function SubscriptionOverview({ user }) {
       ? "Operational Intelligence Tier"
       : "Developer Access Tier";
 
+  const getDaysLeft = () => {
+    if (!user?.planExpiresAt) return null;
+    const expiryDate = new Date(user.planExpiresAt);
+    const today = new Date();
+    const daysLeft = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
+    return daysLeft > 0 ? daysLeft : 0;
+  };
+
+  const daysLeft = getDaysLeft();
+
   return (
     <div
       className="
@@ -92,6 +102,25 @@ export function SubscriptionOverview({ user }) {
       <div className="mt-8">
         <PlanBadge plan={plan} />
       </div>
+
+      {plan !== "free" && user?.planExpiresAt && (
+        <div className="mt-6 rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-6">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Plan Expires On</p>
+              <p className="mt-2 text-xl font-bold text-white">
+                {new Date(user.planExpiresAt).toLocaleDateString()}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-cyan-400 font-semibold">Days Left</p>
+              <p className="mt-2 text-3xl font-black text-cyan-400">
+                {daysLeft === 0 ? "Expired" : daysLeft}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <p
         className="

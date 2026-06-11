@@ -1,9 +1,12 @@
 const { signup, login } = require("./auth.service");
 const User = require("../user/user.model");
-const { wakeGrafanaInBackground } = require("../../services/grafana-readiness.service");
+const {
+  wakeGrafanaInBackground,
+} = require("../../services/grafana-readiness.service");
 const {
   wakePrometheusInBackground,
 } = require("../../services/prometheus-readiness.service");
+const { getEffectivePlan, getPlanStatus } = require("../../utils/plan.util");
 
 const wakeInfrastructureInBackground = () => {
   wakeGrafanaInBackground();
@@ -20,7 +23,9 @@ const signupHandler = async (req, res) => {
       id: user._id,
       email: user.email,
       role: user.role,
-      plan: user.plan,
+      plan: getEffectivePlan(user),
+      planStatus: getPlanStatus(user),
+      planExpiresAt: user.planExpiresAt,
     });
   } catch (error) {
     res.status(error.statusCode || 500).json({
@@ -52,7 +57,9 @@ const getMe = async (req, res) => {
   res.json({
     email: user.email,
     role: user.role,
-    plan: user.plan,
+    plan: getEffectivePlan(user),
+    planStatus: getPlanStatus(user),
+    planExpiresAt: user.planExpiresAt,
   });
 };
 
