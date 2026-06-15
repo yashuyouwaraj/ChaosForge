@@ -19,7 +19,30 @@ const cards = [
   },
 ];
 
-export function AiStatusGrid() {
+export function AiStatusGrid({ findings = [], incidents = [] }) {
+  const cards = [
+    {
+      label: "AI Models",
+      value: 4,
+    },
+
+    {
+      label: "Insights Generated",
+      value: findings.length,
+    },
+
+    {
+      label: "Anomalies Detected",
+      value: incidents.length,
+    },
+
+    {
+      label: "Runbooks Generated",
+      value: findings.filter(
+        (f) => f.title.includes("Failure") || f.title.includes("Latency"),
+      ).length,
+    },
+  ];
   return (
     <div
       className="

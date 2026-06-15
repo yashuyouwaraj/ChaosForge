@@ -13,8 +13,8 @@ export function AiInsightsCenter() {
   const findings = useAiInsights({ metrics, incidents });
 
   return (
-    <div className="space-y-8">
-      <AiStatusGrid />
+    <div className="space-y-14">
+      <AiStatusGrid findings={findings} incidents={incidents} />
 
       <AiRecentFindings findings={findings} />
 

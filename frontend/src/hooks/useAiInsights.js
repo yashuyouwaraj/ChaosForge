@@ -2,78 +2,86 @@
 
 import { useMemo } from "react";
 
-const toNumber = (value) => {
-  const number = Number(value);
-
-  return Number.isFinite(number) ? number : 0;
-};
-
 export function useAiInsights({ metrics, incidents }) {
   return useMemo(() => {
-    const findings = [];
-
     if (!metrics) {
-      return findings;
+      return [];
     }
 
-    const failure = toNumber(metrics.failure);
-    const avgLatency = toNumber(metrics.avgLatency);
-    const p95Latency = toNumber(metrics.p95Latency);
-    const rps = toNumber(metrics.currentRps || metrics.rps);
+    const findings = [];
 
-    if (failure > 0) {
+    // Failure Analysis
+    if ((metrics.failure || 0) > 0) {
       findings.push({
         severity: "HIGH",
+        priority: 3,
 
         title: "Failure Pattern Detected",
 
         description: `
-          ${failure}
-          failed requests were
-          detected during execution.
-        `,
+${metrics.failure} failed requests were detected during recent infrastructure execution.
+        `.trim(),
       });
     }
 
-    if (avgLatency > 0 && p95Latency > avgLatency * 1.5) {
+    // Latency Analysis
+    if (
+      metrics.avgLatency > 0 &&
+      metrics.p95Latency > metrics.avgLatency * 1.5
+    ) {
       findings.push({
         severity: "MEDIUM",
+        priority: 2,
 
         title: "Latency Degradation",
 
         description: `
-          Tail latency is
-          significantly higher
-          than average latency.
-        `,
+P95 latency reached ${metrics.p95Latency}ms while average latency remained ${metrics.avgLatency}ms, indicating tail latency pressure.
+        `.trim(),
       });
     }
 
-    if (rps > 0 && rps < 30) {
+    // Throughput Analysis
+    if (typeof metrics.rps === "number" && metrics.rps < 30) {
       findings.push({
         severity: "LOW",
+        priority: 1,
 
         title: "Throughput Bottleneck",
 
-        description:
-          "Observed throughput is below expected operating capacity.",
+        description: `
+Observed throughput is ${metrics.rps} requests per second, which may indicate infrastructure constraints.
+        `.trim(),
       });
     }
 
-    if (incidents?.length > 5) {
+    // Incident Analysis
+    if (Array.isArray(incidents) && incidents.length > 5) {
       findings.push({
         severity: "MEDIUM",
+        priority: 2,
 
         title: "Elevated Incident Activity",
 
         description: `
-          ${incidents.length}
-          operational incidents
-          recorded recently.
-        `,
+${incidents.length} operational incidents were recorded across the infrastructure timeline.
+        `.trim(),
       });
     }
 
-    return findings;
+    // Infrastructure Stability
+    if (findings.length === 0 && metrics.avgLatency > 0) {
+      findings.push({
+        severity: "LOW",
+        priority: 0,
+
+        title: "Infrastructure Stable",
+
+        description:
+          "No significant anomalies, performance regressions, or operational risks were detected.",
+      });
+    }
+
+    return findings.sort((a, b) => b.priority - a.priority).slice(0, 5);
   }, [metrics, incidents]);
 }

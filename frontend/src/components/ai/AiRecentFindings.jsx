@@ -57,7 +57,7 @@ export function AiRecentFindings({ findings = [] }) {
               text-2xl font-bold
             "
           >
-            No Active Findings
+            Infrastructure Stable
           </h3>
 
           <p
@@ -65,8 +65,8 @@ export function AiRecentFindings({ findings = [] }) {
               mt-3 text-muted-foreground
             "
           >
-            Infrastructure intelligence engines have not detected any
-            significant anomalies or operational risks.
+            No significant operational risks, anomalies, or performance
+            regressions have been detected.
           </p>
         </div>
       ) : (
