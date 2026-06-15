@@ -2,9 +2,13 @@
 
 import { motion } from "framer-motion";
 
-import { ShieldAlert, Activity, TrendingUp } from "lucide-react";
+import {
+  ShieldAlert,
+  Activity,
+  TrendingUp,
+} from "lucide-react";
 
-import { usePredictiveRisk } from "@/hooks/usePredictiveRisk";
+import { useAiAnalysis } from "@/hooks/useAiAnalysis";
 
 const riskStyles = {
   Stable: `
@@ -32,12 +36,85 @@ const riskStyles = {
   `,
 };
 
-export function PredictiveRiskPanel({ projectId, runId }) {
-  const prediction = usePredictiveRisk(projectId, runId);
+export function PredictiveRiskPanel({
+  projectId,
+  runId,
+}) {
+  const {
+    analysis,
+    loading,
+  } = useAiAnalysis(
+    projectId,
+    runId,
+  );
 
-  if (!prediction) {
-    return null;
+  if (
+    loading ||
+    !analysis
+  ) {
+    return (
+      <div
+        className="
+          glass rounded-[32px]
+          p-8
+        "
+      >
+        Loading predictive risk analysis...
+      </div>
+    );
   }
+
+  const score =
+    analysis.score || 0;
+
+  const risk =
+    Math.max(
+      0,
+      100 - score,
+    );
+
+  let level =
+    "Healthy";
+
+  if (score < 90) {
+    level =
+      "Warning";
+  }
+
+  if (score < 70) {
+    level =
+      "Critical";
+  }
+
+  const riskStyle =
+    level ===
+    "Healthy"
+      ? "Stable"
+      : level ===
+          "Warning"
+        ? "Moderate"
+        : "Critical";
+
+  const forecast =
+    analysis.anomalies
+      ?.length > 0
+      ? "AI analysis detected operational anomalies requiring investigation."
+      : "Infrastructure execution remained stable with no significant degradation indicators.";
+
+  const drivers =
+    analysis.anomalies
+      ?.length > 0
+      ? analysis.anomalies.map(
+          (
+            anomaly,
+          ) =>
+            anomaly.title,
+        )
+      : [
+          "Excellent reliability",
+          "Stable throughput",
+          "No failure escalation",
+        ];
 
   return (
     <div
@@ -71,8 +148,10 @@ export function PredictiveRiskPanel({ projectId, runId }) {
               text-muted-foreground
             "
           >
-            AI-powered operational forecasting based on distributed
-            infrastructure telemetry and regression intelligence.
+            AI-powered operational forecasting
+            generated from simulation
+            performance metrics and
+            infrastructure intelligence.
           </p>
         </div>
 
@@ -83,10 +162,10 @@ export function PredictiveRiskPanel({ projectId, runId }) {
             text-sm font-bold
             uppercase
             tracking-[0.2em]
-            ${riskStyles[prediction.level]}
+            ${riskStyles[riskStyle]}
           `}
         >
-          {prediction.level}
+          {level}
         </div>
       </div>
 
@@ -148,7 +227,7 @@ export function PredictiveRiskPanel({ projectId, runId }) {
                   font-black
                 "
               >
-                {prediction.risk}%
+                {risk}%
               </h2>
             </div>
           </div>
@@ -168,7 +247,7 @@ export function PredictiveRiskPanel({ projectId, runId }) {
                 width: 0,
               }}
               animate={{
-                width: `${prediction.risk}%`,
+                width: `${risk}%`,
               }}
               transition={{
                 duration: 1,
@@ -176,13 +255,11 @@ export function PredictiveRiskPanel({ projectId, runId }) {
               className={`
                 h-full rounded-full
                 ${
-                  prediction.risk >= 75
+                  risk >= 70
                     ? "bg-red-500"
-                    : prediction.risk >= 50
-                      ? "bg-orange-500"
-                      : prediction.risk >= 30
-                        ? "bg-yellow-500"
-                        : "bg-green-500"
+                    : risk >= 30
+                      ? "bg-yellow-500"
+                      : "bg-green-500"
                 }
               `}
             />
@@ -215,7 +292,7 @@ export function PredictiveRiskPanel({ projectId, runId }) {
                 text-slate-300
               "
             >
-              {prediction.forecast}
+              {forecast}
             </p>
           </div>
         </div>
@@ -265,36 +342,43 @@ export function PredictiveRiskPanel({ projectId, runId }) {
                 mt-6 space-y-4
               "
             >
-              {prediction.drivers.map((driver, index) => (
-                <motion.div
-                  key={driver}
-                  initial={{
-                    opacity: 0,
-                    x: -20,
-                  }}
-                  animate={{
-                    opacity: 1,
-                    x: 0,
-                  }}
-                  transition={{
-                    delay: index * 0.08,
-                  }}
-                  className="
+              {drivers.map(
+                (
+                  driver,
+                  index,
+                ) => (
+                  <motion.div
+                    key={`${driver}-${index}`}
+                    initial={{
+                      opacity: 0,
+                      x: -20,
+                    }}
+                    animate={{
+                      opacity: 1,
+                      x: 0,
+                    }}
+                    transition={{
+                      delay:
+                        index *
+                        0.08,
+                    }}
+                    className="
                       rounded-2xl
                       border border-white/10
                       bg-black/20
                       p-4
                     "
-                >
-                  <p
-                    className="
+                  >
+                    <p
+                      className="
                         text-slate-300
                       "
-                  >
-                    {driver}
-                  </p>
-                </motion.div>
-              ))}
+                    >
+                      {driver}
+                    </p>
+                  </motion.div>
+                ),
+              )}
             </div>
           </div>
 
@@ -351,10 +435,36 @@ export function PredictiveRiskPanel({ projectId, runId }) {
                   rounded-full
                   px-4 py-2
                   text-sm font-bold
-                  ${riskStyles[prediction.level]}
+                  ${riskStyles[riskStyle]}
                 `}
               >
-                {prediction.level}
+                {level}
+              </span>
+            </div>
+
+            <div
+              className="
+                mt-6 flex
+                items-center
+                justify-between
+              "
+            >
+              <span
+                className="
+                  text-slate-400
+                "
+              >
+                AI Score
+              </span>
+
+              <span
+                className="
+                  text-2xl
+                  font-black
+                  text-cyan-300
+                "
+              >
+                {score}/100
               </span>
             </div>
           </div>

@@ -5,7 +5,10 @@ import { FileText } from "lucide-react";
 import { useExecutiveSummary } from "@/hooks/useExecutiveSummary";
 
 export function ExecutiveSummaryCenter({ projectId, runId }) {
-  const summary = useExecutiveSummary(projectId, runId);
+  const { status, headline, findings, loading } = useExecutiveSummary(
+    projectId,
+    runId,
+  );
 
   return (
     <div
@@ -71,7 +74,7 @@ export function ExecutiveSummaryCenter({ projectId, runId }) {
             font-black
           "
         >
-          {summary.status}
+          {loading ? "Analyzing..." : status}
         </h3>
 
         <p
@@ -80,7 +83,7 @@ export function ExecutiveSummaryCenter({ projectId, runId }) {
             leading-8
           "
         >
-          {summary.headline}
+          {loading ? "Generating summary..." : headline}
         </p>
       </div>
 
@@ -102,7 +105,7 @@ export function ExecutiveSummaryCenter({ projectId, runId }) {
             mt-4 space-y-3
           "
         >
-          {summary.findings.map((finding, index) => (
+          {findings.map((finding, index) => (
             <li
               key={index}
               className="

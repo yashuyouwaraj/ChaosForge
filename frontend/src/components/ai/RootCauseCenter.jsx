@@ -2,42 +2,38 @@
 
 import { motion } from "framer-motion";
 
-import { BrainCircuit, ShieldAlert, Activity } from "lucide-react";
+import { BrainCircuit, AlertTriangle, Search } from "lucide-react";
 
-import { useOperationalInsights } from "@/hooks/useOperationalInsights";
+import { useAiAnalysis } from "@/hooks/useAiAnalysis";
 
-const severityStyles = {
-  info: `
-    border-cyan-500/20
-    bg-cyan-500/5
-    text-cyan-300
-  `,
+export function RootCauseCenter({ projectId, runId }) {
+  const { analysis, loading } = useAiAnalysis(projectId, runId);
 
-  moderate: `
-    border-yellow-500/20
-    bg-yellow-500/5
-    text-yellow-300
-  `,
+  if (loading) {
+    return (
+      <div
+        className="
+          glass rounded-[32px]
+          p-8
+        "
+      >
+        Loading root cause analysis...
+      </div>
+    );
+  }
 
-  high: `
-    border-orange-500/20
-    bg-orange-500/5
-    text-orange-300
-  `,
+  const causes =
+    analysis?.anomalies?.map((anomaly, index) => ({
+      title: anomaly.title,
 
-  critical: `
-    border-red-500/20
-    bg-red-500/5
-    text-red-300
-  `,
-};
+      description: anomaly.description,
 
-export function OperationalInsightCenter({ projectId, runId, run = null }) {
-  const {
-    insights,
-    loading,
-    error,
-  } = useOperationalInsights(projectId, runId, run);
+      confidence: Math.max(75, 95 - index * 5),
+
+      impact:
+        analysis?.recommendations?.[index] ||
+        "Operational performance may degrade if the issue is not addressed.",
+    })) || [];
 
   return (
     <div
@@ -62,7 +58,7 @@ export function OperationalInsightCenter({ projectId, runId, run = null }) {
               text-3xl font-black
             "
           >
-            Unified Operational Intelligence
+            Root Cause Intelligence
           </h3>
 
           <p
@@ -71,9 +67,8 @@ export function OperationalInsightCenter({ projectId, runId, run = null }) {
               text-muted-foreground
             "
           >
-            Centralized AI operational reasoning across predictive intelligence,
-            anomaly detection, remediation workflows, and infrastructure memory
-            systems.
+            AI-generated root cause analysis derived from simulation metrics,
+            anomaly detection, and operational intelligence scoring.
           </p>
         </div>
 
@@ -89,48 +84,59 @@ export function OperationalInsightCenter({ projectId, runId, run = null }) {
             text-cyan-300
           "
         >
-          {loading
-            ? "Loading Insights"
-            : `${insights.length} Active Insights`}
+          {causes.length} Causes
         </div>
       </div>
 
-      {error && (
+      {/* EMPTY */}
+
+      {causes.length === 0 && (
         <div
           className="
             mt-10 rounded-[28px]
-            border border-red-500/20
-            bg-red-500/5
-            p-8 text-red-200
+            border border-green-500/20
+            bg-green-500/5
+            p-10 text-center
           "
         >
-          {error}
+          <BrainCircuit
+            className="
+              mx-auto h-12 w-12
+              text-green-400
+            "
+          />
+
+          <h3
+            className="
+              mt-5 text-3xl
+              font-black
+              text-green-300
+            "
+          >
+            No Active Root Causes
+          </h3>
+
+          <p
+            className="
+              mt-4 text-slate-300
+            "
+          >
+            AI analysis found no operational degradation patterns requiring root
+            cause investigation.
+          </p>
         </div>
       )}
 
-      {loading && !error && (
-        <div
-          className="
-            mt-10 rounded-[28px]
-            border border-white/10
-            bg-black/20
-            p-8 text-slate-300
-          "
-        >
-          Loading operational insights...
-        </div>
-      )}
-
-      {/* INSIGHTS */}
+      {/* CAUSES */}
 
       <div
         className="
           mt-10 space-y-6
         "
       >
-        {!loading && !error && insights.map((insight, index) => (
+        {causes.map((cause, index) => (
           <motion.div
-            key={insight.title}
+            key={`${cause.title}-${index}`}
             initial={{
               opacity: 0,
               y: 20,
@@ -142,11 +148,12 @@ export function OperationalInsightCenter({ projectId, runId, run = null }) {
             transition={{
               delay: index * 0.08,
             }}
-            className={`
+            className="
                 rounded-[28px]
-                border p-7
-                ${severityStyles[insight.severity]}
-              `}
+                border border-red-500/20
+                bg-red-500/5
+                p-7
+              "
           >
             <div
               className="
@@ -163,12 +170,9 @@ export function OperationalInsightCenter({ projectId, runId, run = null }) {
                     flex-1
                   "
               >
-                {/* BADGES */}
-
                 <div
                   className="
                       flex flex-wrap
-                      items-center
                       gap-3
                     "
                 >
@@ -182,7 +186,7 @@ export function OperationalInsightCenter({ projectId, runId, run = null }) {
                         tracking-[0.2em]
                       "
                   >
-                    {insight.severity}
+                    Root Cause
                   </div>
 
                   <div
@@ -195,11 +199,9 @@ export function OperationalInsightCenter({ projectId, runId, run = null }) {
                         tracking-[0.2em]
                       "
                   >
-                    Unified AI Reasoning
+                    {cause.confidence}% Confidence
                   </div>
                 </div>
-
-                {/* TITLE */}
 
                 <h3
                   className="
@@ -207,22 +209,17 @@ export function OperationalInsightCenter({ projectId, runId, run = null }) {
                       font-black
                     "
                 >
-                  {insight.title}
+                  {cause.title}
                 </h3>
-
-                {/* DESCRIPTION */}
 
                 <p
                   className="
-                      mt-5 max-w-4xl
-                      leading-8
+                      mt-5 leading-8
                       text-slate-300
                     "
                 >
-                  {insight.description}
+                  {cause.description}
                 </p>
-
-                {/* RECOMMENDATION */}
 
                 <div
                   className="
@@ -239,7 +236,7 @@ export function OperationalInsightCenter({ projectId, runId, run = null }) {
                         text-cyan-300
                       "
                   >
-                    AI Operational Guidance
+                    Operational Impact
                   </p>
 
                   <p
@@ -248,7 +245,7 @@ export function OperationalInsightCenter({ projectId, runId, run = null }) {
                         text-slate-300
                       "
                   >
-                    {insight.recommendation}
+                    {cause.impact}
                   </p>
                 </div>
               </div>
@@ -257,7 +254,8 @@ export function OperationalInsightCenter({ projectId, runId, run = null }) {
 
               <div
                 className="
-                    w-full max-w-[240px]
+                    w-full
+                    max-w-[220px]
                   "
               >
                 <div
@@ -274,13 +272,13 @@ export function OperationalInsightCenter({ projectId, runId, run = null }) {
                         justify-between
                       "
                   >
-                    <BrainCircuit
+                    <Search
                       className="
                           h-6 w-6
                         "
                     />
 
-                    <ShieldAlert
+                    <AlertTriangle
                       className="
                           h-6 w-6
                         "
@@ -294,33 +292,17 @@ export function OperationalInsightCenter({ projectId, runId, run = null }) {
                         tracking-[0.2em]
                       "
                   >
-                    Intelligence Layer
+                    Confidence
                   </p>
 
                   <h2
                     className="
-                        mt-4 text-4xl
+                        mt-4 text-5xl
                         font-black
                       "
                   >
-                    Active
+                    {cause.confidence}%
                   </h2>
-
-                  <div
-                    className="
-                        mt-6 flex
-                        items-center gap-3
-                        text-sm
-                      "
-                  >
-                    <Activity
-                      className="
-                          h-4 w-4
-                        "
-                    />
-
-                    <span>Multi-system AI operational reasoning active</span>
-                  </div>
                 </div>
               </div>
             </div>

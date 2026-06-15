@@ -14,18 +14,6 @@ import { api } from "@/lib/api";
 import { FailureHeatmap } from "./FailureHeatmap";
 import { InfrastructureStabilityTimeline } from "./InfrastructureStabilityTimeline";
 import { RegressionAnalysis } from "./RegressionAnalysis";
-import { PredictiveRiskPanel } from "./PredictiveRiskPanel";
-import { AnomalyCenter } from "./AnomalyCenter";
-import { RemediationCenter } from "./RemediationCenter";
-import { InfrastructureMemoryCenter } from "./InfrastructureMemoryCenter";
-import { OperationalInsightCenter } from "./OperationalInsightCenter";
-import { RootCauseCenter } from "./RootCauseCenter";
-import { IncidentCorrelationGraph } from "./IncidentCorrelationGraph";
-import { IncidentReplayCenter } from "./IncidentReplayCenter";
-import { RunbookCenter } from "./RunbookCenter";
-import { ExecutiveSummaryCenter } from "./ExecutiveSummaryCenter";
-import { HealthScoreCenter } from "./HealthScoreCenter";
-import { ExecutiveBriefCenter } from "./ExecutiveBriefCenter";
 
 export function ReportDetailContent({ projectId, runId }) {
   const [run, setRun] = useState(null);
@@ -117,39 +105,9 @@ export function ReportDetailContent({ projectId, runId }) {
     <>
       <ReportOverview run={run} runId={runId} />
 
-      <ExecutiveBriefCenter projectId={projectId} runId={runId} run={run} />
-
-      <ExecutiveSummaryCenter projectId={projectId} runId={runId} />
-
-      <HealthScoreCenter projectId={projectId} runId={runId} />
-
       <RunOperationalSummary run={run} />
 
-      <RootCauseCenter projectId={projectId} runId={runId} />
-
-      <RunbookCenter projectId={projectId} runId={runId} />
-
-      <IncidentCorrelationGraph projectId={projectId} runId={runId} />
-
-      <IncidentReplayCenter />
-
-      <OperationalInsightCenter
-        projectId={projectId || run.projectId}
-        runId={runId}
-        run={run}
-      />
-
-      <AiPostmortemSummary incidents={incidents} run={run} runId={runId} />
-
       <RegressionAnalysis projectId={projectId} runId={runId} />
-
-      <PredictiveRiskPanel projectId={projectId} runId={runId} />
-
-      <AnomalyCenter projectId={projectId} runId={runId} run={run} />
-
-      <RemediationCenter projectId={projectId} runId={runId} />
-
-      <InfrastructureMemoryCenter projectId={projectId || run.projectId} />
 
       <FailureBreakdown run={run} />
 
@@ -162,6 +120,8 @@ export function ReportDetailContent({ projectId, runId }) {
       <InfrastructureStabilityTimeline run={run} runId={runId} />
 
       <IncidentReportTimeline incidents={incidents} runId={runId} />
+
+      <AiPostmortemSummary incidents={incidents} run={run} runId={runId} />
     </>
   );
 }

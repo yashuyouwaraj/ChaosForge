@@ -2,45 +2,41 @@
 
 import { useMemo } from "react";
 
-import { useRootCauseAnalysis } from "@/hooks/useRootCauseAnalysis";
-import { usePredictiveRisk } from "@/hooks/usePredictiveRisk";
-import { useOperationalInsights } from "@/hooks/useOperationalInsights";
+import { useAiAnalysis } from "@/hooks/useAiAnalysis";
 
 export function useExecutiveSummary(projectId, runId) {
-  const causes = useRootCauseAnalysis(projectId, runId);
-
-  const prediction = usePredictiveRisk(projectId, runId);
-
-  const { insights } = useOperationalInsights(projectId, runId);
+  const { analysis, loading } = useAiAnalysis(projectId, runId);
 
   const summary = useMemo(() => {
+    if (!analysis) {
+      return {
+        status: "Loading",
+        headline: "Generating AI operational summary...",
+        findings: [],
+      };
+    }
+
     const findings = [];
 
-    if (prediction?.level === "Critical") {
-      findings.push("Critical operational risk detected.");
+    findings.push(`Operational health score: ${analysis.score}/100.`);
+
+    findings.push(`Success rate: ${analysis.successRate.toFixed(1)}%`);
+
+    findings.push(`${analysis.metrics.totalRequests} requests processed.`);
+
+    findings.push(`${analysis.metrics.rps} requests per second achieved.`);
+
+    if (analysis.anomalies.length > 0) {
+      findings.push(`${analysis.anomalies.length} anomaly signals detected.`);
     }
 
-    if (prediction?.level === "High") {
-      findings.push("Elevated degradation risk identified.");
-    }
+    let status = "Healthy";
 
-    if (causes.length > 0) {
-      findings.push(`${causes.length} probable root causes identified.`);
-    }
-
-    if (insights.length > 0) {
-      findings.push(
-        `${insights.length} operational intelligence signals generated.`,
-      );
-    }
-
-    let status = "Stable";
-
-    if (prediction?.level === "High") {
+    if (analysis.score < 90) {
       status = "Warning";
     }
 
-    if (prediction?.level === "Critical") {
+    if (analysis.score < 70) {
       status = "Critical";
     }
 
@@ -48,15 +44,18 @@ export function useExecutiveSummary(projectId, runId) {
       status,
 
       headline:
-        status === "Stable"
-          ? "Infrastructure remained operationally stable during execution."
+        status === "Healthy"
+          ? "Infrastructure executed successfully with strong reliability and performance."
           : status === "Warning"
-            ? "Infrastructure exhibited degradation indicators requiring attention."
-            : "Infrastructure experienced elevated operational risk and instability.",
+            ? "Operational degradation indicators detected during execution."
+            : "Critical operational issues detected requiring immediate investigation.",
 
       findings,
     };
-  }, [causes, prediction, insights]);
+  }, [analysis]);
 
-  return summary;
+  return {
+    ...summary,
+    loading,
+  };
 }

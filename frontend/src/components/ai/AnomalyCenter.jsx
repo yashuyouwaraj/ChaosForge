@@ -1,13 +1,18 @@
 "use client";
 
 import { motion } from "framer-motion";
-
 import { ShieldAlert, AlertTriangle, Activity } from "lucide-react";
 
-import { useAnomalyDetection } from "@/hooks/useAnomalyDetection";
+import { useAiAnalysis } from "@/hooks/useAiAnalysis";
 
 const severityStyles = {
-  moderate: `
+  info: `
+    border-cyan-500/20
+    bg-cyan-500/5
+    text-cyan-300
+  `,
+
+  warning: `
     border-yellow-500/20
     bg-yellow-500/5
     text-yellow-300
@@ -26,8 +31,10 @@ const severityStyles = {
   `,
 };
 
-export function AnomalyCenter({ projectId, runId, run = null }) {
-  const anomalies = useAnomalyDetection(projectId, runId, run);
+export function AnomalyCenter({ projectId, runId }) {
+  const { analysis, loading } = useAiAnalysis(projectId, runId);
+
+  const anomalies = analysis?.anomalies || [];
 
   return (
     <div
@@ -61,8 +68,8 @@ export function AnomalyCenter({ projectId, runId, run = null }) {
               text-muted-foreground
             "
           >
-            AI-driven infrastructure anomaly detection across distributed
-            operational telemetry streams.
+            AI-powered anomaly detection generated from simulation performance
+            metrics and infrastructure telemetry.
           </p>
         </div>
 
@@ -78,58 +85,72 @@ export function AnomalyCenter({ projectId, runId, run = null }) {
             text-cyan-300
           "
         >
-          {anomalies.length} Active Anomalies
+          {loading ? "Analyzing..." : `${anomalies.length} Active Anomalies`}
         </div>
       </div>
 
-      {/* EMPTY */}
+      {/* LOADING */}
 
-      {anomalies.length === 0 && (
+      {loading && (
         <div
           className="
             mt-10 rounded-[28px]
-            border border-green-500/20
-            bg-green-500/5
+            border border-cyan-500/20
+            bg-cyan-500/5
             p-10 text-center
           "
         >
+          Generating anomaly analysis...
+        </div>
+      )}
+
+      {/* EMPTY */}
+
+      {!loading && anomalies.length === 0 && (
+        <div
+          className="
+              mt-10 rounded-[28px]
+              border border-green-500/20
+              bg-green-500/5
+              p-10 text-center
+            "
+        >
           <div
             className="
-              mx-auto flex
-              h-20 w-20
-              items-center
-              justify-center
-              rounded-3xl
-              bg-green-500/10
-              text-green-300
-            "
+                mx-auto flex
+                h-20 w-20
+                items-center
+                justify-center
+                rounded-3xl
+                bg-green-500/10
+                text-green-300
+              "
           >
             <ShieldAlert
               className="
-                h-10 w-10
-              "
+                  h-10 w-10
+                "
             />
           </div>
 
           <h3
             className="
-              mt-6 text-3xl
-              font-black
-              text-green-300
-            "
+                mt-6 text-3xl
+                font-black
+                text-green-300
+              "
           >
             Infrastructure Stable
           </h3>
 
           <p
             className="
-              mt-4 max-w-2xl
-              mx-auto leading-7
-              text-slate-300
-            "
+                mt-4 max-w-2xl
+                mx-auto leading-7
+                text-slate-300
+              "
           >
-            No significant operational anomalies detected across distributed
-            telemetry and infrastructure execution patterns.
+            No operational anomalies detected during this simulation execution.
           </p>
         </div>
       )}
@@ -143,7 +164,7 @@ export function AnomalyCenter({ projectId, runId, run = null }) {
       >
         {anomalies.map((anomaly, index) => (
           <motion.div
-            key={anomaly.type}
+            key={`${anomaly.title}-${index}`}
             initial={{
               opacity: 0,
               y: 20,
@@ -158,7 +179,7 @@ export function AnomalyCenter({ projectId, runId, run = null }) {
             className={`
                 rounded-[28px]
                 border p-7
-                ${severityStyles[anomaly.severity]}
+                ${severityStyles[anomaly.severity] || severityStyles.warning}
               `}
           >
             <div
@@ -178,8 +199,7 @@ export function AnomalyCenter({ projectId, runId, run = null }) {
               >
                 <div
                   className="
-                      flex flex-wrap
-                      items-center
+                      flex items-center
                       gap-3
                     "
                 >
@@ -216,7 +236,7 @@ export function AnomalyCenter({ projectId, runId, run = null }) {
                       font-black
                     "
                 >
-                  {anomaly.type}
+                  {anomaly.title}
                 </h3>
 
                 <p
@@ -228,49 +248,21 @@ export function AnomalyCenter({ projectId, runId, run = null }) {
                 >
                   {anomaly.description}
                 </p>
-
-                {/* RECOMMENDATION */}
-
-                <div
-                  className="
-                      mt-6 rounded-2xl
-                      border border-white/10
-                      bg-black/20
-                      p-5
-                    "
-                >
-                  <p
-                    className="
-                        text-sm uppercase
-                        tracking-[0.2em]
-                        text-cyan-300
-                      "
-                  >
-                    Recommended Action
-                  </p>
-
-                  <p
-                    className="
-                        mt-3 leading-7
-                        text-slate-300
-                      "
-                  >
-                    {anomaly.recommendation}
-                  </p>
-                </div>
               </div>
 
               {/* RIGHT */}
 
               <div
                 className="
-                    w-full max-w-[220px]
+                    w-full
+                    max-w-[220px]
                   "
               >
                 <div
                   className="
                       rounded-[28px]
-                      border border-white/10
+                      border
+                      border-white/10
                       bg-black/20
                       p-6
                     "
@@ -301,44 +293,17 @@ export function AnomalyCenter({ projectId, runId, run = null }) {
                         tracking-[0.2em]
                       "
                   >
-                    Operational Deviation
+                    Severity
                   </p>
 
                   <h2
                     className="
-                        mt-4 text-6xl
+                        mt-4 text-4xl
                         font-black
                       "
                   >
-                    {anomaly.score}%
+                    {anomaly.severity}
                   </h2>
-
-                  {/* BAR */}
-
-                  <div
-                    className="
-                        mt-6 h-3
-                        overflow-hidden
-                        rounded-full
-                        bg-black/30
-                      "
-                  >
-                    <motion.div
-                      initial={{
-                        width: 0,
-                      }}
-                      animate={{
-                        width: `${anomaly.score}%`,
-                      }}
-                      transition={{
-                        duration: 1,
-                      }}
-                      className="
-                          h-full rounded-full
-                          bg-current
-                        "
-                    />
-                  </div>
                 </div>
               </div>
             </div>

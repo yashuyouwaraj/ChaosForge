@@ -13,7 +13,7 @@ const paymentRoutes = require("./modules/payment/payment.routes");
 const reportRoutes = require("./modules/report/report.routes");
 const runRoutes = require("./modules/run/run.routes");
 const usageRoutes = require("./modules/usage/usage.routes");
-
+const aiRouter = require("./modules/ai/ai.routes");
 const healthRoutes = require("./routes/health.routes");
 
 const { client, httpRequestsTotal } = require("./metrics/prometheus");
@@ -118,6 +118,8 @@ app.use("/", metricsRoutes);
 app.use("/", testRoutes);
 
 app.use("/api/incidents", incidentRoutes);
+
+app.use("/api/ai",aiRouter)
 
 /**
  * 💀 PROMETHEUS METRICS ENDPOINT
