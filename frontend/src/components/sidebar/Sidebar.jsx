@@ -97,20 +97,20 @@ export function Sidebar({ mobileOpen, onClose }) {
   return (
     <aside
       className={`
-  fixed inset-y-0 left-0
-  z-50 flex w-[290px]
-  flex-col
-  border-r border-white/10
-  bg-black/70
-  backdrop-blur-2xl
-  transition-transform
-  duration-300
+        fixed inset-y-0 left-0
+        z-50 flex w-[290px]
+        flex-col
+        border-r border-white/10
+        bg-black/70
+        backdrop-blur-2xl
+        transition-transform
+        duration-300
 
-  ${mobileOpen ? "translate-x-0" : "-translate-x-full"}
+        ${mobileOpen ? "translate-x-0" : "-translate-x-full"}
 
-  lg:static
-  lg:translate-x-0
-`}
+        lg:static
+        lg:translate-x-0
+      `}
     >
       {/* BRAND */}
 
@@ -168,8 +168,8 @@ export function Sidebar({ mobileOpen, onClose }) {
 
       <nav
         className="
-          flex-1 overflow-y-auto
-          px-4
+          overflow-y-auto
+          px-4 py-6
         "
       >
         <div className="space-y-8">
@@ -238,7 +238,13 @@ export function Sidebar({ mobileOpen, onClose }) {
         </div>
       </nav>
 
-      <div className="">
+      {/* ACTIVE SIMULATION & STATUS */}
+
+      <div
+        className="
+          space-y-4 px-4
+        "
+      >
         <div
           className="
       rounded-2xl
@@ -299,16 +305,9 @@ export function Sidebar({ mobileOpen, onClose }) {
               : "No active infrastructure load"}
           </div>
         </div>
-      </div>
 
-      {/* STATUS */}
+        {/* STATUS */}
 
-      <div
-        className="
-          border-t border-white/10
-          p-5
-        "
-      >
         <div
           className="
             rounded-2xl
