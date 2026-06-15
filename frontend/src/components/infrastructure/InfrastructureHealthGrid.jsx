@@ -1,7 +1,18 @@
 "use client";
 import { usePlatform } from "@/components/providers/PlatformProvider";
 
-const getStatusColor = (value) => {
+const getStatusColor = (label, value) => {
+  if (
+    label === "Platform" ||
+    label === "Memory Usage" ||
+    label === "CPU Load" ||
+    label === "System Uptime" ||
+    label === "Kafka Workers" ||
+    label === "WebSockets"
+  ) {
+    return "text-cyan-300";
+  }
+
   if (typeof value === "number") {
     return "text-cyan-300";
   }
@@ -108,7 +119,7 @@ export function InfrastructureHealthGrid() {
             className={`
               mt-4 text-3xl
               font-black
-              ${getStatusColor(card.value)}
+              ${getStatusColor(card.label, card.value)}
             `}
           >
             {loading ? "..." : formatValue(card.value)}

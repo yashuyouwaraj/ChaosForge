@@ -11,18 +11,11 @@ import { Button } from "@/components/ui/button";
 
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 
-import { CreateSimulationPanel } from "@/components/dashboard/CreateSimulationPanel";
-
-import { InfrastructureAlerts } from "@/components/dashboard/InfrastructureAlerts";
-
 import { RunAiInsights } from "@/components/dashboard/RunAiInsights";
 
 import { IncidentTimeline } from "@/components/dashboard/IncidentTimeline";
 
 import { RunSelector } from "@/components/dashboard/RunSelector";
-
-import { InfrastructureHealthGrid } from "@/components/dashboard/InfrastructureHealthGrid";
-import { InfrastructureStatusCards } from "@/components/dashboard/InfrastructureStatusCards";
 
 import { RealtimeTelemetry } from "@/components/dashboard/RealtimeTelemetry";
 
@@ -30,11 +23,8 @@ import { LatencyBuckets } from "@/components/dashboard/LatencyBuckets";
 
 import { RealtimeCharts } from "@/components/dashboard/RealtimeCharts";
 
-import { ActiveSimulations } from "@/components/simulations/ActiveSimulations";
-
 import { LiveLogStream } from "@/components/dashboard/LiveLogStream";
 
-import { InfrastructureTopology } from "@/components/dashboard/InfrastructureTopology";
 import { usePlatform } from "@/components/providers/PlatformProvider";
 import { usePlatformOverview } from "@/hooks/usePlatformOverview";
 import { api } from "@/lib/api";
@@ -286,20 +276,6 @@ export default function DashboardPage() {
             </div>
           </PageHeader>
 
-          <DashboardSection
-            title="Infrastructure Grid"
-            description="Realtime operational infrastructure state."
-          >
-            <InfrastructureHealthGrid />
-          </DashboardSection>
-
-          {/* INFRA */}
-          <DashboardSection
-            title="Infrastructure Health"
-            description="Realtime distributed system status."
-          >
-            <InfrastructureStatusCards />
-          </DashboardSection>
 
           <DashboardSection>
             <RunSelector />
@@ -368,17 +344,6 @@ export default function DashboardPage() {
             description="Live distributed infrastructure events and operational activity."
           >
             <LiveLogStream />
-          </DashboardSection>
-
-          <DashboardSection
-            title="Infrastructure Topology"
-            description="Realtime distributed system architecture visualization."
-          >
-            <InfrastructureTopology />
-          </DashboardSection>
-
-          <DashboardSection>
-            <InfrastructureAlerts />
           </DashboardSection>
 
           <DashboardSection>
