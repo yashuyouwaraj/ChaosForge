@@ -30,6 +30,32 @@ const memorySchema = new mongoose.Schema(
     description: String,
 
     recommendation: String,
+
+    confidence: {
+      type: Number,
+      default: 0,
+    },
+
+    detectionCount: {
+      type: Number,
+      default: 1,
+    },
+
+    firstDetectedAt: {
+      type: Date,
+      default: Date.now,
+    },
+
+    lastDetectedAt: {
+      type: Date,
+      default: Date.now,
+    },
+
+    trend: {
+      type: String,
+      enum: ["emerging", "stable", "improving", "degrading"],
+      default: "stable",
+    },
   },
   {
     timestamps: true,

@@ -1,5 +1,6 @@
 const { getIO } = require("../websocket/socket");
 const { client: redis, connectRedis } = require("../config/redis");
+const logger = require("../utils/logger");
 
 // Keys:
 // metrics:{projectId}
@@ -88,7 +89,19 @@ const recordRequest = async (
     multi.expire(`failures:${projectId}:${runId}`, TTL);
   }
 
-  await multi.exec();
+  try {
+    await multi.exec();
+  } catch (err) {
+    logger.error({
+      message: "Failed to record request metrics",
+      projectId,
+      runId,
+      latency,
+      isSuccess,
+      error: err.message,
+    });
+    throw err;
+  }
 
   // 🔥 EMIT
   metricsBuffer[runId] = projectId;
@@ -134,7 +147,7 @@ const getMetrics = async (projectId, runId) => {
 
   const [data, latencies, timestamps, errors, failures] = await Promise.all([
     redis.hGetAll(metricsKey),
-    redis.lRange(`latencies:${projectId}:${runId}`, -1000, -1),
+    redis.lRange(`latencies:${projectId}:${runId}`, -5000, -1),
     redis.lRange(`timestamps:${projectId}:${runId}`, -1000, -1),
     redis.hGetAll(`errors:${projectId}:${runId}`),
     redis.lRange(`failures:${projectId}:${runId}`, -100, -1),
@@ -166,12 +179,28 @@ const getMetrics = async (projectId, runId) => {
     });
   }
 
+  const avgLatency = totalRequests ? Math.round(totalLatency / totalRequests) : 0;
+  const p95Latency = calculateP95(parsedLatencies);
+
+  // Warn if metrics look suspicious
+  if (totalRequests > 0 && avgLatency < p95Latency && avgLatency > 0) {
+    logger.debug({
+      message: "⚠️  Metrics validation: avgLatency < p95Latency (expected p95 >= avg)",
+      projectId,
+      runId,
+      totalRequests,
+      avgLatency,
+      p95Latency,
+      sampledLatencies: parsedLatencies.length,
+    });
+  }
+
   return {
     totalRequests,
     success: Number(data.success || 0),
     failure: Number(data.failure || 0),
-    avgLatency: totalRequests ? Math.round(totalLatency / totalRequests) : 0,
-    p95Latency: calculateP95(parsedLatencies),
+    avgLatency,
+    p95Latency,
     rps: calculateAverageRPS(totalRequests, startedAt, lastRequestAt),
     currentRps: calculateRPS(parsedTimestamps, now),
     latencyBuckets: buckets,

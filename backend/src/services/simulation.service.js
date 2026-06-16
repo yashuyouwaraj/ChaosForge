@@ -66,12 +66,31 @@ const simulateProcessing = async (
       /**
        * 💀 STORE METRICS
        */
-      await recordRequest(
-        projectId,
-        runId,
-        finalLatency,
-        true,
-      );
+      try {
+        await recordRequest(
+          projectId,
+          runId,
+          finalLatency,
+          true,
+        );
+        logger.debug({
+          message: "METRIC_RECORDED_SUCCESS",
+          requestId,
+          projectId,
+          runId,
+          latency: finalLatency,
+        });
+      } catch (metricErr) {
+        logger.error({
+          message: "METRIC_RECORDING_FAILED",
+          requestId,
+          projectId,
+          runId,
+          latency: finalLatency,
+          error: metricErr.message,
+        });
+        throw metricErr;
+      }
 
       /**
        * 💀 PROMETHEUS METRICS
@@ -124,13 +143,32 @@ const simulateProcessing = async (
           errorType: finalErrorType,
         });
 
-        await recordRequest(
-          projectId,
-          runId,
-          finalLatency,
-          false,
-          finalErrorType,
-        );
+        try {
+          await recordRequest(
+            projectId,
+            runId,
+            finalLatency,
+            false,
+            finalErrorType,
+          );
+          logger.debug({
+            message: "METRIC_RECORDED_FAILURE",
+            requestId,
+            projectId,
+            runId,
+            latency: finalLatency,
+            errorType: finalErrorType,
+          });
+        } catch (metricErr) {
+          logger.error({
+            message: "METRIC_RECORDING_FAILED_FOR_FAILURE",
+            requestId,
+            projectId,
+            runId,
+            error: metricErr.message,
+          });
+          throw metricErr;
+        }
 
         /**
          * 💀 PROMETHEUS FAILURE METRIC

@@ -33,11 +33,7 @@ const severityStyles = {
 };
 
 export function InfrastructureMemoryCenter({ projectId }) {
-  const {
-    memory,
-    loading,
-    error,
-  } = useInfrastructureMemory(projectId);
+  const { memory, loading, error } = useInfrastructureMemory(projectId);
 
   return (
     <div
@@ -88,9 +84,7 @@ export function InfrastructureMemoryCenter({ projectId }) {
             text-cyan-300
           "
         >
-          {loading
-            ? "Loading Memory"
-            : `${memory.length} Learned Patterns`}
+          {loading ? "Loading Memory" : `${memory.length} Learned Patterns`}
         </div>
       </div>
 
@@ -179,52 +173,66 @@ export function InfrastructureMemoryCenter({ projectId }) {
           mt-10 space-y-6
         "
       >
-        {!loading && !error && memory.map((insight, index) => (
-          <motion.div
-            key={insight.type}
-            initial={{
-              opacity: 0,
-              y: 20,
-            }}
-            animate={{
-              opacity: 1,
-              y: 0,
-            }}
-            transition={{
-              delay: index * 0.08,
-            }}
-            className={`
+        {!loading &&
+          !error &&
+          memory.map((insight, index) => (
+            <motion.div
+              key={insight._id}
+              initial={{
+                opacity: 0,
+                y: 20,
+              }}
+              animate={{
+                opacity: 1,
+                y: 0,
+              }}
+              transition={{
+                delay: index * 0.08,
+              }}
+              className={`
                 rounded-[28px]
                 border p-7
                 ${severityStyles[insight.severity]}
               `}
-          >
-            <div
-              className="
+            >
+              <div
+                className="
                   flex flex-wrap
                   items-start
                   justify-between
                   gap-6
                 "
-            >
-              {/* LEFT */}
-
-              <div
-                className="
-                    flex-1
-                  "
               >
-                {/* BADGES */}
+                {/* LEFT */}
 
                 <div
                   className="
+                    flex-1
+                  "
+                >
+                  {/* BADGES */}
+
+                  <div
+                    className="
                       flex flex-wrap
                       items-center
                       gap-3
                     "
-                >
-                  <div
-                    className="
+                  >
+                    <div
+                      className="
+                      rounded-full
+                      bg-black/20
+                      px-4 py-2
+                      text-xs font-bold
+                      uppercase
+                      tracking-[0.2em]
+                    "
+                    >
+                      {insight.detectionCount} Detections
+                    </div>
+                    <div
+                      className="
                         rounded-full
                         bg-black/20
                         px-4 py-2
@@ -232,12 +240,12 @@ export function InfrastructureMemoryCenter({ projectId }) {
                         uppercase
                         tracking-[0.2em]
                       "
-                  >
-                    {insight.severity}
-                  </div>
+                    >
+                      {insight.severity}
+                    </div>
 
-                  <div
-                    className="
+                    <div
+                      className="
                         rounded-full
                         bg-black/20
                         px-4 py-2
@@ -245,161 +253,181 @@ export function InfrastructureMemoryCenter({ projectId }) {
                         uppercase
                         tracking-[0.2em]
                       "
-                  >
-                    Historical Pattern
+                    >
+                      Historical Pattern
+                    </div>
+                    <div
+                      className="
+                      rounded-full
+                      bg-black/20
+                      px-4 py-2
+                      text-xs font-bold
+                      uppercase
+                      tracking-[0.2em]
+                    "
+                    >
+                      {insight.confidence}% Confidence
+                    </div>
+
+                    <div
+                      className="
+                      rounded-full
+                      bg-black/20
+                      px-4 py-2
+                      text-xs font-bold
+                      uppercase
+                      tracking-[0.2em]
+                    "
+                    >
+                      {insight.trend?.toUpperCase()}
+                    </div>
                   </div>
-                </div>
 
-                {/* TITLE */}
+                  {/* TITLE */}
 
-                <h3
-                  className="
+                  <h3
+                    className="
                       mt-6 text-3xl
                       font-black
                     "
-                >
-                  {insight.type}
-                </h3>
+                  >
+                    {insight.title}
+                  </h3>
 
-                {/* DESCRIPTION */}
+                  {/* DESCRIPTION */}
 
-                <p
-                  className="
+                  <p
+                    className="
                       mt-5 max-w-4xl
                       leading-8
                       text-slate-300
                     "
-                >
-                  {insight.description}
-                </p>
-
-                {/* IMPACT */}
-
-                <div
-                  className="
-                      mt-6 rounded-2xl
-                      border border-white/10
-                      bg-black/20
-                      p-5
-                    "
-                >
-                  <p
-                    className="
-                        text-sm uppercase
-                        tracking-[0.2em]
-                        text-cyan-300
-                      "
                   >
-                    Operational Impact
+                    {insight.description}
                   </p>
 
-                  <p
+                  {/* RECOMMENDATION */}
+
+                  <div
                     className="
-                        mt-3 leading-8
-                        text-slate-300
-                      "
-                  >
-                    {insight.impact}
-                  </p>
-                </div>
-
-                {/* RECOMMENDATION */}
-
-                <div
-                  className="
                       mt-5 rounded-2xl
                       border border-white/10
                       bg-black/20
                       p-5
                     "
-                >
-                  <p
-                    className="
+                  >
+                    <p
+                      className="
                         text-sm uppercase
                         tracking-[0.2em]
                         text-cyan-300
                       "
-                  >
-                    Learned Recommendation
-                  </p>
+                    >
+                      Learned Recommendation
+                    </p>
 
-                  <p
-                    className="
+                    <p
+                      className="
                         mt-3 leading-8
                         text-slate-300
                       "
-                  >
-                    {insight.recommendation}
-                  </p>
+                    >
+                      {insight.recommendation}
+                    </p>
+                  </div>
                 </div>
-              </div>
 
-              {/* RIGHT */}
+                {/* RIGHT */}
 
-              <div
-                className="
-                    w-full max-w-[240px]
-                  "
-              >
                 <div
                   className="
+                    w-full max-w-[240px]
+                  "
+                >
+                  <div
+                    className="
                       rounded-[28px]
                       border border-white/10
                       bg-black/20
                       p-6
                     "
-                >
-                  <div
-                    className="
+                  >
+                    <div
+                      className="
                         flex items-center
                         justify-between
                       "
-                  >
-                    <Database
-                      className="
+                    >
+                      <Database
+                        className="
                           h-6 w-6
                         "
-                    />
+                      />
 
-                    <ShieldAlert
-                      className="
+                      <ShieldAlert
+                        className="
                           h-6 w-6
                         "
-                    />
-                  </div>
+                      />
+                    </div>
 
-                  <p
-                    className="
+                    <p
+                      className="
                         mt-6 text-sm
                         uppercase
                         tracking-[0.2em]
                       "
-                  >
-                    Learning Status
-                  </p>
+                    >
+                      Learning Status
+                    </p>
 
-                  <h2
-                    className="
+                    <h2
+                      className="
                         mt-4 text-4xl
                         font-black
                       "
-                  >
-                    Active
-                  </h2>
+                    >
+                      {insight.detectionCount}x
+                    </h2>
 
-                  <div
-                    className="
-                        mt-6 text-sm
-                        leading-6
-                      "
-                  >
-                    Historical operational intelligence pattern recognized.
+                    <div
+                      className="
+    mt-6 space-y-2
+    text-sm
+    leading-6
+  "
+                    >
+                      <p>
+                        Trend: <strong>{insight.trend?.toUpperCase()}</strong>
+                      </p>
+
+                      <p>
+                        Confidence: <strong>{insight.confidence}%</strong>
+                      </p>
+
+                      <p>
+                        First Seen:{" "}
+                        <strong>
+                          {new Date(
+                            insight.firstDetectedAt,
+                          ).toLocaleDateString()}
+                        </strong>
+                      </p>
+
+                      <p>
+                        Last Seen:{" "}
+                        <strong>
+                          {new Date(
+                            insight.lastDetectedAt,
+                          ).toLocaleDateString()}
+                        </strong>
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </motion.div>
-        ))}
+            </motion.div>
+          ))}
       </div>
     </div>
   );

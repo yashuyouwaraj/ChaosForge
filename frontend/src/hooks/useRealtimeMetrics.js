@@ -31,24 +31,29 @@ export function useRealtimeMetrics(
       `metrics-${projectId}-${runId}`;
 
     const handler = (data) => {
-      setMetrics(data);
+      if (!cancelled) {
+        setMetrics(data);
+      }
     };
+    
     const joinSelectedRun = () => {
       joinRun(projectId, runId);
     };
 
+    // Join immediately with retry logic
     queueMicrotask(() => {
       if (!cancelled) {
-        setMetrics(null);
+        joinSelectedRun();
+        // Rejoin on reconnect
+        socket.on(
+          "connect",
+          joinSelectedRun,
+        );
       }
     });
 
-    joinSelectedRun();
+    // Listen for events
     socket.on(event, handler);
-    socket.on(
-      "connect",
-      joinSelectedRun,
-    );
 
     return () => {
       cancelled = true;

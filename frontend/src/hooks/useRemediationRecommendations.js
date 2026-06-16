@@ -24,6 +24,11 @@ export function useRemediationRecommendations(projectId, runId) {
 
     const { deltas, currentRun } = regression;
 
+    // Validate deltas and currentRun exist
+    if (!deltas || !currentRun) {
+      return [];
+    }
+
     // LATENCY
 
     if (deltas.p95Latency > 20 || currentRun.p95Latency > 2000) {

@@ -27,6 +27,7 @@ const generateInfrastructureMemory = async (run) => {
         title: "Recurring Tail Latency",
         description: "P95 latency exceeded 100ms during execution.",
         recommendation: "Inspect worker saturation and backend bottlenecks.",
+        confidence: Math.min(100, Math.round((run.p95Latency / 500) * 100)),
       });
     }
 
@@ -39,6 +40,7 @@ const generateInfrastructureMemory = async (run) => {
         title: "Failure Escalation",
         description: "Failure volume exceeded operational thresholds.",
         recommendation: "Investigate dependency instability and retry storms.",
+        confidence: Math.min(100, Math.round((run.failure / 20) * 100)),
       });
     }
 
@@ -51,6 +53,7 @@ const generateInfrastructureMemory = async (run) => {
         title: "Infrastructure Saturation",
         description: "High throughput combined with elevated latency.",
         recommendation: "Increase worker capacity and optimize queues.",
+        confidence: Math.min(100, Math.round((run.rps / 100) * 100)),
       });
     }
 
@@ -67,25 +70,32 @@ const generateInfrastructureMemory = async (run) => {
       try {
         const exists = await InfrastructureMemory.findOne({
           projectId: memory.projectId,
-          runId: memory.runId,
           patternType: memory.patternType,
-        });
+        }).sort({ updatedAt: -1 });
 
         if (!exists) {
-          await saveMemory(memory);
-          logger.info({
-            message: "Infrastructure memory saved",
-            projectId: memory.projectId,
-            runId: memory.runId,
-            patternType: memory.patternType,
+          await saveMemory({
+            ...memory,
+            detectionCount: 1,
+            firstDetectedAt: new Date(),
+            lastDetectedAt: new Date(),
+            trend: "emerging",
           });
         } else {
-          logger.debug({
-            message: "Infrastructure memory already exists, skipping duplicate",
-            projectId: memory.projectId,
-            runId: memory.runId,
-            patternType: memory.patternType,
-          });
+          exists.runId = run.runId;
+          exists.lastDetectedAt = new Date();
+          exists.detectionCount += 1;
+          exists.confidence = Math.max(
+            exists.confidence,
+            memory.confidence || 0,
+          );
+          if (exists.detectionCount >= 5) {
+            exists.trend = "degrading";
+          } else if (exists.detectionCount >= 2) {
+            exists.trend = "stable";
+          }
+
+          await exists.save();
         }
       } catch (err) {
         logger.error({

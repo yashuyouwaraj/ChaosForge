@@ -59,8 +59,10 @@ export function RealtimeTelemetry() {
 
     loadMetrics();
 
+    // Faster polling (1 second) to catch WebSocket failures
+    // This ensures metrics update quickly even if WebSocket is down
     const intervalId = selectedRun.isActive
-      ? window.setInterval(loadMetrics, 5000)
+      ? window.setInterval(loadMetrics, 1000)
       : null;
 
     return () => {
