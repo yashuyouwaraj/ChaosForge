@@ -1,6 +1,7 @@
 const Run = require("./run.model");
 const logger = require("../../utils/logger");
 const { getMetrics } = require("../../metrics/metrics.store");
+const { generateInfrastructureMemory } = require("../memory/memory.generator");
 
 const ACTIVE_STATUSES = ["starting", "running", "paused"];
 const COMPLETION_GRACE_MS = 30000;
@@ -83,7 +84,8 @@ const completeFinishedActiveRuns = async (filter = {}) => {
           return;
         }
 
-        const metrics = result.metrics || (await getMetrics(run.projectId, run.runId));
+        const metrics =
+          result.metrics || (await getMetrics(run.projectId, run.runId));
 
         await Run.updateOne(
           { _id: run._id, status: { $in: ACTIVE_STATUSES } },
@@ -102,6 +104,21 @@ const completeFinishedActiveRuns = async (filter = {}) => {
             },
           },
         );
+
+        await generateInfrastructureMemory({
+          projectId: run.projectId,
+          runId: run.runId,
+
+          totalRequests: metrics.totalRequests,
+          success: metrics.success,
+          failure: metrics.failure,
+
+          avgLatency: metrics.avgLatency,
+          p95Latency: metrics.p95Latency,
+
+          rps: metrics.rps,
+        });
+        
       } catch (err) {
         logger.warn({
           message: "Failed to reconcile active run status",
@@ -149,7 +166,7 @@ const saveRun = async (data) => {
 const getRunsByProject = async (projectId, userId) => {
   try {
     await completeFinishedActiveRuns({ projectId, owner: userId });
-    return await Run.find({ projectId,owner: userId }).sort({ createdAt: -1 });
+    return await Run.find({ projectId, owner: userId }).sort({ createdAt: -1 });
   } catch (err) {
     logger.error({
       message: "Error fetching runs",

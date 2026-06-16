@@ -6,7 +6,7 @@ const metricsRoutes = require("./routes/metrics.routes");
 const testRoutes = require("./routes/test.routes");
 
 const requestIdMiddleware = require("./middleware/requestId");
-
+const memoryRoutes = require("./modules/memory/memory.routes");
 const authRoutes = require("./modules/auth/auth.routes");
 const projectRoutes = require("./modules/project/project.routes");
 const paymentRoutes = require("./modules/payment/payment.routes");
@@ -119,7 +119,9 @@ app.use("/", testRoutes);
 
 app.use("/api/incidents", incidentRoutes);
 
-app.use("/api/ai",aiRouter)
+app.use("/api/ai", aiRouter);
+
+app.use("/api/memory", memoryRoutes);
 
 /**
  * 💀 PROMETHEUS METRICS ENDPOINT

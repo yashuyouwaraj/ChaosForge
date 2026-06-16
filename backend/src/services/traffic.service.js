@@ -2,10 +2,9 @@ const { v4: uuidv4 } = require("uuid");
 const logger = require("../utils/logger");
 const { simulateProcessing } = require("./simulation.service");
 const {
-  producer,
-  connectProducer,
-  TRAFFIC_TOPIC,
-} = require("../config/kafka");
+  generateInfrastructureMemory,
+} = require("../modules/memory/memory.generator");
+const { producer, connectProducer, TRAFFIC_TOPIC } = require("../config/kafka");
 const { emitBufferedLog } = require("../websocket/socket");
 const { client: redis, connectRedis } = require("../config/redis");
 const {
@@ -16,9 +15,7 @@ const {
 const { saveRun } = require("../modules/run/run.service");
 const { initControl, getControl } = require("../control/control.store");
 const { addIncident } = require("./incidentTimeline");
-const {
-  ensureKafkaWorkersReady,
-} = require("./worker-readiness.service");
+const { ensureKafkaWorkersReady } = require("./worker-readiness.service");
 const Run = require("../modules/run/run.model");
 
 const useKafka = process.env.USE_KAFKA === "true";
@@ -49,7 +46,9 @@ const generateTraffic = async (config, projectId, url, options = {}) => {
       connectedWorkers: workerReadiness.connectedWorkers,
     });
 
-    throw new Error("Workers did not become ready before the readiness timeout.");
+    throw new Error(
+      "Workers did not become ready before the readiness timeout.",
+    );
   }
 
   await Run.updateOne(
@@ -97,7 +96,7 @@ const generateTraffic = async (config, projectId, url, options = {}) => {
 
   if (config.pattern === "stages") {
     expectedRequests = await runStages(config, projectId, url, runId);
-  } 
+  }
   // 🟦 DEFAULT REQUEST MODE (BACKWARD COMPATIBLE)
   else {
     expectedRequests = await runRequestMode(config, projectId, url, runId);
@@ -124,7 +123,7 @@ const generateTraffic = async (config, projectId, url, options = {}) => {
     metrics: finalMetrics,
   });
 
-  await saveRun({
+  const savedRun = await saveRun({
     owner: options.owner,
     projectId,
     runId,
@@ -133,6 +132,8 @@ const generateTraffic = async (config, projectId, url, options = {}) => {
     url,
     ...finalMetrics,
   });
+
+  await generateInfrastructureMemory(savedRun);
 
   markRunComplete(runId);
 
@@ -152,7 +153,6 @@ const generateTraffic = async (config, projectId, url, options = {}) => {
   return runId;
 };
 
-
 /**
  * 🟦 REQUEST MODE (existing logic cleaned)
  */
@@ -171,7 +171,7 @@ const runRequestMode = async (config, projectId, url, runId) => {
 
       for (let i = 0; i < rate && sent < requestCount; i++) {
         promises.push(
-          simulateProcessing(url, uuidv4(), projectId, runId, config.method)
+          simulateProcessing(url, uuidv4(), projectId, runId, config.method),
         );
         sent++;
       }
@@ -238,7 +238,6 @@ const runRequestMode = async (config, projectId, url, runId) => {
   return sent;
 };
 
-
 /**
  * 💀 STAGES MODE (DAY 41 MAGIC)
  */
@@ -269,7 +268,7 @@ const runStages = async (config, projectId, url, runId) => {
 
         for (let i = 0; i < rate; i++) {
           promises.push(
-            simulateProcessing(url, uuidv4(), projectId, runId, config.method)
+            simulateProcessing(url, uuidv4(), projectId, runId, config.method),
           );
           sent++;
         }
