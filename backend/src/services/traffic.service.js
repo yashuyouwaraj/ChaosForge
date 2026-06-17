@@ -199,7 +199,7 @@ const runRequestMode = async (config, projectId, url, runId) => {
 
   let batchNumber = 0;
   let totalMessagesQueuedToKafka = 0;
-  
+
   while (sent < requestCount) {
     const state = await waitIfPaused(projectId, runId);
     if (state === "stopped") {
@@ -227,7 +227,12 @@ const runRequestMode = async (config, projectId, url, runId) => {
           url,
           runId,
           requestId,
+
           method: config.method,
+
+          headers: config.headers || {},
+
+          body: config.body || null,
         }),
       });
       sent++;
@@ -306,11 +311,13 @@ const runRequestMode = async (config, projectId, url, runId) => {
   // Minimum: 15 seconds - this is critical to prevent request loss!
   const preCompletionWaitMs = 15000; // Increased from 5000ms
   logger.info({
-    message: "Waiting before sending traffic-complete signal (extended grace period)",
+    message:
+      "Waiting before sending traffic-complete signal (extended grace period)",
     projectId,
     runId,
     waitMs: preCompletionWaitMs,
-    reason: "Allow all in-flight requests to complete + consumer lag + Redis writes",
+    reason:
+      "Allow all in-flight requests to complete + consumer lag + Redis writes",
   });
 
   await delay(preCompletionWaitMs);
@@ -334,7 +341,8 @@ const runRequestMode = async (config, projectId, url, runId) => {
     });
 
     logger.info({
-      message: "Request mode simulation completed - traffic-complete message sent",
+      message:
+        "Request mode simulation completed - traffic-complete message sent",
       projectId,
       runId,
       totalSent: sent,
@@ -431,6 +439,10 @@ const runStages = async (config, projectId, url, runId) => {
     // Use batch count instead of time to ensure we send exactly the right number
     while (batchIteration < expectedBatchCount) {
       batchIteration++;
+      
+      // 🔥 SAFETY CHECK: Ensure we send the final batch
+      // Off-by-one protection: if this is the last expected batch, guarantee it sends
+      const isFinalBatch = batchIteration === expectedBatchCount;
       const iterationStartTime = Date.now();
       const timeRemaining = end - iterationStartTime;
 
@@ -538,7 +550,8 @@ const runStages = async (config, projectId, url, runId) => {
       expectedBatchCount,
       totalMessagesInStage: stageMessageCount,
       expectedMessagesInStage,
-      accuracy: stageMessageCount === expectedMessagesInStage ? "PERFECT" : "MISMATCH",
+      accuracy:
+        stageMessageCount === expectedMessagesInStage ? "PERFECT" : "MISMATCH",
       mismatch: expectedMessagesInStage - stageMessageCount,
       durationSec,
       totalElapsedMs: Date.now() - stageStartTime,
@@ -552,7 +565,7 @@ const runStages = async (config, projectId, url, runId) => {
     totalBatches: totalBatchesSent,
     totalMessagesSent: sent,
     totalMessagesSentToKafka,
-    expectedRequests_parameter: sent,  // This is what we tell waitForFinalMetrics
+    expectedRequests_parameter: sent, // This is what we tell waitForFinalMetrics
   });
 
   // ⚠️ CRITICAL: Extended grace period to ensure all in-flight requests complete
@@ -561,13 +574,15 @@ const runStages = async (config, projectId, url, runId) => {
   // Plus consumer lag and batch processing time
   // Minimum: 15 seconds to catch stragglers
   const gracePeriodMs = 15000; // Increased from 2000ms
-  
+
   logger.info({
-    message: "Waiting before sending traffic-complete signal (extended grace period)",
+    message:
+      "Waiting before sending traffic-complete signal (extended grace period)",
     projectId,
     runId,
     delayMs: gracePeriodMs,
-    reason: "Allow in-flight requests to complete + Redis writes + consumer lag",
+    reason:
+      "Allow in-flight requests to complete + Redis writes + consumer lag",
     totalMessagesSentToKafka,
   });
 
@@ -702,12 +717,10 @@ const waitForFinalMetrics = async (projectId, runId, expectedRequests) => {
       // Need enough time for HTTP request (~100-300ms) + Redis write (~10ms) + consumer processing
       // 5 polls * 1000ms = 5 seconds of no change = requests have truly stopped arriving
       // Then add 15 more seconds for any stragglers (network delays, slow endpoints, Redis lag)
-      if (
-        consecutiveNoChangeCount >= 5 &&
-        Date.now() - stabilizedAt >= 15000
-      ) {
+      if (consecutiveNoChangeCount >= 5 && Date.now() - stabilizedAt >= 15000) {
         logger.info({
-          message: "Metrics stable for 15+ seconds after 5 consecutive no-change polls, finalizing",
+          message:
+            "Metrics stable for 15+ seconds after 5 consecutive no-change polls, finalizing",
           projectId,
           runId,
           recordedRequests: metrics.totalRequests,

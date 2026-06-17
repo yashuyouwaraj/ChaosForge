@@ -10,7 +10,9 @@ const { trackSimulation } = require("../modules/usage/usage.service");
 const { v4: uuidv4 } = require("uuid");
 const { initControl } = require("../control/control.store");
 const enforcePlan = require("../middleware/plan.middleware");
-const { verifyProjectOwnership } = require("../middleware/ownership.middleware");
+const {
+  verifyProjectOwnership,
+} = require("../middleware/ownership.middleware");
 const { getIO } = require("../websocket/socket");
 const {
   validateConfig,
@@ -22,7 +24,7 @@ const {
 const router = express.Router();
 
 const validateSimulationRequest = (req, res, next) => {
-  const { url, config } = req.body;
+  const { url, config, headers, body } = req.body;
 
   if (!url || !config) {
     return res.status(400).json({ error: "url and config required" });
@@ -68,8 +70,11 @@ router.post(
   enforcePlan,
   async (req, res) => {
     const { projectId } = req.params;
+    const { headers, body } = req.body;
     const normalizedUrl = req.normalizedUrl;
     const normalizedConfig = req.normalizedConfig;
+    normalizedConfig.headers = headers || {};
+    normalizedConfig.body = body || null;
 
     const runId = uuidv4();
     await initControl(projectId, runId);

@@ -12,8 +12,7 @@ const logger = require("../utils/logger");
 
 const MAX_RETRIES = 3;
 
-const delay = (ms) =>
-  new Promise((res) => setTimeout(res, ms));
+const delay = (ms) => new Promise((res) => setTimeout(res, ms));
 
 const simulateProcessing = async (
   url,
@@ -21,6 +20,8 @@ const simulateProcessing = async (
   projectId,
   runId,
   method = "GET",
+  headers = {},
+  body = null,
 ) => {
   let attempt = 0;
 
@@ -44,9 +45,14 @@ const simulateProcessing = async (
         method,
       });
 
-      const res = await axios({
+      await axios({
         method,
         url,
+
+        headers,
+
+        data: ["POST", "PUT", "PATCH"].includes(method) ? body : undefined,
+
         timeout: 5000,
       });
 
@@ -67,12 +73,7 @@ const simulateProcessing = async (
        * 💀 STORE METRICS
        */
       try {
-        await recordRequest(
-          projectId,
-          runId,
-          finalLatency,
-          true,
-        );
+        await recordRequest(projectId, runId, finalLatency, true);
         logger.debug({
           message: "METRIC_RECORDED_SUCCESS",
           requestId,
@@ -106,8 +107,7 @@ const simulateProcessing = async (
         requestId,
 
         message:
-          `✅ ${url} - ${res.status} ` +
-          `(try ${attempt + 1}/${MAX_RETRIES})`,
+          `✅ ${url} - ${res.status} ` + `(try ${attempt + 1}/${MAX_RETRIES})`,
 
         type: "success",
 
@@ -115,7 +115,6 @@ const simulateProcessing = async (
 
         time: new Date().toLocaleTimeString(),
       });
-
     } catch (err) {
       finalLatency = Date.now() - start;
 
@@ -183,8 +182,7 @@ const simulateProcessing = async (
           requestId,
 
           message:
-            `❌ ${url} - ${err.message} ` +
-            `(after ${MAX_RETRIES} attempts)`,
+            `❌ ${url} - ${err.message} ` + `(after ${MAX_RETRIES} attempts)`,
 
           type: "error",
 
@@ -192,13 +190,11 @@ const simulateProcessing = async (
 
           time: new Date().toLocaleTimeString(),
         });
-
       } else {
         /**
          * 💀 EXPONENTIAL BACKOFF
          */
-        const retryInMs =
-          100 * Math.pow(2, attempt);
+        const retryInMs = 100 * Math.pow(2, attempt);
 
         logger.warn({
           message: "request_retry",

@@ -64,8 +64,21 @@ export function CreateSimulationPanel() {
 
   const [form, setForm] = useState({
     url: "https://jsonplaceholder.typicode.com/posts",
-    mode: "duration",
+
     method: "GET",
+
+    headers: `{
+      "Content-Type": "application/json"
+    }`,
+
+    body: `{
+      "title": "ChaosForge",
+      "body": "Load Test",
+      "userId": 1
+    }`,
+
+    mode: "duration",
+
     rps: 100,
     duration: 30,
     totalRequests: 2000,
@@ -76,7 +89,8 @@ export function CreateSimulationPanel() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const activeMode = runModes.find((mode) => mode.id === form.mode) || runModes[0];
+  const activeMode =
+    runModes.find((mode) => mode.id === form.mode) || runModes[0];
 
   const runPreview = useMemo(() => {
     if (form.mode === "duration") {
@@ -195,10 +209,7 @@ export function CreateSimulationPanel() {
     }
 
     if (form.mode === "requests") {
-      if (
-        !Number.isFinite(form.totalRequests) ||
-        form.totalRequests <= 0
-      ) {
+      if (!Number.isFinite(form.totalRequests) || form.totalRequests <= 0) {
         throw new Error("Total Requests must be greater than 0.");
       }
 
@@ -251,9 +262,15 @@ export function CreateSimulationPanel() {
 
       const data = await api(`/test/${projectId}`, "POST", {
         url: form.url,
+
+        headers: JSON.parse(form.headers),
+
+        body: ["POST", "PUT", "PATCH"].includes(form.method)
+          ? JSON.parse(form.body)
+          : null,
+
         config,
       });
-
       if (!data?.runId) {
         throw new Error("Run ID missing from response");
       }
@@ -376,7 +393,9 @@ export function CreateSimulationPanel() {
                     >
                       <ModeIcon size={18} />
                     </span>
-                    <span className="block text-sm font-bold">{mode.label}</span>
+                    <span className="block text-sm font-bold">
+                      {mode.label}
+                    </span>
                     <span className="mt-2 block text-xs leading-5">
                       {mode.description}
                     </span>
@@ -409,6 +428,25 @@ export function CreateSimulationPanel() {
                   <GitBranch size={15} className="text-emerald-300" />
                   HTTP Method
                 </span>
+                {["POST", "PUT", "PATCH"].includes(form.method) && (
+                  <label className="block space-y-3">
+                    <span className="text-sm font-medium">
+                      Request Body (JSON)
+                    </span>
+
+                    <textarea
+                      rows={10}
+                      value={form.body}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          body: e.target.value,
+                        })
+                      }
+                      className={fieldClassName}
+                    />
+                  </label>
+                )}
 
                 <select
                   value={form.method}
@@ -422,6 +460,9 @@ export function CreateSimulationPanel() {
                 >
                   <option>GET</option>
                   <option>POST</option>
+                  <option>PUT</option>
+                  <option>PATCH</option>
+                  <option>DELETE</option>
                 </select>
               </label>
             </div>
@@ -526,7 +567,11 @@ export function CreateSimulationPanel() {
                               min="1"
                               value={stage.durationSec}
                               onChange={(e) =>
-                                updateStage(index, "durationSec", e.target.value)
+                                updateStage(
+                                  index,
+                                  "durationSec",
+                                  e.target.value,
+                                )
                               }
                               className={fieldClassName}
                             />

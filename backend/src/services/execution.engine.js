@@ -12,13 +12,26 @@ const runConstantSecond = async ({
   projectId,
   url,
   runId,
+  method = 'GET',
+  headers = {},
+  body = null,
 }) => {
   const limit = pLimit(concurrency);
   const batch = [];
 
   for (let i = 0; i < rate; i++) {
     batch.push(
-      limit(() => simulateProcessing(url, uuidv4(), projectId, runId)),
+      limit(() =>
+        simulateProcessing(
+          url,
+          uuidv4(),
+          projectId,
+          runId,
+          method,
+          headers,
+          body,
+        ),
+      ),
     );
   }
   await Promise.all(batch);
@@ -44,15 +57,12 @@ const runStages = async ({ stages, concurrency, projectId, url, runId }) => {
 
       for (let i = 0; i < rate; i++) {
         promises.push(
-          limit(() =>
-            simulateProcessing(url, uuidv4(), projectId, runId)
-          )
+          limit(() => simulateProcessing(url, uuidv4(), projectId, runId, method, headers, body)),
         );
       }
 
       // 🔥 execute THIS SECOND’s requests
       await Promise.all(promises);
-
     }
   }
 };
@@ -65,6 +75,9 @@ const runRequestMode = async ({
   projectId,
   url,
   runId,
+  method = 'GET',
+  headers = {},
+  body = null,
 }) => {
   const limit = pLimit(Number(concurrency) || 1);
   let sent = 0;
@@ -81,9 +94,7 @@ const runRequestMode = async ({
 
     for (let i = 0; i < effectiveRate && sent < totalRequests; i++) {
       batch.push(
-        limit(() =>
-          simulateProcessing(url, uuidv4(), projectId, runId)
-        )
+        limit(() => simulateProcessing(url, uuidv4(), projectId, runId, method, headers, body)),
       );
       sent++;
     }
@@ -103,6 +114,9 @@ const runDurationMode = async ({
   projectId,
   url,
   runId,
+  method = 'GET',
+  headers = {},
+  body = null,
 }) => {
   const endTime = Date.now() + duration * 1000;
   const baseRate = Number(rate) || 0;
@@ -121,6 +135,9 @@ const runDurationMode = async ({
       projectId,
       url,
       runId,
+      method,
+      headers,
+      body,
     });
     await delay(1000);
   }
