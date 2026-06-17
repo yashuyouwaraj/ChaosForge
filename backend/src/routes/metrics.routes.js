@@ -32,6 +32,7 @@ router.get("/metrics/:projectId", authMiddleware, verifyProjectOwnership, async 
         p95Latency: savedRun.p95Latency || 0,
         rps: savedRun.rps || 0,
         currentRps: 0,
+        latencyTimeline: savedRun.latencyTimeline || [],
         latencyBuckets: savedRun.latencyBuckets || {
             "0-500": 0,
             "500-1000": 0,

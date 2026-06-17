@@ -18,6 +18,14 @@ const round = (value, precision = 1) => {
   return Math.round(toNumber(value) * factor) / factor;
 };
 
+const preferNonEmptyArray = (...values) => {
+  const firstNonEmpty = values.find(
+    (value) => Array.isArray(value) && value.length > 0,
+  );
+
+  return firstNonEmpty || [];
+};
+
 const normalizeMetrics = (savedRun, metrics = {}) => ({
   totalRequests: toNumber(savedRun?.totalRequests ?? metrics.totalRequests),
   success: toNumber(savedRun?.success ?? metrics.success),
@@ -26,8 +34,15 @@ const normalizeMetrics = (savedRun, metrics = {}) => ({
   p95Latency: toNumber(savedRun?.p95Latency ?? metrics.p95Latency),
   rps: toNumber(savedRun?.rps ?? metrics.rps),
   errorTypes: savedRun?.errorTypes || metrics.errorTypes || {},
+  latencyTimeline: preferNonEmptyArray(
+    savedRun?.latencyTimeline,
+    metrics.latencyTimeline,
+  ),
   latencyBuckets: savedRun?.latencyBuckets || metrics.latencyBuckets || {},
-  failureTimeline: savedRun?.failureTimeline || metrics.failureTimeline || [],
+  failureTimeline: preferNonEmptyArray(
+    savedRun?.failureTimeline,
+    metrics.failureTimeline,
+  ),
 });
 
 const getOverview = (metrics) => ({
@@ -288,9 +303,12 @@ const buildInfrastructureMemory = async (projectId) => {
 
   const patterns = memory.map((pattern) => ({
     title: pattern.title,
+    patternType: pattern.patternType,
     severity: pattern.severity,
     confidence: pattern.confidence,
     detectionCount: pattern.detectionCount,
+    firstDetectedAt: pattern.firstDetectedAt,
+    lastDetectedAt: pattern.lastDetectedAt,
     trend: pattern.trend,
     recommendation: pattern.recommendation,
   }));
@@ -301,15 +319,100 @@ const buildInfrastructureMemory = async (projectId) => {
   };
 };
 
-const buildIncidentTimeline = (runId) =>
-  getIncidentTimeline()
+const getLatestMetricTime = (metrics) => {
+  const timelineTimes = [
+    ...(Array.isArray(metrics.latencyTimeline)
+      ? metrics.latencyTimeline.map((point) => point.time)
+      : []),
+    ...(Array.isArray(metrics.failureTimeline)
+      ? metrics.failureTimeline.map((point) => point.time)
+      : []),
+  ]
+    .map(Number)
+    .filter(Number.isFinite);
+
+  if (timelineTimes.length === 0) {
+    return null;
+  }
+
+  return new Date(Math.max(...timelineTimes)).toISOString();
+};
+
+const buildLifecycleTimeline = ({ runId, savedRun, metrics }) => {
+  const incidents = [];
+  const startedAt = savedRun?.createdAt;
+  const completedAt =
+    savedRun?.completedAt ||
+    getLatestMetricTime(metrics) ||
+    savedRun?.updatedAt;
+
+  if (startedAt) {
+    incidents.push({
+      title: "Simulation Started",
+      severity: "info",
+      timestamp: new Date(startedAt).toISOString(),
+      message: `Run ${runId} started.`,
+      type: "simulation",
+    });
+  }
+
+  if (["completed", "stopped"].includes(savedRun?.status) && completedAt) {
+    incidents.push({
+      title: "Simulation Completed",
+      severity: savedRun.status === "stopped" ? "warning" : "info",
+      timestamp: new Date(completedAt).toISOString(),
+      message:
+        savedRun.status === "stopped"
+          ? `Run ${runId} was stopped before completion.`
+          : `Run ${runId} completed successfully.`,
+      type: "simulation",
+    });
+  }
+
+  if (savedRun?.status === "failed") {
+    incidents.push({
+      title: "Simulation Failed",
+      severity: "critical",
+      timestamp: new Date(completedAt || startedAt || Date.now()).toISOString(),
+      message: `Run ${runId} failed.`,
+      type: "simulation",
+    });
+  }
+
+  return incidents;
+};
+
+const buildIncidentTimeline = ({ runId, savedRun, metrics }) => {
+  const seen = new Set();
+
+  const liveIncidents = getIncidentTimeline()
     .filter((incident) => incident?.metadata?.runId === runId)
     .map((incident) => ({
       title: incident.title,
       severity: incident.severity,
       timestamp: incident.timestamp,
       message: incident.message,
+      type: incident.type,
     }));
+
+  return [...liveIncidents, ...buildLifecycleTimeline({ runId, savedRun, metrics })]
+    .filter((incident) => {
+      const key = [
+        incident.title,
+        incident.message,
+        incident.severity,
+        incident.type,
+      ].join("|");
+
+      if (seen.has(key)) {
+        return false;
+      }
+
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+};
 
 const buildRunMetrics = ({ runId, projectId, savedRun, metrics, overview }) => ({
   runId,
@@ -325,9 +428,10 @@ const buildRunMetrics = ({ runId, projectId, savedRun, metrics, overview }) => (
   failureRate: round(rate(overview.failure, overview.totalRequests)),
   avgLatency: overview.avgLatency,
   p95Latency: overview.p95Latency,
-  rps: overview.rps,
-  latencyBuckets: metrics.latencyBuckets || {},
-  failureTimeline: metrics.failureTimeline || [],
+    rps: overview.rps,
+    latencyTimeline: metrics.latencyTimeline || [],
+    latencyBuckets: metrics.latencyBuckets || {},
+    failureTimeline: metrics.failureTimeline || [],
 });
 
 async function buildOperationalReport({ runId, projectId }) {
@@ -347,6 +451,7 @@ async function buildOperationalReport({ runId, projectId }) {
       p95Latency: savedRun.p95Latency || 0,
       rps: savedRun.rps || 0,
       errorTypes: savedRun.errorTypes || {},
+      latencyTimeline: savedRun.latencyTimeline || [],
       latencyBuckets: savedRun.latencyBuckets || {},
       failureTimeline: savedRun.failureTimeline || [],
     };
@@ -370,7 +475,7 @@ async function buildOperationalReport({ runId, projectId }) {
     metrics,
     infrastructureMemory,
   );
-  const incidentTimeline = buildIncidentTimeline(runId);
+  const incidentTimeline = buildIncidentTimeline({ runId, savedRun, metrics });
   const runMetrics = buildRunMetrics({
     runId,
     projectId,

@@ -111,6 +111,7 @@ export function LatencyDistribution({
 
   return (
     <div
+      data-report-chart="latency-distribution"
       className="
         glass rounded-[32px]
         p-8

@@ -133,6 +133,28 @@ const calculateAverageRPS = (totalRequests, startedAt, lastRequestAt) => {
   return Math.round((totalRequests * 1000) / elapsedMs);
 };
 
+const buildLatencyTimeline = (latencies, timestamps) => {
+  const count = Math.min(latencies.length, timestamps.length);
+  const timeline = [];
+
+  for (let index = 0; index < count; index++) {
+    const latency = Number(latencies[index]);
+    const time = Number(timestamps[index]);
+
+    if (!Number.isFinite(latency) || !Number.isFinite(time)) {
+      continue;
+    }
+
+    timeline.push({
+      time,
+      latency,
+      request: index + 1,
+    });
+  }
+
+  return timeline;
+};
+
 const getLatencyBucket = (latency) => {
   if (latency < 500) return "0-500";
   if (latency < 1000) return "500-1000";
@@ -203,6 +225,7 @@ const getMetrics = async (projectId, runId) => {
     p95Latency,
     rps: calculateAverageRPS(totalRequests, startedAt, lastRequestAt),
     currentRps: calculateRPS(parsedTimestamps, now),
+    latencyTimeline: buildLatencyTimeline(parsedLatencies, parsedTimestamps),
     latencyBuckets: buckets,
     errorTypes: {
       timeout: Number(errors.timeout || 0),

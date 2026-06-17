@@ -2,8 +2,6 @@
 
 import { RunOperationalSummary } from "./RunOperationalSummary";
 
-import { ExportActions } from "./ExportActions";
-
 export function ReportSummaryCard({
   run,
 }) {
@@ -52,7 +50,20 @@ export function ReportSummaryCard({
           </p>
         </div>
 
-        <ExportActions run={run} />
+        <a
+          href={`/reports/${encodeURIComponent(run.runId)}?projectId=${encodeURIComponent(run.projectId)}`}
+          className="
+            rounded-2xl
+            bg-cyan-500
+            px-5 py-3
+            text-sm font-bold
+            text-black
+            transition
+            hover:scale-[1.02]
+          "
+        >
+          Open Report
+        </a>
       </div>
 
       <div

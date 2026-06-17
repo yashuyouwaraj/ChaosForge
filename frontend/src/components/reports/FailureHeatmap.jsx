@@ -112,6 +112,7 @@ export function FailureHeatmap({ run: providedRun, runId }) {
 
   return (
     <div
+      data-report-chart="failure-heatmap"
       className="
         glass rounded-[32px]
         p-8

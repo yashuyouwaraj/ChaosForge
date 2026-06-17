@@ -34,10 +34,18 @@ const runSchema = new mongoose.Schema({
       network: Number,
       server: Number,
     },
+
+    latencyTimeline: [{
+      time: Number,
+      latency: Number,
+      request: Number,
+    }],
     
     failureTimeline: [{
       time: Number,
     }],
+
+    completedAt: Date,
 
     createdAt: { type: Date, default: Date.now },
 })

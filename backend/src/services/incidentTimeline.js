@@ -2,7 +2,32 @@ const MAX_INCIDENTS = 200;
 
 const incidentTimeline = [];
 
+const isSimulationLifecycleEvent = (incident) =>
+  ["Simulation Started", "Simulation Completed"].includes(incident.title);
+
+const hasDuplicateLifecycleEvent = (incident) => {
+  if (!isSimulationLifecycleEvent(incident)) {
+    return false;
+  }
+
+  const runId = incident.metadata?.runId;
+
+  if (!runId) {
+    return false;
+  }
+
+  return incidentTimeline.some(
+    (existing) =>
+      existing.title === incident.title &&
+      existing.metadata?.runId === runId,
+  );
+};
+
 const addIncident = (incident) => {
+  if (hasDuplicateLifecycleEvent(incident)) {
+    return;
+  }
+
   incidentTimeline.unshift({
     id: crypto.randomUUID(),
 

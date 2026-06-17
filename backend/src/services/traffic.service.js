@@ -89,17 +89,19 @@ const generateTraffic = async (config, projectId, url, options = {}) => {
     config,
   });
 
-  addIncident({
-    type: "simulation",
-    severity: "info",
-    title: "Simulation Started",
-    message: `Run ${runId} started.`,
-    metadata: {
-      projectId,
-      runId,
-      pattern: config.pattern || "requests",
-    },
-  });
+  if (!options.lifecycleStarted) {
+    addIncident({
+      type: "simulation",
+      severity: "info",
+      title: "Simulation Started",
+      message: `Run ${runId} started.`,
+      metadata: {
+        projectId,
+        runId,
+        pattern: config.pattern || "requests",
+      },
+    });
+  }
 
   // 🟩 STAGES MODE (DAY 41)
   let expectedRequests = 0;
@@ -138,6 +140,7 @@ const generateTraffic = async (config, projectId, url, options = {}) => {
     projectId,
     runId,
     status: finalStatus,
+    completedAt: new Date(),
     config,
     url,
     ...finalMetrics,

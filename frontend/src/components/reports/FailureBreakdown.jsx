@@ -62,6 +62,7 @@ export function FailureBreakdown({ run: providedRun, runId }) {
 
   return (
     <div
+      data-report-chart="failure-breakdown"
       className="
         glass rounded-[32px]
         p-8

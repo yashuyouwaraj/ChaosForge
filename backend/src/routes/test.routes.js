@@ -117,6 +117,7 @@ router.post(
     generateTraffic(normalizedConfig, projectId, normalizedUrl, {
       runId,
       controlInitialized: true,
+      lifecycleStarted: true,
       owner: req.user.id,
     })
       .then(async () => {

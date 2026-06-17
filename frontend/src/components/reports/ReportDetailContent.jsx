@@ -14,6 +14,7 @@ import { api } from "@/lib/api";
 import { FailureHeatmap } from "./FailureHeatmap";
 import { InfrastructureStabilityTimeline } from "./InfrastructureStabilityTimeline";
 import { RegressionAnalysis } from "./RegressionAnalysis";
+import { ExportActions } from "./ExportActions";
 
 export function ReportDetailContent({ projectId, runId }) {
   const [run, setRun] = useState(null);
@@ -104,6 +105,35 @@ export function ReportDetailContent({ projectId, runId }) {
   return (
     <>
       <ReportOverview run={run} runId={runId} />
+
+      <div className="glass rounded-[32px] p-8">
+        <div
+          className="
+            flex flex-col
+            gap-6 lg:flex-row
+            lg:items-center
+            lg:justify-between
+          "
+        >
+          <div>
+            <p
+              className="
+                text-sm uppercase
+                tracking-[0.3em]
+                text-cyan-400
+              "
+            >
+              Report export
+            </p>
+            <h2 className="mt-3 text-2xl font-black">Download this report</h2>
+          </div>
+
+          <ExportActions
+            run={{ ...run, projectId: projectId || run.projectId, runId }}
+            showOpenReport={false}
+          />
+        </div>
+      </div>
 
       <RunOperationalSummary run={run} />
 

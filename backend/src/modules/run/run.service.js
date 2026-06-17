@@ -92,6 +92,7 @@ const completeFinishedActiveRuns = async (filter = {}) => {
           {
             $set: {
               status: "completed",
+              completedAt: new Date(),
               totalRequests: metrics.totalRequests,
               success: metrics.success,
               failure: metrics.failure,
@@ -99,6 +100,7 @@ const completeFinishedActiveRuns = async (filter = {}) => {
               p95Latency: metrics.p95Latency,
               rps: metrics.rps,
               errorTypes: metrics.errorTypes,
+              latencyTimeline: metrics.latencyTimeline,
               latencyBuckets: metrics.latencyBuckets,
               failureTimeline: metrics.failureTimeline,
             },
@@ -145,6 +147,7 @@ const saveRun = async (data) => {
         p95Latency: data.p95Latency,
         rps: data.rps,
         hasErrorTypes: !!data.errorTypes,
+        hasLatencyTimeline: !!data.latencyTimeline,
         hasLatencyBuckets: !!data.latencyBuckets,
       },
     });

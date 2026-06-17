@@ -53,6 +53,7 @@ export function InfrastructureStabilityTimeline({ run: providedRun, runId }) {
 
   return (
     <div
+      data-report-chart="infrastructure-stability"
       className="
         glass rounded-[32px]
         p-8
