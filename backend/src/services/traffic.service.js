@@ -24,6 +24,13 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const FINAL_METRICS_POLL_MS = 1000;
 const FINAL_METRICS_MAX_WAIT_MS = 180000; // 3 minutes for grace period + in-flight requests
 
+const getRequestOptions = (config) => ({
+  method: config.method || "GET",
+  headers: config.headers || {},
+  body: config.body,
+  queryParams: config.queryParams || {},
+});
+
 /*
  * 🔥 MAIN ENTRY
  */
@@ -162,6 +169,7 @@ const generateTraffic = async (config, projectId, url, options = {}) => {
 const runRequestMode = async (config, projectId, url, runId) => {
   const requestCount = Number(config.totalRequests || 0);
   const baseRate = Number(config.rate || 50);
+  const requestOptions = getRequestOptions(config);
   let sent = 0;
 
   logger.info({
@@ -182,7 +190,16 @@ const runRequestMode = async (config, projectId, url, runId) => {
 
       for (let i = 0; i < rate && sent < requestCount; i++) {
         promises.push(
-          simulateProcessing(url, uuidv4(), projectId, runId, config.method),
+          simulateProcessing(
+            url,
+            uuidv4(),
+            projectId,
+            runId,
+            requestOptions.method,
+            requestOptions.headers,
+            requestOptions.body,
+            requestOptions.queryParams,
+          ),
         );
         sent++;
       }
@@ -228,11 +245,13 @@ const runRequestMode = async (config, projectId, url, runId) => {
           runId,
           requestId,
 
-          method: config.method,
+          method: requestOptions.method,
 
-          headers: config.headers || {},
+          headers: requestOptions.headers,
 
-          body: config.body || null,
+          body: requestOptions.body,
+
+          queryParams: requestOptions.queryParams,
         }),
       });
       sent++;
@@ -367,6 +386,7 @@ const runRequestMode = async (config, projectId, url, runId) => {
  */
 const runStages = async (config, projectId, url, runId) => {
   const stages = config.stages || [];
+  const requestOptions = getRequestOptions(config);
   let sent = 0;
 
   logger.info({
@@ -392,7 +412,16 @@ const runStages = async (config, projectId, url, runId) => {
 
         for (let i = 0; i < rate; i++) {
           promises.push(
-            simulateProcessing(url, uuidv4(), projectId, runId, config.method),
+            simulateProcessing(
+              url,
+              uuidv4(),
+              projectId,
+              runId,
+              requestOptions.method,
+              requestOptions.headers,
+              requestOptions.body,
+              requestOptions.queryParams,
+            ),
           );
           sent++;
         }
@@ -472,7 +501,10 @@ const runStages = async (config, projectId, url, runId) => {
             url,
             runId,
             requestId,
-            method: config.method,
+            method: requestOptions.method,
+            headers: requestOptions.headers,
+            body: requestOptions.body,
+            queryParams: requestOptions.queryParams,
           }),
         });
         sent++;

@@ -1,5 +1,10 @@
 const { normalizeStages } = require("./pattern.util");
 
+const HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"];
+
+const isPlainObject = (value) =>
+  value !== null && typeof value === "object" && !Array.isArray(value);
+
 const validateConfig = (config) => {
   const {
     mode = "requests", // "requests" | "duration"
@@ -10,18 +15,37 @@ const validateConfig = (config) => {
     pattern = "constant", // "constant" | "stages"
     stages = [], // [{ durationSec, rate }]
     method = "GET",
+    headers = {},
+    body,
+    queryParams = {},
   } = config;
 
   const normalizedConcurrency = Number(concurrency);
   const normalizedRate = Number(rate);
+  const normalizedMethod = String(method).toUpperCase();
 
   if (!Number.isFinite(normalizedConcurrency) || normalizedConcurrency <= 0) {
     throw new Error("concurrency must be greater than 0");
   }
 
-  if (!["GET", "POST"].includes(String(method).toUpperCase())) {
-    throw new Error("method must be GET or POST");
+  if (!HTTP_METHODS.includes(normalizedMethod)) {
+    throw new Error("method must be GET, POST, PUT, PATCH, or DELETE");
   }
+
+  if (!isPlainObject(headers)) {
+    throw new Error("headers must be a JSON object");
+  }
+
+  if (!isPlainObject(queryParams)) {
+    throw new Error("queryParams must be a JSON object");
+  }
+
+  const requestConfig = {
+    method: normalizedMethod,
+    headers,
+    body,
+    queryParams,
+  };
 
   if (pattern === "stages") {
     const normalized = normalizeStages(stages);
@@ -36,7 +60,7 @@ const validateConfig = (config) => {
       concurrency: normalizedConcurrency,
       pattern,
       stages: normalized,
-      method: String(method).toUpperCase(),
+      ...requestConfig,
     };
   }
 
@@ -56,7 +80,7 @@ const validateConfig = (config) => {
     concurrency: normalizedConcurrency,
     pattern,
     stages: [],
-    method: String(method).toUpperCase(),
+    ...requestConfig,
   };
 };
 

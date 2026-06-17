@@ -15,6 +15,7 @@ const runConstantSecond = async ({
   method = 'GET',
   headers = {},
   body = null,
+  queryParams = {},
 }) => {
   const limit = pLimit(concurrency);
   const batch = [];
@@ -30,6 +31,7 @@ const runConstantSecond = async ({
           method,
           headers,
           body,
+          queryParams,
         ),
       ),
     );
@@ -38,7 +40,17 @@ const runConstantSecond = async ({
 };
 
 // 🔥 NEW: run stages (time-based)
-const runStages = async ({ stages, concurrency, projectId, url, runId }) => {
+const runStages = async ({
+  stages,
+  concurrency,
+  projectId,
+  url,
+  runId,
+  method = 'GET',
+  headers = {},
+  body = null,
+  queryParams = {},
+}) => {
   const limit = pLimit(Number(concurrency) || 1);
 
   for (const stage of stages) {
@@ -57,7 +69,18 @@ const runStages = async ({ stages, concurrency, projectId, url, runId }) => {
 
       for (let i = 0; i < rate; i++) {
         promises.push(
-          limit(() => simulateProcessing(url, uuidv4(), projectId, runId, method, headers, body)),
+          limit(() =>
+            simulateProcessing(
+              url,
+              uuidv4(),
+              projectId,
+              runId,
+              method,
+              headers,
+              body,
+              queryParams,
+            ),
+          ),
         );
       }
 
@@ -78,6 +101,7 @@ const runRequestMode = async ({
   method = 'GET',
   headers = {},
   body = null,
+  queryParams = {},
 }) => {
   const limit = pLimit(Number(concurrency) || 1);
   let sent = 0;
@@ -94,7 +118,18 @@ const runRequestMode = async ({
 
     for (let i = 0; i < effectiveRate && sent < totalRequests; i++) {
       batch.push(
-        limit(() => simulateProcessing(url, uuidv4(), projectId, runId, method, headers, body)),
+        limit(() =>
+          simulateProcessing(
+            url,
+            uuidv4(),
+            projectId,
+            runId,
+            method,
+            headers,
+            body,
+            queryParams,
+          ),
+        ),
       );
       sent++;
     }
@@ -117,6 +152,7 @@ const runDurationMode = async ({
   method = 'GET',
   headers = {},
   body = null,
+  queryParams = {},
 }) => {
   const endTime = Date.now() + duration * 1000;
   const baseRate = Number(rate) || 0;
@@ -138,6 +174,7 @@ const runDurationMode = async ({
       method,
       headers,
       body,
+      queryParams,
     });
     await delay(1000);
   }

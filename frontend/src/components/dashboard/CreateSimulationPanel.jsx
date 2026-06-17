@@ -11,6 +11,18 @@ import {
   updateRunRate,
 } from "@/lib/socket";
 
+const BODY_METHODS = ["POST", "PUT", "PATCH", "DELETE"];
+const HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"];
+
+const fieldClassName = `
+  w-full rounded-xl
+  border border-white/10
+  bg-black/20
+  px-5 py-4
+  outline-none
+  focus:border-cyan-400/60
+`;
+
 export function CreateSimulationPanel() {
   const { selectedRun, setSelectedRun } = useRun();
   const { projectId } = useProject();
@@ -22,6 +34,18 @@ export function CreateSimulationPanel() {
     duration: 30,
     totalRequests: 2000,
     method: "GET",
+    headers: `{
+      "Content-Type": "application/json"
+    }`,
+    queryParams: `{
+      "page": 1,
+      "limit": 50
+    }`,
+    body: `{
+      "title": "ChaosForge",
+      "body": "Load Test",
+      "userId": 1
+    }`,
   });
 
   const [loading, setLoading] = useState(false);
@@ -95,6 +119,29 @@ export function CreateSimulationPanel() {
     }
   };
 
+  const parseJsonField = (value, errorMessage, options = {}) => {
+    const trimmed = value.trim();
+
+    if (!trimmed) {
+      return {};
+    }
+
+    try {
+      const parsed = JSON.parse(trimmed);
+
+      if (
+        options.requireObject &&
+        (parsed === null || typeof parsed !== "object" || Array.isArray(parsed))
+      ) {
+        throw new Error(errorMessage);
+      }
+
+      return parsed;
+    } catch {
+      throw new Error(errorMessage);
+    }
+  };
+
   const handleStart = async () => {
     if (!projectId) {
       setError("Select a project first from the Projects page.");
@@ -124,17 +171,32 @@ export function CreateSimulationPanel() {
 
       setLoading(true);
 
+      const requestConfig = {
+        method: form.method,
+        headers: parseJsonField(form.headers, "Headers must be valid JSON", {
+          requireObject: true,
+        }),
+        queryParams: parseJsonField(
+          form.queryParams,
+          "Query Parameters must be valid JSON",
+          { requireObject: true },
+        ),
+        body: BODY_METHODS.includes(form.method)
+          ? parseJsonField(form.body, "Request Body must be valid JSON")
+          : undefined,
+      };
+
       const config =
         form.mode === "requests"
           ? {
-              method: form.method,
+              ...requestConfig,
               pattern: "requests",
               concurrency: form.rps,
               totalRequests: form.totalRequests,
               rate: form.rps,
             }
           : {
-              method: form.method,
+              ...requestConfig,
               pattern: "stages",
               concurrency: form.rps,
               stages: [
@@ -319,18 +381,63 @@ export function CreateSimulationPanel() {
                 method: e.target.value,
               })
             }
-            className="
-              w-full rounded-2xl
-              border border-white/10
-              bg-black/20
-              px-5 py-4
-              outline-none
-            "
+            className={fieldClassName}
           >
-            <option>GET</option>
-            <option>POST</option>
+            {HTTP_METHODS.map((method) => (
+              <option key={method}>{method}</option>
+            ))}
           </select>
         </div>
+
+        <div className="space-y-3">
+          <label className="text-sm font-medium">Headers (JSON)</label>
+
+          <textarea
+            rows={8}
+            value={form.headers}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                headers: e.target.value,
+              })
+            }
+            className={fieldClassName}
+          />
+        </div>
+
+        <div className="space-y-3">
+          <label className="text-sm font-medium">Query Params (JSON)</label>
+
+          <textarea
+            rows={8}
+            value={form.queryParams}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                queryParams: e.target.value,
+              })
+            }
+            className={fieldClassName}
+          />
+        </div>
+
+        {BODY_METHODS.includes(form.method) ? (
+          <div className="space-y-3 md:col-span-2">
+            <label className="text-sm font-medium">Request Body (JSON)</label>
+
+            <textarea
+              rows={10}
+              value={form.body}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  body: e.target.value,
+                })
+              }
+              className={fieldClassName}
+            />
+          </div>
+        ) : null}
 
         <div className="space-y-3">
           <label
@@ -350,13 +457,7 @@ export function CreateSimulationPanel() {
                 rps: Number(e.target.value),
               })
             }
-            className="
-              w-full rounded-2xl
-              border border-white/10
-              bg-black/20
-              px-5 py-4
-              outline-none
-            "
+            className={fieldClassName}
           />
         </div>
 
@@ -380,13 +481,7 @@ export function CreateSimulationPanel() {
                   duration: Number(e.target.value),
                 })
               }
-              className="
-                w-full rounded-2xl
-                border border-white/10
-                bg-black/20
-                px-5 py-4
-                outline-none
-              "
+              className={fieldClassName}
             />
           </div>
         ) : (
@@ -409,13 +504,7 @@ export function CreateSimulationPanel() {
                   totalRequests: Number(e.target.value),
                 })
               }
-              className="
-                w-full rounded-2xl
-                border border-white/10
-                bg-black/20
-                px-5 py-4
-                outline-none
-              "
+              className={fieldClassName}
             />
           </div>
         )}

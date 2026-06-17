@@ -47,6 +47,9 @@ const runModes = [
   },
 ];
 
+const BODY_METHODS = ["POST", "PUT", "PATCH", "DELETE"];
+const HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"];
+
 const fieldClassName = `
   w-full rounded-xl
   border border-white/10
@@ -69,6 +72,11 @@ export function CreateSimulationPanel() {
 
     headers: `{
       "Content-Type": "application/json"
+    }`,
+
+    queryParams: `{
+      "page": 1,
+      "limit": 50
     }`,
 
     body: `{
@@ -189,14 +197,52 @@ export function CreateSimulationPanel() {
     }
   };
 
+  const parseJsonField = (value, errorMessage, options = {}) => {
+    const trimmed = value.trim();
+
+    if (!trimmed) {
+      return {};
+    }
+
+    try {
+      const parsed = JSON.parse(trimmed);
+
+      if (
+        options.requireObject &&
+        (parsed === null || typeof parsed !== "object" || Array.isArray(parsed))
+      ) {
+        throw new Error(errorMessage);
+      }
+
+      return parsed;
+    } catch {
+      throw new Error(errorMessage);
+    }
+  };
+
   const buildConfig = () => {
+    const requestConfig = {
+      method: form.method,
+      headers: parseJsonField(form.headers, "Headers must be valid JSON", {
+        requireObject: true,
+      }),
+      queryParams: parseJsonField(
+        form.queryParams,
+        "Query Parameters must be valid JSON",
+        { requireObject: true },
+      ),
+      body: BODY_METHODS.includes(form.method)
+        ? parseJsonField(form.body, "Request Body must be valid JSON")
+        : undefined,
+    };
+
     if (form.mode === "duration") {
       if (!Number.isFinite(form.duration) || form.duration <= 0) {
         throw new Error("Duration must be greater than 0.");
       }
 
       return {
-        method: form.method,
+        ...requestConfig,
         pattern: "stages",
         concurrency: form.rps,
         stages: [
@@ -214,7 +260,7 @@ export function CreateSimulationPanel() {
       }
 
       return {
-        method: form.method,
+        ...requestConfig,
         mode: "requests",
         pattern: "requests",
         concurrency: form.rps,
@@ -239,7 +285,7 @@ export function CreateSimulationPanel() {
     }
 
     return {
-      method: form.method,
+      ...requestConfig,
       pattern: "stages",
       concurrency: form.concurrency,
       stages: form.stages,
@@ -262,13 +308,6 @@ export function CreateSimulationPanel() {
 
       const data = await api(`/test/${projectId}`, "POST", {
         url: form.url,
-
-        headers: JSON.parse(form.headers),
-
-        body: ["POST", "PUT", "PATCH"].includes(form.method)
-          ? JSON.parse(form.body)
-          : null,
-
         config,
       });
       if (!data?.runId) {
@@ -428,25 +467,6 @@ export function CreateSimulationPanel() {
                   <GitBranch size={15} className="text-emerald-300" />
                   HTTP Method
                 </span>
-                {["POST", "PUT", "PATCH"].includes(form.method) && (
-                  <label className="block space-y-3">
-                    <span className="text-sm font-medium">
-                      Request Body (JSON)
-                    </span>
-
-                    <textarea
-                      rows={10}
-                      value={form.body}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          body: e.target.value,
-                        })
-                      }
-                      className={fieldClassName}
-                    />
-                  </label>
-                )}
 
                 <select
                   value={form.method}
@@ -458,14 +478,68 @@ export function CreateSimulationPanel() {
                   }
                   className={fieldClassName}
                 >
-                  <option>GET</option>
-                  <option>POST</option>
-                  <option>PUT</option>
-                  <option>PATCH</option>
-                  <option>DELETE</option>
+                  {HTTP_METHODS.map((method) => (
+                    <option key={method}>{method}</option>
+                  ))}
                 </select>
               </label>
             </div>
+
+            <div className="grid gap-6 md:grid-cols-2">
+              <label className="block space-y-3">
+                <span className="text-sm font-medium">Headers (JSON)</span>
+
+                <textarea
+                  rows={8}
+                  value={form.headers}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      headers: e.target.value,
+                    })
+                  }
+                  className={fieldClassName}
+                />
+              </label>
+
+              <label className="block space-y-3">
+                <span className="text-sm font-medium">
+                  Query Params (JSON)
+                </span>
+
+                <textarea
+                  rows={8}
+                  value={form.queryParams}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      queryParams: e.target.value,
+                    })
+                  }
+                  className={fieldClassName}
+                />
+              </label>
+            </div>
+
+            {BODY_METHODS.includes(form.method) && (
+              <label className="block space-y-3">
+                <span className="text-sm font-medium">
+                  Request Body (JSON)
+                </span>
+
+                <textarea
+                  rows={10}
+                  value={form.body}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      body: e.target.value,
+                    })
+                  }
+                  className={fieldClassName}
+                />
+              </label>
+            )}
 
             {form.mode === "configuration" ? (
               <div className="space-y-5">

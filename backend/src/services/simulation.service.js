@@ -22,7 +22,9 @@ const simulateProcessing = async (
   method = "GET",
   headers = {},
   body = null,
+  queryParams = {},
 ) => {
+  const normalizedMethod = String(method || "GET").toUpperCase();
   let attempt = 0;
 
   let success = false;
@@ -42,16 +44,20 @@ const simulateProcessing = async (
         projectId,
         attempt: attempt + 1,
         url,
-        method,
+        method: normalizedMethod,
       });
 
-      await axios({
-        method,
+      const response = await axios({
+        method: normalizedMethod,
         url,
 
         headers,
 
-        data: ["POST", "PUT", "PATCH"].includes(method) ? body : undefined,
+        params: queryParams,
+
+        data: ["POST", "PUT", "PATCH", "DELETE"].includes(normalizedMethod)
+          ? body
+          : undefined,
 
         timeout: 5000,
       });
@@ -107,7 +113,8 @@ const simulateProcessing = async (
         requestId,
 
         message:
-          `✅ ${url} - ${res.status} ` + `(try ${attempt + 1}/${MAX_RETRIES})`,
+          `✅ ${url} - ${response.status} ` +
+          `(try ${attempt + 1}/${MAX_RETRIES})`,
 
         type: "success",
 

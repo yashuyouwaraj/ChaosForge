@@ -24,7 +24,7 @@ const {
 const router = express.Router();
 
 const validateSimulationRequest = (req, res, next) => {
-  const { url, config, headers, body } = req.body;
+  const { url, config, headers, body, queryParams } = req.body;
 
   if (!url || !config) {
     return res.status(400).json({ error: "url and config required" });
@@ -32,7 +32,12 @@ const validateSimulationRequest = (req, res, next) => {
 
   try {
     req.normalizedUrl = new URL(url).toString();
-    req.normalizedConfig = validateConfig(config);
+    req.normalizedConfig = validateConfig({
+      ...config,
+      headers: config.headers ?? headers ?? {},
+      body: config.body ?? body,
+      queryParams: config.queryParams ?? queryParams ?? {},
+    });
     next();
   } catch (err) {
     return res.status(400).json({
@@ -70,11 +75,8 @@ router.post(
   enforcePlan,
   async (req, res) => {
     const { projectId } = req.params;
-    const { headers, body } = req.body;
     const normalizedUrl = req.normalizedUrl;
     const normalizedConfig = req.normalizedConfig;
-    normalizedConfig.headers = headers || {};
-    normalizedConfig.body = body || null;
 
     const runId = uuidv4();
     await initControl(projectId, runId);

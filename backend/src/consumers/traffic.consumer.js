@@ -53,8 +53,16 @@ const runConsumer = async () => {
             return;
           }
 
-          const { requestId, projectId, runId, url, method, headers, body } =
-            data;
+          const {
+            requestId,
+            projectId,
+            runId,
+            url,
+            method,
+            headers,
+            body,
+            queryParams,
+          } = data;
           processedCount++;
 
           // Log every 100 messages for visibility
@@ -82,6 +90,7 @@ const runConsumer = async () => {
             method,
             headers,
             body,
+            queryParams,
           )
             .then(() => {
               const processingTimeMs =
