@@ -17,6 +17,7 @@ import socket, {
   joinRun,
   leaveRun,
 } from "@/lib/socket";
+import { toast } from "@/lib/toast";
 
 const RunContext =
   createContext(null);
@@ -121,14 +122,13 @@ export function RunProvider({ children }) {
     };
 
     const handleComplete = () => {
+      const nextStatus =
+        selectedRunState.status === "stopped" ? "stopped" : "completed";
+
       setSelectedRunState(
         (prev) => ({
           ...prev,
-          status:
-            prev.status ===
-            "stopped"
-              ? "stopped"
-              : "completed",
+          status: nextStatus,
           isActive: false,
         }),
       );
@@ -139,6 +139,10 @@ export function RunProvider({ children }) {
       leaveRun(
         selectedRunState.runId,
       );
+
+      if (nextStatus === "completed") {
+        toast.success("Simulation completed.");
+      }
     };
 
     socket.on(

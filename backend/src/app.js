@@ -15,6 +15,7 @@ const runRoutes = require("./modules/run/run.routes");
 const usageRoutes = require("./modules/usage/usage.routes");
 const aiRouter = require("./modules/ai/ai.routes");
 const healthRoutes = require("./routes/health.routes");
+const settingsRoutes = require("./modules/settings/settings.routes");
 
 const { client, httpRequestsTotal } = require("./metrics/prometheus");
 const { getPrometheusSimulationMetrics } = require("./metrics/metrics.store");
@@ -122,6 +123,8 @@ app.use("/api/incidents", incidentRoutes);
 app.use("/api/ai", aiRouter);
 
 app.use("/api/memory", memoryRoutes);
+
+app.use("/settings", settingsRoutes);
 
 /**
  * 💀 PROMETHEUS METRICS ENDPOINT

@@ -2,13 +2,18 @@
 
 import { useEffect, useState } from "react";
 
-import socket from "@/lib/socket";
+import socket, { ensureSocketConnected } from "@/lib/socket";
 import { api } from "@/lib/api";
 
-export function useIncidentTimeline() {
+export function useIncidentTimeline({ enabled = true } = {}) {
   const [timeline, setTimeline] = useState([]);
 
   useEffect(() => {
+    if (!enabled) {
+      setTimeline([]);
+      return undefined;
+    }
+
     let ignore = false;
 
     const handler = (incidents) => {
@@ -29,6 +34,7 @@ export function useIncidentTimeline() {
 
     loadTimeline();
 
+    ensureSocketConnected();
     socket.on("incident-timeline", handler);
 
     return () => {
@@ -36,7 +42,7 @@ export function useIncidentTimeline() {
 
       socket.off("incident-timeline", handler);
     };
-  }, []);
+  }, [enabled]);
 
   return timeline;
 }

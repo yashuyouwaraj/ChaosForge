@@ -1,17 +1,18 @@
 const { v4: uuidv4 } = require("uuid");
 const logger = require("../utils/logger");
 const { simulateProcessing } = require("./simulation.service");
+
+const {
+  sendSimulationCompletedNotification,
+} = require("../modules/notification/notification.service");
+const User = require("../modules/user/user.model");
 const {
   generateInfrastructureMemory,
 } = require("../modules/memory/memory.generator");
 const { producer, connectProducer, TRAFFIC_TOPIC } = require("../config/kafka");
 const { emitBufferedLog } = require("../websocket/socket");
 const { client: redis, connectRedis } = require("../config/redis");
-const {
-  getMetrics,
-  markRunActive,
-  markRunComplete,
-} = require("../metrics/metrics.store");
+const {getMetrics,markRunActive,markRunComplete,} = require("../metrics/metrics.store");
 const { saveRun } = require("../modules/run/run.service");
 const { initControl, getControl } = require("../control/control.store");
 const { addIncident } = require("./incidentTimeline");
@@ -136,35 +137,55 @@ const generateTraffic = async (config, projectId, url, options = {}) => {
   });
 
   const savedRun = await saveRun({
-    owner: options.owner,
-    projectId,
-    runId,
-    status: finalStatus,
-    completedAt: new Date(),
-    config,
-    url,
-    ...finalMetrics,
-  });
+  owner: options.owner,
+  projectId,
+  runId,
+  status: finalStatus,
+  completedAt: new Date(),
+  config,
+  url,
+  ...finalMetrics,
+});
 
-  await generateInfrastructureMemory(savedRun);
+await generateInfrastructureMemory(savedRun);
 
-  markRunComplete(runId);
+//
+// Send notification email (only for completed runs)
+//
+if (finalStatus === "completed" && options.owner) {
+  try {
+    const user = await User.findById(options.owner);
 
-  if (finalStatus === "completed") {
-    addIncident({
-      type: "simulation",
-      severity: "info",
-      title: "Simulation Completed",
-      message: `Run ${runId} completed successfully.`,
-      metadata: {
-        projectId,
-        runId,
-      },
+    if (user) {
+      await sendSimulationCompletedNotification(user, savedRun);
+    }
+  } catch (err) {
+    logger.error({
+      message: "Failed to send simulation completion notification",
+      runId,
+      projectId,
+      error: err.message,
     });
   }
+}
 
-  return runId;
-};
+markRunComplete(runId);
+
+if (finalStatus === "completed") {
+  addIncident({
+    type: "simulation",
+    severity: "info",
+    title: "Simulation Completed",
+    message: `Run ${runId} completed successfully.`,
+    metadata: {
+      projectId,
+      runId,
+    },
+  });
+}
+
+return runId;
+}
 
 /**
  * 🟦 REQUEST MODE (existing logic cleaned)
@@ -471,7 +492,7 @@ const runStages = async (config, projectId, url, runId) => {
     // Use batch count instead of time to ensure we send exactly the right number
     while (batchIteration < expectedBatchCount) {
       batchIteration++;
-      
+
       // 🔥 SAFETY CHECK: Ensure we send the final batch
       // Off-by-one protection: if this is the last expected batch, guarantee it sends
       const isFinalBatch = batchIteration === expectedBatchCount;

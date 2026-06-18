@@ -4,12 +4,19 @@ import { useEffect, useMemo, useState } from "react";
 
 import { api } from "@/lib/api";
 
-export const useInfrastructureHealth = () => {
+export const useInfrastructureHealth = ({ enabled = true } = {}) => {
   const [health, setHealth] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState(false);
 
   useEffect(() => {
+    if (!enabled) {
+      setHealth(null);
+      setLoading(false);
+      setError(false);
+      return undefined;
+    }
+
     let ignore = false;
 
     const loadHealth = async () => {
@@ -40,7 +47,7 @@ export const useInfrastructureHealth = () => {
       ignore = true;
       window.clearInterval(intervalId);
     };
-  }, []);
+  }, [enabled]);
 
   const infrastructureSummary = useMemo(() => {
     if (!health) {

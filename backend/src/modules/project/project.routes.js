@@ -12,6 +12,9 @@ const router = express.Router();
 
 router.post("/",authMiddleware,asyncHandler(controller.createProject))
 router.get("/",authMiddleware,asyncHandler(controller.getProjects))
+router.delete("/",authMiddleware,asyncHandler(controller.deleteProjects))
+router.patch("/:id",authMiddleware,verifyProjectOwnership,asyncHandler(controller.updateProject))
+router.delete("/:id",authMiddleware,verifyProjectOwnership,asyncHandler(controller.deleteProject))
 router.post("/:id/traffic",authMiddleware,verifyProjectOwnership,asyncHandler(runProjectTraffic))
 router.get("/:id",authMiddleware,verifyProjectOwnership,asyncHandler(controller.getProject))
 

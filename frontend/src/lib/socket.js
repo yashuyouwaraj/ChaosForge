@@ -11,7 +11,7 @@ const getToken = () => {
 
 const socket = io(getSocketBaseUrl(), {
   transports: ["websocket", "polling"],
-  autoConnect: true,
+  autoConnect: false,
   reconnection: true,
   reconnectionAttempts: 10,
   reconnectionDelay: 1000,
@@ -42,8 +42,16 @@ const refreshSocketAuth = () => {
   currentAuthToken = token;
 };
 
-export const joinRun = (projectId, runId, ack) => {
+export const ensureSocketConnected = () => {
   refreshSocketAuth();
+
+  if (!socket.connected) {
+    socket.connect();
+  }
+};
+
+export const joinRun = (projectId, runId, ack) => {
+  ensureSocketConnected();
   socket.emit("join-run", { projectId, runId }, ack);
 };
 
@@ -53,7 +61,7 @@ export const leaveRun = (runId, ack) => {
 
 const emitWithAck = (event, payload) =>
   new Promise((resolve, reject) => {
-    refreshSocketAuth();
+    ensureSocketConnected();
     socket.emit(event, payload, (response) => {
       if (!response?.ok) {
         reject(

@@ -40,6 +40,31 @@ const getProject = async (req, res) => {
   return success(res, project);
 };
 
+const updateProject = async (req, res) => {
+  const project = await projectService.updateOneForOwner(
+    req.params.id,
+    req.user.id,
+    req.body,
+  );
+
+  return res.json(project);
+};
+
+const deleteProject = async (req, res) => {
+  const result = await projectService.deleteOneForOwner(
+    req.params.id,
+    req.user.id,
+  );
+
+  return res.json(result);
+};
+
+const deleteProjects = async (req, res) => {
+  const result = await projectService.deleteAllForOwner(req.user.id);
+
+  return res.json(result);
+};
+
 const runProjectTraffic = async (req, res) => {
   const url = req.query.url || "https://jsonplaceholder.typicode.com/posts";
   const { id } = req.params;
@@ -154,4 +179,12 @@ const runProjectTraffic = async (req, res) => {
   });
 };
 
-module.exports = { createProject, getProjects, getProject, runProjectTraffic };
+module.exports = {
+  createProject,
+  getProjects,
+  getProject,
+  updateProject,
+  deleteProject,
+  deleteProjects,
+  runProjectTraffic,
+};

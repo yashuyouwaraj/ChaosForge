@@ -14,6 +14,7 @@ import { useProject } from "@/components/providers/ProjectProvider";
 import { useRun } from "@/components/providers/RunProvider";
 import { clearAuthStorage } from "@/lib/auth-token";
 import { api } from "@/lib/api";
+import { toast } from "@/lib/toast";
 
 const authErrorMessages = new Set([
   "Invalid token",
@@ -61,8 +62,16 @@ function ProjectCard({
   isExpanded,
   runCount,
   latestRun,
+  isEditing,
+  editName,
+  actionLoading,
   onToggle,
   onOpenDashboard,
+  onStartEdit,
+  onEditNameChange,
+  onCancelEdit,
+  onSaveEdit,
+  onDelete,
 }) {
   return (
     <article className="glass overflow-hidden rounded-[28px]">
@@ -103,6 +112,39 @@ function ProjectCard({
       </button>
 
       <div className="border-t border-white/10 px-6 py-4">
+        {isEditing ? (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              onSaveEdit(projectId);
+            }}
+            className="mb-4 grid gap-3 md:grid-cols-[1fr,auto,auto]"
+          >
+            <input
+              value={editName}
+              onChange={(event) => onEditNameChange(event.target.value)}
+              className="min-w-0 rounded-2xl border border-white/10 bg-black/20 px-5 py-3 text-sm outline-none cf-accent-ring"
+              placeholder="Project name"
+            />
+            <button
+              type="submit"
+              disabled={actionLoading === projectId}
+              className="rounded-2xl cf-accent-bg px-5 py-3 text-sm font-bold text-black transition hover:scale-[1.02] disabled:opacity-50"
+            >
+              {actionLoading === projectId ? "Saving..." : "Save"}
+            </button>
+            <button
+              type="button"
+              onClick={onCancelEdit}
+              disabled={actionLoading === projectId}
+              className="rounded-2xl border border-white/10 bg-black/20 px-5 py-3 text-sm font-semibold transition hover:bg-white/5 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </form>
+        ) : null}
+
+        <div className="flex flex-wrap gap-3">
         <button
           type="button"
           onClick={() => onOpenDashboard(projectId, latestRun?.runId)}
@@ -115,6 +157,23 @@ function ProjectCard({
         >
           Open Dashboard
         </button>
+          <button
+            type="button"
+            onClick={() => onStartEdit(project)}
+            disabled={actionLoading === projectId}
+            className="rounded-2xl border border-white/10 bg-black/20 px-5 py-3 text-sm font-semibold transition hover:bg-white/5 disabled:opacity-50"
+          >
+            Edit Name
+          </button>
+          <button
+            type="button"
+            onClick={() => onDelete(projectId)}
+            disabled={actionLoading === projectId}
+            className="rounded-2xl border border-red-400/20 bg-red-500/10 px-5 py-3 text-sm font-semibold text-red-300 transition hover:bg-red-500/20 disabled:opacity-50"
+          >
+            {actionLoading === projectId ? "Deleting..." : "Delete"}
+          </button>
+        </div>
       </div>
     </article>
   );
@@ -319,8 +378,8 @@ function ComparisonPanel({
 
 export default function ProjectsPage() {
   const router = useRouter();
-  const { setProjectId } = useProject();
-  const { setSelectedRun } = useRun();
+  const { projectId: selectedProjectId, setProjectId } = useProject();
+  const { selectedRun, setSelectedRun } = useRun();
   const [projects, setProjects] = useState([]);
   const [name, setName] = useState("");
   const [error, setError] = useState("");
@@ -333,6 +392,9 @@ export default function ProjectsPage() {
   const [comparison, setComparison] = useState(null);
   const [comparisonError, setComparisonError] = useState("");
   const [comparing, setComparing] = useState(false);
+  const [editingProjectId, setEditingProjectId] = useState(null);
+  const [editingProjectName, setEditingProjectName] = useState("");
+  const [projectActionLoading, setProjectActionLoading] = useState("");
 
   const projectCount = projects.length;
   const canCreateProject = name.trim().length > 0 && !loading;
@@ -428,6 +490,7 @@ export default function ProjectsPage() {
 
       setName("");
       await loadProjects({ silent: true });
+      toast.success("Project created successfully.");
     } catch (err) {
       if (handleAuthError(err)) {
         return;
@@ -435,8 +498,115 @@ export default function ProjectsPage() {
 
       setError(err.message || "Unable to create project.");
       setErrorDetails(err.details || null);
+      toast.error("Something went wrong", err.message || "Please try again.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const startEditProject = (project) => {
+    const projectId = project._id || project.id;
+
+    setEditingProjectId(projectId);
+    setEditingProjectName(project.name || "");
+  };
+
+  const cancelEditProject = () => {
+    setEditingProjectId(null);
+    setEditingProjectName("");
+  };
+
+  const updateProject = async (projectId) => {
+    const nextName = editingProjectName.trim();
+
+    if (!nextName) {
+      setError("Project name is required.");
+      return;
+    }
+
+    try {
+      setProjectActionLoading(projectId);
+      setError("");
+
+      await api(`/projects/${projectId}`, "PATCH", {
+        name: nextName,
+      });
+
+      cancelEditProject();
+      await loadProjects({ silent: true });
+      window.dispatchEvent(new Event("chaosforge:projects-changed"));
+      toast.success("Project updated.");
+    } catch (err) {
+      if (handleAuthError(err)) {
+        return;
+      }
+
+      setError(err.message || "Unable to update project.");
+      toast.error("Something went wrong", err.message || "Please try again.");
+    } finally {
+      setProjectActionLoading("");
+    }
+  };
+
+  const deleteProject = async (projectId) => {
+    const confirmed = window.confirm(
+      "Delete this project and all associated simulation data?",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setProjectActionLoading(projectId);
+      setError("");
+
+      await api(`/projects/${projectId}`, "DELETE");
+
+      setProjects((current) =>
+        current.filter((project, index) => getProjectId(project, index) !== projectId),
+      );
+      setRuns((current) => {
+        const nextRuns = { ...current };
+        delete nextRuns[projectId];
+        return nextRuns;
+      });
+      setExpandedProject((current) => (current === projectId ? null : current));
+      setComparison(null);
+      setComparisonError("");
+      setSelectedRuns({ runA: "", runB: "" });
+
+      if (editingProjectId === projectId) {
+        cancelEditProject();
+      }
+
+      if (selectedProjectId === projectId) {
+        setProjectId(null);
+        localStorage.removeItem("projectId");
+      }
+
+      if (selectedRun?.projectId === projectId) {
+        setSelectedRun({
+          projectId: null,
+          runId: null,
+          status: null,
+        });
+        localStorage.removeItem("currentRunId");
+        localStorage.removeItem("currentRunActive");
+      }
+
+      await loadProjects({ silent: true });
+      window.dispatchEvent(new Event("chaosforge:projects-changed"));
+      toast.success("Project deleted.");
+    } catch (err) {
+      if (handleAuthError(err)) {
+        return;
+      }
+
+      setError(err.message || "Unable to delete project.");
+      toast.error("Something went wrong", err.message || "Please try again.");
+    } finally {
+      setProjectActionLoading("");
     }
   };
 
@@ -516,6 +686,19 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     loadProjects();
+  }, [loadProjects]);
+
+  useEffect(() => {
+    const handleProjectsChanged = () => {
+      loadProjects({ silent: true });
+    };
+
+    window.addEventListener("chaosforge:projects-changed", handleProjectsChanged);
+    return () =>
+      window.removeEventListener(
+        "chaosforge:projects-changed",
+        handleProjectsChanged,
+      );
   }, [loadProjects]);
 
   return (
@@ -645,8 +828,16 @@ export default function ProjectsPage() {
                         isExpanded={isExpanded}
                         runCount={projectRuns.length}
                         latestRun={latestRun}
+                        isEditing={editingProjectId === projectId}
+                        editName={editingProjectName}
+                        actionLoading={projectActionLoading}
                         onToggle={() => toggleProject(projectId)}
                         onOpenDashboard={openDashboard}
+                        onStartEdit={startEditProject}
+                        onEditNameChange={setEditingProjectName}
+                        onCancelEdit={cancelEditProject}
+                        onSaveEdit={updateProject}
+                        onDelete={deleteProject}
                       />
 
                       {isExpanded ? (

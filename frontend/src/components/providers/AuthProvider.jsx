@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { clearAuthStorage, getUsableStoredToken } from "@/lib/auth-token";
+import { toast } from "@/lib/toast";
 
 const AuthContext = createContext(null);
 
@@ -36,6 +37,7 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     clearAuthStorage();
+    toast.queueSuccess("You have been logged out.");
     window.location.href = "/login";
   };
 

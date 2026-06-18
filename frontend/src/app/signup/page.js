@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { getUsableStoredToken } from "../../lib/auth-token";
 import { wakeGrafana, wakePrometheus } from "../../lib/observability";
+import { toast } from "../../lib/toast";
 
 export default function Signup() {
   const [email, setEmail] = useState("");
@@ -39,9 +40,11 @@ export default function Signup() {
       localStorage.setItem("token", res.token);
       wakeGrafana();
       wakePrometheus();
+      toast.queueSuccess("Account created successfully.", "Welcome to ChaosForge.");
       window.location.href = "/projects";
     } catch (err) {
       setError(err.message || "Signup failed. Please try again.");
+      toast.error("Something went wrong", err.message || "Please try again.");
     } finally {
       setLoading(false);
     }

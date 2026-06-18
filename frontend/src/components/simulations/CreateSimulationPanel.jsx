@@ -13,10 +13,12 @@ import {
   Trash2,
   Zap,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useProject } from "@/components/providers/ProjectProvider";
 import { useRun } from "@/components/providers/RunProvider";
+import { useSettings } from "@/hooks/useSettings";
 import { api } from "@/lib/api";
+import { toast } from "@/lib/toast";
 
 const defaultStages = [
   { durationSec: 10, rate: 10 },
@@ -57,33 +59,25 @@ const fieldClassName = `
   px-5 py-4
   text-sm outline-none
   transition
-  focus:border-cyan-400/60
   focus:bg-black/35
+  cf-accent-ring
 `;
 
 export function CreateSimulationPanel() {
   const { setSelectedRun } = useRun();
   const { projectId } = useProject();
+  const { settings } = useSettings();
 
   const [form, setForm] = useState({
-    url: "https://jsonplaceholder.typicode.com/posts",
+    url: "",
 
     method: "GET",
 
-    headers: `{
-      "Content-Type": "application/json"
-    }`,
+    headers: "{}",
 
-    queryParams: `{
-      "page": 1,
-      "limit": 50
-    }`,
+    queryParams: "{}",
 
-    body: `{
-      "title": "ChaosForge",
-      "body": "Load Test",
-      "userId": 1
-    }`,
+    body: "{}",
 
     mode: "duration",
 
@@ -99,6 +93,39 @@ export function CreateSimulationPanel() {
 
   const activeMode =
     runModes.find((mode) => mode.id === form.mode) || runModes[0];
+
+  useEffect(() => {
+    const defaults = settings?.simulationDefaults || {};
+
+    const headers = {
+      ...(defaults.contentType ? { "Content-Type": defaults.contentType } : {}),
+      ...(defaults.headers || {}),
+    };
+
+    if (defaults.authToken) {
+      headers.Authorization = defaults.authToken;
+    }
+
+    setForm((prev) => ({
+      ...prev,
+
+      url: defaults.url || "",
+
+      method: HTTP_METHODS.includes(defaults.method) ? defaults.method : "GET",
+
+      headers: JSON.stringify(headers, null, 2),
+
+      body: JSON.stringify(defaults.payload || {}, null, 2),
+
+      rps: Number(defaults.rps) || 100,
+
+      duration: Number(defaults.duration) || 30,
+
+      concurrency: Number(defaults.concurrency) || 20,
+
+      totalRequests: Number(defaults.totalRequests) || 2000,
+    }));
+  }, [settings]);
 
   const runPreview = useMemo(() => {
     if (form.mode === "duration") {
@@ -322,8 +349,10 @@ export function CreateSimulationPanel() {
         runId: data.runId,
         status: data.status || "running",
       });
+      toast.success("Simulation launched successfully.");
     } catch (err) {
       setError(err.message || "Failed to launch simulation.");
+      toast.error("Simulation failed", err.message || "Please try again.");
     } finally {
       setLoading(false);
     }
@@ -352,7 +381,7 @@ export function CreateSimulationPanel() {
                 className="
                   text-sm uppercase
                   tracking-[0.3em]
-                  text-cyan-400
+                  cf-accent-text
                 "
               >
                 Orchestration
@@ -381,9 +410,9 @@ export function CreateSimulationPanel() {
             <div
               className="
                 inline-flex items-center gap-2
-                rounded-full border border-cyan-400/20
-                bg-cyan-500/10 px-4 py-2
-                text-sm font-semibold text-cyan-200
+                rounded-full border cf-accent-border
+                cf-accent-soft px-4 py-2
+                text-sm font-semibold cf-accent-text
               "
             >
               <ActiveModeIcon size={16} />
@@ -413,7 +442,7 @@ export function CreateSimulationPanel() {
                       hover:-translate-y-0.5
                       ${
                         selected
-                          ? "border-cyan-400/60 bg-cyan-500/15 text-cyan-100 shadow-[0_0_35px_rgba(34,211,238,0.12)]"
+                          ? "cf-accent-border cf-accent-soft cf-accent-text cf-accent-glow"
                           : "border-white/10 bg-black/20 text-muted-foreground hover:border-white/20 hover:bg-white/[0.04]"
                       }
                     `}
@@ -425,7 +454,7 @@ export function CreateSimulationPanel() {
                         rounded-xl border
                         ${
                           selected
-                            ? "border-cyan-300/40 bg-cyan-300/15 text-cyan-200"
+                            ? "cf-accent-border cf-accent-soft cf-accent-text"
                             : "border-white/10 bg-black/20 text-slate-300"
                         }
                       `}
@@ -446,7 +475,7 @@ export function CreateSimulationPanel() {
             <div className="grid gap-6 md:grid-cols-[1.4fr,0.6fr]">
               <label className="block space-y-3">
                 <span className="flex items-center gap-2 text-sm font-medium">
-                  <Link2 size={15} className="text-cyan-300" />
+                  <Link2 size={15} className="cf-accent-text" />
                   Target URL
                 </span>
 
@@ -503,9 +532,7 @@ export function CreateSimulationPanel() {
               </label>
 
               <label className="block space-y-3">
-                <span className="text-sm font-medium">
-                  Query Params (JSON)
-                </span>
+                <span className="text-sm font-medium">Query Params (JSON)</span>
 
                 <textarea
                   rows={8}
@@ -523,9 +550,7 @@ export function CreateSimulationPanel() {
 
             {BODY_METHODS.includes(form.method) && (
               <label className="block space-y-3">
-                <span className="text-sm font-medium">
-                  Request Body (JSON)
-                </span>
+                <span className="text-sm font-medium">Request Body (JSON)</span>
 
                 <textarea
                   rows={10}
@@ -561,7 +586,7 @@ export function CreateSimulationPanel() {
 
                   <label className="block space-y-3">
                     <span className="flex items-center gap-2 text-sm font-medium">
-                      <Gauge size={15} className="text-cyan-300" />
+                      <Gauge size={15} className="cf-accent-text" />
                       Concurrency
                     </span>
 
@@ -623,9 +648,9 @@ export function CreateSimulationPanel() {
                             className="
                               flex size-12 items-center
                               justify-center rounded-xl
-                              border border-cyan-400/20
-                              bg-cyan-500/10
-                              text-sm font-black text-cyan-200
+                              border cf-accent-border
+                              cf-accent-soft
+                              text-sm font-black cf-accent-text
                               lg:mb-0.5
                             "
                           >
@@ -687,7 +712,7 @@ export function CreateSimulationPanel() {
 
                         <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/5">
                           <div
-                            className="h-full rounded-full bg-cyan-400"
+                            className="h-full rounded-full cf-accent-bg"
                             style={{
                               width: `${Math.min(
                                 100,
@@ -726,7 +751,7 @@ export function CreateSimulationPanel() {
                 {form.mode === "duration" ? (
                   <label className="block space-y-3">
                     <span className="flex items-center gap-2 text-sm font-medium">
-                      <Timer size={15} className="text-cyan-300" />
+                      <Timer size={15} className="cf-accent-text" />
                       Duration (seconds)
                     </span>
 
@@ -834,11 +859,10 @@ export function CreateSimulationPanel() {
               className="
                 inline-flex w-full items-center
                 justify-center gap-3 rounded-2xl
-                bg-cyan-500 px-8 py-4
+                cf-accent-bg px-8 py-4
                 font-bold text-black
                 transition
                 hover:scale-[1.02]
-                hover:bg-cyan-400
                 disabled:opacity-50
               "
             >

@@ -75,4 +75,33 @@ const upgradePlan = async (email, plan) => {
   return user;
 };
 
-module.exports = { signup, login, upgradePlan, createAuthToken };
+const changePassword = async (userId, currentPassword, newPassword) => {
+  const user = await User.findById(userId).select("+password");
+
+  if (!user) {
+    const error = new Error("User not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const valid = await bcrypt.compare(currentPassword, user.password);
+
+  if (!valid) {
+    const error = new Error("Current password is incorrect");
+    error.statusCode = 401;
+    throw error;
+  }
+
+  user.password = await bcrypt.hash(newPassword, 10);
+  await user.save();
+
+  return true;
+};
+
+module.exports = {
+  signup,
+  login,
+  upgradePlan,
+  createAuthToken,
+  changePassword,
+};

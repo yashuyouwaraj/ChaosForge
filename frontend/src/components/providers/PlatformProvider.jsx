@@ -2,6 +2,7 @@
 
 import { createContext, useContext } from "react";
 
+import { useAuth } from "@/components/providers/AuthProvider";
 import { useInfrastructureHealth } from "@/hooks/useInfrastructureHealth";
 import { useIncidentTimeline } from "@/hooks/useIncidentTimeline";
 
@@ -9,8 +10,10 @@ import { useIncidentTimeline } from "@/hooks/useIncidentTimeline";
 const PlatformContext = createContext(null);
 
 export function PlatformProvider({ children }) {
-  const infrastructure = useInfrastructureHealth();
-  const incidents = useIncidentTimeline();
+  const { isAuthenticated, loading } = useAuth();
+  const enabled = !loading && isAuthenticated;
+  const infrastructure = useInfrastructureHealth({ enabled });
+  const incidents = useIncidentTimeline({ enabled });
 
   return (
     <PlatformContext.Provider value={{ infrastructure, incidents }}>

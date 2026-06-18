@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { getApiBaseUrl } from "@/lib/runtime";
 import { useState } from "react";
+import { toast } from "@/lib/toast";
 
 export function ExportActions({ run, showOpenReport = true }) {
   const router = useRouter();
@@ -22,7 +23,7 @@ export function ExportActions({ run, showOpenReport = true }) {
 
   const downloadFile = async (format) => {
     if (!projectId || !runId) {
-      alert("Project ID and Run ID are required to export");
+      toast.warning("Export unavailable", "Project ID and Run ID are required.");
       return;
     }
 
@@ -58,9 +59,10 @@ export function ExportActions({ run, showOpenReport = true }) {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(downloadUrl);
+      toast.success(`${format.toUpperCase()} exported successfully.`);
     } catch (error) {
       console.error(`Export error:`, error);
-      alert(`Failed to export ${format.toUpperCase()}: ${error.message}`);
+      toast.error("Something went wrong", error.message || "Please try again.");
     } finally {
       setIsExporting(false);
     }

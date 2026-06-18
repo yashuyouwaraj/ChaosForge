@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { getUsableStoredToken } from "../../lib/auth-token";
 import { wakeGrafana, wakePrometheus } from "../../lib/observability";
+import { toast } from "../../lib/toast";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -41,9 +42,11 @@ export default function Login() {
       localStorage.setItem("token", res.token);
       wakeGrafana();
       wakePrometheus();
+      toast.queueSuccess("Welcome back!", "Login successful.");
       window.location.href = "/projects";
     } catch (err) {
       setError(err.message || "Login failed");
+      toast.error("Something went wrong", err.message || "Please try again.");
     } finally {
       setLoading(false);
     }

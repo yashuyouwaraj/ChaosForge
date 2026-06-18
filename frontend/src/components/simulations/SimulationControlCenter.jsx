@@ -10,6 +10,7 @@ import {
   stopRun,
   updateRunRate,
 } from "@/lib/socket";
+import { toast } from "@/lib/toast";
 
 const isActiveStatus = (status) => status === "running" || status === "paused";
 
@@ -44,8 +45,10 @@ export function SimulationControlCenter() {
         status: nextStatus,
       });
       setMessage(successMessage);
+      toast.success("Simulation run updated.", successMessage);
     } catch (err) {
       setError(err.message || "Unable to update run control.");
+      toast.error("Something went wrong", err.message || "Please try again.");
     } finally {
       setActionLoading("");
     }
@@ -69,8 +72,13 @@ export function SimulationControlCenter() {
 
       await updateRunRate(selectedRun.projectId, selectedRun.runId, rate);
       setMessage(`Throughput target updated to ${rate} RPS.`);
+      toast.success(
+        "Simulation run updated.",
+        `Throughput target updated to ${rate} RPS.`,
+      );
     } catch (err) {
       setError(err.message || "Unable to update RPS.");
+      toast.error("Something went wrong", err.message || "Please try again.");
     } finally {
       setActionLoading("");
     }

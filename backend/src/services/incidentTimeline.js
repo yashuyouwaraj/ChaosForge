@@ -53,8 +53,26 @@ const getIncidentTimeline = () => {
   return incidentTimeline;
 };
 
+const removeIncidentsByProjects = (projectIds) => {
+  const projectIdSet = new Set(projectIds.map(String));
+  let deleted = 0;
+
+  for (let index = incidentTimeline.length - 1; index >= 0; index -= 1) {
+    const incidentProjectId = incidentTimeline[index]?.metadata?.projectId;
+
+    if (incidentProjectId && projectIdSet.has(String(incidentProjectId))) {
+      incidentTimeline.splice(index, 1);
+      deleted += 1;
+    }
+  }
+
+  return deleted;
+};
+
 module.exports = {
   addIncident,
 
   getIncidentTimeline,
+
+  removeIncidentsByProjects,
 };

@@ -5,8 +5,9 @@ import {
   useState,
 } from "react";
 
-import socket
-  from "@/lib/socket";
+import socket, {
+  ensureSocketConnected,
+} from "@/lib/socket";
 import { api }
   from "@/lib/api";
 
@@ -42,6 +43,7 @@ export function useInfrastructureAlerts() {
 
     loadAlerts();
 
+    ensureSocketConnected();
     socket.on(
       "infrastructure-alerts",
       handler,

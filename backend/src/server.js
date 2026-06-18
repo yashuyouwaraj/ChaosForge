@@ -9,6 +9,10 @@ const { initSocket } = require("./websocket/socket");
 const connectDB = require("./config/db");
 
 const { connectRedis } = require("./config/redis");
+const {
+  startNotificationScheduler,
+} = require("./modules/notification/scheduler.service");
+const { verifyTransport } = require("./modules/notification/email.service");
 
 const PORT = process.env.PORT || 3001;
 
@@ -21,6 +25,10 @@ const startServer = async () => {
     await connectDB();
 
     await connectRedis();
+
+    await verifyTransport();
+
+    startNotificationScheduler();
 
     server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);

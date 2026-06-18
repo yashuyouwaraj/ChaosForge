@@ -4,6 +4,8 @@ import { ProjectProvider } from "@/components/providers/ProjectProvider";
 import { RunProvider } from "@/components/providers/RunProvider";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { PlatformProvider } from "@/components/providers/PlatformProvider";
+import { SettingsProvider } from "@/components/providers/SettingsProvider";
+import { ToastProvider } from "@/components/providers/ToastProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,13 +30,17 @@ export default function RootLayout({ children }) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <AuthProvider>
-          <ProjectProvider>
-            <PlatformProvider>
-              <RunProvider>{children}</RunProvider>
-            </PlatformProvider>
-          </ProjectProvider>
-        </AuthProvider>
+        <ToastProvider>
+          <AuthProvider>
+            <SettingsProvider>
+              <ProjectProvider>
+                <PlatformProvider>
+                  <RunProvider>{children}</RunProvider>
+                </PlatformProvider>
+              </ProjectProvider>
+            </SettingsProvider>
+          </AuthProvider>
+        </ToastProvider>
       </body>
     </html>
   );
