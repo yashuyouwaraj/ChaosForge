@@ -53,7 +53,7 @@ const sendEmail = async ({ to, subject, html }) => {
       return false;
     }
 
-    await mailer.sendMail({
+    const info = await mailer.sendMail({
       from: process.env.SMTP_FROM || process.env.SMTP_USER,
       to,
       subject,
@@ -64,6 +64,10 @@ const sendEmail = async ({ to, subject, html }) => {
       message: "Email sent",
       to,
       subject,
+      messageId: info.messageId,
+      accepted: info.accepted,
+      rejected: info.rejected,
+      response: info.response,
     });
 
     return true;

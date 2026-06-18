@@ -2,6 +2,10 @@ const Run = require("./run.model");
 const logger = require("../../utils/logger");
 const { getMetrics } = require("../../metrics/metrics.store");
 const { generateInfrastructureMemory } = require("../memory/memory.generator");
+const User = require("../user/user.model");
+const {
+  sendSimulationCompletedNotification,
+} = require("../notification/notification.service");
 
 const ACTIVE_STATUSES = ["starting", "running", "paused"];
 const COMPLETION_GRACE_MS = 30000;
@@ -87,7 +91,7 @@ const completeFinishedActiveRuns = async (filter = {}) => {
         const metrics =
           result.metrics || (await getMetrics(run.projectId, run.runId));
 
-        await Run.updateOne(
+        const updatedRun = await Run.findOneAndUpdate(
           { _id: run._id, status: { $in: ACTIVE_STATUSES } },
           {
             $set: {
@@ -105,7 +109,16 @@ const completeFinishedActiveRuns = async (filter = {}) => {
               failureTimeline: metrics.failureTimeline,
             },
           },
+          { returnDocument: "after" },
         );
+
+        if (updatedRun?.owner) {
+          const user = await User.findById(updatedRun.owner);
+
+          if (user) {
+            await sendSimulationCompletedNotification(user, updatedRun);
+          }
+        }
 
         await generateInfrastructureMemory({
           projectId: run.projectId,

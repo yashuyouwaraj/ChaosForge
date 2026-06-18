@@ -46,6 +46,9 @@ const runSchema = new mongoose.Schema({
     }],
 
     completedAt: Date,
+    simulationCompletedEmailSentAt: Date,
+    simulationCompletedEmailFailedAt: Date,
+    simulationCompletedEmailError: String,
 
     createdAt: { type: Date, default: Date.now },
 })

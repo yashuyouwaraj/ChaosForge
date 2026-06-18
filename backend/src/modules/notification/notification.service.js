@@ -5,6 +5,40 @@ const {
   buildWeeklyReportTemplate,
 } = require("./notification.templates");
 const logger = require("../../utils/logger");
+const Run = require("../run/run.model");
+
+const markSimulationEmailSent = async (run, sentAt = new Date()) => {
+  if (!run?._id) {
+    return;
+  }
+
+  await Run.updateOne(
+    { _id: run._id },
+    {
+      $set: { simulationCompletedEmailSentAt: sentAt },
+      $unset: {
+        simulationCompletedEmailFailedAt: "",
+        simulationCompletedEmailError: "",
+      },
+    },
+  );
+};
+
+const markSimulationEmailFailed = async (run, err) => {
+  if (!run?._id) {
+    return;
+  }
+
+  await Run.updateOne(
+    { _id: run._id },
+    {
+      $set: {
+        simulationCompletedEmailFailedAt: new Date(),
+        simulationCompletedEmailError: err.message,
+      },
+    },
+  );
+};
 
 const sendSimulationCompletedNotification = async (user, run) => {
   try {
@@ -25,13 +59,32 @@ const sendSimulationCompletedNotification = async (user, run) => {
       return false;
     }
 
+    if (run?.simulationCompletedEmailSentAt) {
+      logger.info({
+        message: "Simulation completion email skipped because it was already sent",
+        userId: user._id,
+        runId: run?.runId,
+      });
+      return false;
+    }
+
     const settings = await getSettings(user._id);
 
     if (!settings?.notifications?.email) {
+      logger.info({
+        message: "Simulation email skipped because email notifications are disabled",
+        userId: user._id,
+        runId: run?.runId,
+      });
       return false;
     }
 
     if (!settings.notifications.simulationCompleted) {
+      logger.info({
+        message: "Simulation email skipped because completion notifications are disabled",
+        userId: user._id,
+        runId: run?.runId,
+      });
       return false;
     }
 
@@ -46,6 +99,8 @@ const sendSimulationCompletedNotification = async (user, run) => {
       return false;
     }
 
+    await markSimulationEmailSent(run);
+
     logger.info({
       message: "Simulation completion email sent",
       userId: user._id,
@@ -59,6 +114,14 @@ const sendSimulationCompletedNotification = async (user, run) => {
       error: err.message,
       userId: user?._id,
       runId: run?.runId,
+    });
+
+    await markSimulationEmailFailed(run, err).catch((updateErr) => {
+      logger.warn({
+        message: "Failed to record simulation email failure",
+        error: updateErr.message,
+        runId: run?.runId,
+      });
     });
 
     return false;

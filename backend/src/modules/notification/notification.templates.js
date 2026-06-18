@@ -127,10 +127,11 @@ ${escapeHtml(label)}
 `;
 
 const buildSimulationCompletedTemplate = (run) => {
+  const healthScore = getRunHealthScore(run);
   const healthColor =
-    run.healthScore >= 90
+    healthScore >= 90
       ? COLORS.success
-      : run.healthScore >= 70
+      : healthScore >= 70
         ? COLORS.warning
         : COLORS.danger;
 
@@ -190,7 +191,7 @@ Your ChaosForge simulation has finished executing successfully.
 
 <tr>
 
-${buildMetricCard("Health Score", run.healthScore ?? "N/A", healthColor)}
+${buildMetricCard("Health Score", healthScore ?? "N/A", healthColor)}
 
 ${buildMetricCard(
   "Predictive Risk",
