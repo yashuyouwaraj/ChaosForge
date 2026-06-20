@@ -15,6 +15,8 @@ import { FailureHeatmap } from "./FailureHeatmap";
 import { InfrastructureStabilityTimeline } from "./InfrastructureStabilityTimeline";
 import { RegressionAnalysis } from "./RegressionAnalysis";
 import { ExportActions } from "./ExportActions";
+import { RunChaosConfiguration } from "./RunChaosConfiguration";
+import { ReportEnterpriseIntelligence } from "./ReportEnterpriseIntelligence";
 
 export function ReportDetailContent({ projectId, runId }) {
   const [run, setRun] = useState(null);
@@ -136,6 +138,10 @@ export function ReportDetailContent({ projectId, runId }) {
       </div>
 
       <RunOperationalSummary run={run} />
+
+      <ReportEnterpriseIntelligence run={run} />
+
+      <RunChaosConfiguration run={run} />
 
       <RegressionAnalysis projectId={projectId} runId={runId} />
 

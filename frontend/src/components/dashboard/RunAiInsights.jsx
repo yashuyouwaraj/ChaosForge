@@ -21,7 +21,10 @@ export function RunAiInsights() {
   const { selectedRun } =
     useRun();
 
-  const insights =
+  const {
+    insights,
+    intelligence,
+  } =
     useRunAiInsights(
       selectedRun.projectId,
       selectedRun.runId,
@@ -29,6 +32,37 @@ export function RunAiInsights() {
 
   return (
     <div className="space-y-6">
+      {intelligence && (
+        <div className="glass rounded-[28px] border border-cyan-500/20 bg-cyan-500/5 p-6">
+          <p className="text-xs uppercase tracking-[0.3em] text-cyan-400">
+            Operational Intelligence
+          </p>
+
+          <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {[
+              ["Current Health", intelligence.currentHealth],
+              ["Risk Level", intelligence.riskLevel],
+              ["Most Probable Issue", intelligence.mostProbableIssue],
+              ["Predicted Failure", intelligence.predictedFailure],
+              ["Confidence", intelligence.confidence],
+              ["Recommendation", intelligence.recommendation],
+            ].map(([label, value]) => (
+              <div
+                key={label}
+                className="rounded-2xl border border-white/10 bg-black/20 p-4"
+              >
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                  {label}
+                </p>
+                <p className="mt-3 text-sm font-semibold leading-6 text-slate-200">
+                  {value}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {insights.length === 0 && (
         <div
           className="

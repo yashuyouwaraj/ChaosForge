@@ -11,11 +11,14 @@ export function useRunAiInsights(projectId, runId) {
 
   const logs = useLiveLogs(projectId, runId);
 
-  const insights = useMemo(() => {
+  const result = useMemo(() => {
     const next = [];
 
     if (!metrics) {
-      return next;
+      return {
+        insights: next,
+        intelligence: null,
+      };
     }
 
     // HIGH LATENCY
@@ -40,6 +43,8 @@ export function useRunAiInsights(projectId, runId) {
 
     if (metrics.failure > 25) {
       next.push({
+        type: "failure",
+
         severity: "critical",
 
         title: "Failure Rate Increasing",
@@ -60,6 +65,8 @@ export function useRunAiInsights(projectId, runId) {
 
     if (redisWarnings.length > 3) {
       next.push({
+        type: "redis",
+
         severity: "warning",
 
         title: "Redis Pressure Detected",
@@ -76,6 +83,8 @@ export function useRunAiInsights(projectId, runId) {
 
     if (metrics.currentRps > 5000) {
       next.push({
+        type: "throughput",
+
         severity: "info",
 
         title: "High Throughput Sustained",
@@ -92,6 +101,8 @@ export function useRunAiInsights(projectId, runId) {
 
     if (metrics.p95Latency > 2000) {
       next.push({
+        type: "latency",
+
         severity: "critical",
 
         title: "P95 Latency Degradation",
@@ -113,6 +124,8 @@ export function useRunAiInsights(projectId, runId) {
 
     if (successRate < 90) {
       next.push({
+        type: "availability",
+
         severity: "critical",
 
         title: "Success Rate Dropping",
@@ -128,6 +141,8 @@ export function useRunAiInsights(projectId, runId) {
 
     if (next.length === 0) {
       next.push({
+        type: "baseline",
+
         severity: "info",
 
         title: "Simulation Stable",
@@ -140,8 +155,53 @@ export function useRunAiInsights(projectId, runId) {
       });
     }
 
-    return next;
+    const operationalSuccessRate =
+      metrics.totalRequests > 0
+        ? (metrics.success / metrics.totalRequests) * 100
+        : 100;
+    const failureRate =
+      metrics.totalRequests > 0
+        ? (metrics.failure / metrics.totalRequests) * 100
+        : 0;
+    const health = Math.max(
+      0,
+      Math.min(
+        100,
+          Math.round(
+          operationalSuccessRate -
+            Math.max(0, metrics.avgLatency - 500) / 40 -
+            Math.max(0, metrics.p95Latency - 1000) / 60,
+        ),
+      ),
+    );
+    const risk =
+      failureRate > 15 || metrics.p95Latency > 3000
+        ? "Critical"
+        : failureRate > 5 || metrics.p95Latency > 1500
+          ? "High"
+          : failureRate > 0 || metrics.avgLatency > 800
+            ? "Moderate"
+            : "Stable";
+    const mostProbableIssue = next[0]?.title || "No dominant issue";
+    const predictedFailure =
+      risk === "Stable"
+        ? "Low probability of near-term degradation"
+        : next[0]?.description || "Operational degradation may continue";
+
+    return {
+      insights: next,
+      intelligence: {
+        currentHealth: `${health}/100`,
+        riskLevel: risk,
+        mostProbableIssue,
+        predictedFailure,
+        confidence: `${Math.min(95, 60 + next.length * 8)}%`,
+        recommendation:
+          next[0]?.recommendation ||
+          "Continue monitoring throughput, latency trends, and operational health.",
+      },
+    };
   }, [metrics, logs]);
 
-  return insights;
+  return result;
 }

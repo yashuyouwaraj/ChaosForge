@@ -21,6 +21,10 @@ const {
   addIncident,
   getIncidentTimeline,
 } = require("../services/incidentTimeline");
+const { getChaosSnapshot } = require("../modules/chaos/chaos.service");
+const {
+  buildRunConfigurationSnapshot,
+} = require("../modules/run/run.snapshot");
 const router = express.Router();
 
 const validateSimulationRequest = (req, res, next) => {
@@ -80,6 +84,12 @@ router.post(
 
     const runId = uuidv4();
     await initControl(projectId, runId);
+    const chaosConfig = await getChaosSnapshot(req.user.id, projectId);
+    const configurationSnapshot = buildRunConfigurationSnapshot({
+      config: normalizedConfig,
+      chaosConfig,
+      url: normalizedUrl,
+    });
 
     // Create run entry
     const run = new Run({
@@ -87,6 +97,8 @@ router.post(
       projectId,
       owner: req.user.id,
       config: normalizedConfig,
+      configurationSnapshot,
+      chaosConfig,
       url: normalizedUrl,
       status: "starting",
       createdAt: new Date(),

@@ -5,6 +5,8 @@ const runSchema = new mongoose.Schema({
     runId: { type: String, required: true },
     status: { type: String, default: 'running' },
     config: { type: Object },
+    configurationSnapshot: { type: Object },
+    chaosConfig: { type: Object },
     url: { type: String },
 
     owner:{
@@ -20,6 +22,16 @@ const runSchema = new mongoose.Schema({
     avgLatency: Number,
     p95Latency: Number,
     rps: Number,
+
+    // Chaos experiment metrics
+    chaosInjected: Number,
+    chaosSuccess: Number,
+    chaosFailure: Number,
+    latencyInjected: Number,
+    failureInjected: Number,
+    timeoutInjected: Number,
+    packetLossInjected: Number,
+    connectionResetInjected: Number,
 
     // Detailed metrics
     latencyBuckets: {

@@ -10,19 +10,19 @@ export const loadRunDetails = async (runId, projectId = null) => {
 export const loadRunDetailsForProject = async (runId, projectId = null) => {
   if (projectId) {
     try {
-      const runs = await api(`/runs/${projectId}`);
-      const run = runs.find((item) => item.runId === runId);
-
-      if (!run) {
-        throw new Error("Report run was not found for this project.");
-      }
-
-      return await mergeLatestMetrics(run, projectId);
+      return await loadOperationalReport(runId, projectId);
     } catch (error) {
-      if (!isMissingDetailsRoute(error)) {
-        throw error;
-      }
+      console.error(error);
     }
+
+    const runs = await api(`/runs/${projectId}`);
+    const run = runs.find((item) => item.runId === runId);
+
+    if (!run) {
+      throw new Error("Report run was not found for this project.");
+    }
+
+    return await mergeLatestMetrics(run, projectId);
   }
 
   try {
@@ -52,11 +52,69 @@ export const loadRunDetailsForProject = async (runId, projectId = null) => {
         projectName: project.name,
       };
 
-      return await mergeLatestMetrics(runWithProject, projectId);
+      try {
+        return await loadOperationalReport(runId, projectId, runWithProject);
+      } catch (error) {
+        console.error(error);
+        return await mergeLatestMetrics(runWithProject, projectId);
+      }
     }
   }
 
   throw new Error("Report run was not found.");
+};
+
+const flattenOperationalReport = (report, fallbackRun = {}) => {
+  const runMetrics = report.runMetrics || {};
+  const overview = report.overview || {};
+
+  return {
+    ...fallbackRun,
+    ...runMetrics,
+    totalRequests: runMetrics.totalRequests ?? overview.totalRequests ?? 0,
+    success: runMetrics.success ?? overview.success ?? 0,
+    failure: runMetrics.failure ?? overview.failure ?? 0,
+    avgLatency: runMetrics.avgLatency ?? overview.avgLatency ?? 0,
+    p95Latency: runMetrics.p95Latency ?? overview.p95Latency ?? 0,
+    rps: runMetrics.rps ?? overview.rps ?? 0,
+    errorTypes: report.errorTypes || runMetrics.errorTypes || fallbackRun.errorTypes,
+    latencyTimeline:
+      runMetrics.latencyTimeline ||
+      report.rawMetrics?.latencyTimeline ||
+      fallbackRun.latencyTimeline ||
+      [],
+    latencyBuckets:
+      runMetrics.latencyBuckets ||
+      report.rawMetrics?.latencyBuckets ||
+      fallbackRun.latencyBuckets ||
+      {},
+    failureTimeline:
+      runMetrics.failureTimeline ||
+      report.rawMetrics?.failureTimeline ||
+      fallbackRun.failureTimeline ||
+      [],
+    configurationSnapshot:
+      report.configurationSnapshot || fallbackRun.configurationSnapshot,
+    chaosConfig:
+      runMetrics.chaosConfig ||
+      report.chaosReport?.configuration ||
+      fallbackRun.chaosConfig,
+    projectId: report.projectId || fallbackRun.projectId,
+    runId: report.runId || fallbackRun.runId,
+    report,
+  };
+};
+
+const loadOperationalReport = async (runId, projectId, fallbackRun = {}) => {
+  const report = await api(
+    `/report/json/${projectId}/${encodeURIComponent(runId)}`,
+  );
+
+  return flattenOperationalReport(report, {
+    ...fallbackRun,
+    projectId,
+    runId,
+  });
 };
 
 const mergeLatestMetrics = async (run, projectId) => {

@@ -40,6 +40,8 @@ const formatDate = (value) => {
 const getToneColor = (value, fallback = "#0891b2") =>
   statusColors[String(value || "").toLowerCase()] || fallback;
 
+const formatPercent = (value) => `${Number(value || 0).toFixed(1)}%`;
+
 const ensureSpace = (doc, requiredHeight = 80) => {
   const bottom = doc.page.height - doc.page.margins.bottom - PAGE_BOTTOM_PADDING;
 
@@ -1029,9 +1031,25 @@ const drawNativeStabilityTimeline = (doc, report) => {
   doc.x = doc.page.margins.left;
 };
 
-const drawCoverPage = (doc, { projectId, runId, generatedAt }) => {
+const drawCoverPage = (doc, report) => {
+  const {
+    projectId,
+    runId,
+    generatedAt,
+    configurationSnapshot = {},
+    chaosReport = {},
+    healthScore = {},
+    predictiveRisk = {},
+    runMetrics = {},
+  } = report;
   const x = doc.page.margins.left;
   const top = 86;
+  const successRate =
+    runMetrics.successRate ??
+    (runMetrics.totalRequests
+      ? (Number(runMetrics.success || 0) / Number(runMetrics.totalRequests)) *
+        100
+      : 100);
 
   doc.rect(0, 0, doc.page.width, 150).fill("#0f172a");
   doc
@@ -1048,26 +1066,25 @@ const drawCoverPage = (doc, { projectId, runId, generatedAt }) => {
 
   doc.y = 210;
   doc
-    .roundedRect(x, doc.y, CONTENT_WIDTH, 150, 10)
+    .roundedRect(x, doc.y, CONTENT_WIDTH, 260, 10)
     .fillAndStroke("#f8fafc", "#cbd5e1");
   doc.y += 28;
-  doc
-    .fontSize(12)
-    .font("Helvetica")
-    .fillColor("#334155")
-    .text(`Project ID: ${projectId}`, x + 28, doc.y, {
-      width: CONTENT_WIDTH - 56,
-    })
-    .moveDown(0.6)
-    .text(`Run ID: ${runId}`, {
-      width: CONTENT_WIDTH - 56,
-    })
-    .moveDown(0.6)
-    .text(`Generated At: ${formatDate(generatedAt)}`, {
-      width: CONTENT_WIDTH - 56,
-    });
+  doc.x = x + 28;
+  drawKeyValueRows(doc, [
+    ["Project ID", projectId],
+    ["Run ID", runId],
+    ["Generated At", formatDate(generatedAt)],
+    ["Environment", configurationSnapshot.environment || "N/A"],
+    ["Simulation Duration", configurationSnapshot.duration || "N/A"],
+    ["Chaos Enabled", chaosReport.enabled ? "Yes" : "No"],
+    ["Chaos Profile", chaosReport.profile || "custom"],
+    ["Generated Version", "ChaosForge Enterprise Report v1"],
+    ["Health Score", healthScore.score ?? "N/A"],
+    ["Risk Level", capitalize(predictiveRisk.level || "stable")],
+    ["Success Rate", formatPercent(successRate)],
+  ]);
 
-  doc.y = 430;
+  doc.y = 525;
   doc
     .fontSize(10)
     .fillColor("#64748b")
@@ -1211,6 +1228,165 @@ const drawRunMetrics = (doc, report) => {
   ]);
 };
 
+const drawConfigurationSnapshot = (doc, report) => {
+  const snapshot = report.configurationSnapshot;
+
+  drawSectionTitle(doc, "Configuration Snapshot");
+
+  if (!snapshot) {
+    drawParagraph(doc, "No configuration snapshot available.");
+    return;
+  }
+
+  drawKeyValueRows(doc, [
+    ["HTTP Method", snapshot.method || "N/A"],
+    ["Target URL", snapshot.targetUrl || "N/A"],
+    ["Headers", JSON.stringify(snapshot.headers || {})],
+    ["Payload Size", `${snapshot.payloadSize || 0} bytes`],
+    ["Concurrency", snapshot.concurrency ?? "N/A"],
+    ["Duration", snapshot.duration || "N/A"],
+    ["Workers", snapshot.workers ?? "N/A"],
+    ["Kafka Enabled", snapshot.kafkaEnabled ? "Yes" : "No"],
+    ["Redis Enabled", snapshot.redisEnabled ? "Yes" : "No"],
+    ["Retry Count", snapshot.retryCount ?? "N/A"],
+    ["Timeout", `${snapshot.timeout || 0} ms`],
+    ["Traffic Pattern", capitalize(snapshot.trafficPattern || "requests")],
+    [
+      "Stages",
+      Array.isArray(snapshot.stages) && snapshot.stages.length > 0
+        ? JSON.stringify(snapshot.stages)
+        : "N/A",
+    ],
+    ["Chaos Enabled", snapshot.chaosEnabled ? "Yes" : "No"],
+    ["Chaos Profile", capitalize(snapshot.chaosProfile || "custom")],
+    ["Failure Rate", `${snapshot.failureRate || 0}%`],
+    ["Latency Range", snapshot.latencyRange || "Disabled"],
+    ["Packet Loss", snapshot.packetLoss || "Disabled"],
+    ["Timeout Injection", snapshot.timeoutInjection || "Disabled"],
+    ["Connection Reset", snapshot.connectionReset || "Disabled"],
+  ]);
+};
+
+const drawDeploymentReadiness = (doc, readiness = {}) => {
+  drawSectionTitle(doc, "Deployment Readiness");
+  drawKeyValueRows(doc, [
+    ["Overall", `${readiness.overall ?? 0}/100`],
+    ["Availability", `${readiness.availability ?? 0}/100`],
+    ["Reliability", `${readiness.reliability ?? 0}/100`],
+    ["Performance", `${readiness.performance ?? 0}/100`],
+    ["Resilience", `${readiness.resilience ?? 0}/100`],
+    ["Observability", `${readiness.observability ?? 0}/100`],
+  ]);
+};
+
+const drawAiRecommendations = (doc, recommendations = []) => {
+  drawSectionTitle(doc, "AI Recommendations");
+
+  if (!Array.isArray(recommendations) || recommendations.length === 0) {
+    drawParagraph(doc, "No AI recommendations generated for this run.");
+    return;
+  }
+
+  recommendations.forEach((recommendation) => {
+    ensureSpace(doc, 145);
+    drawParagraph(doc, recommendation.title || "Recommendation", {
+      font: "Helvetica-Bold",
+      moveDown: 0.25,
+    });
+    drawKeyValueRows(doc, [
+      ["Reason", recommendation.reason || "N/A"],
+      ["Expected Impact", recommendation.expectedImpact || "N/A"],
+      ["Priority", capitalize(recommendation.priority || "medium")],
+      ["Confidence", `${recommendation.confidence ?? 0}%`],
+    ]);
+  });
+};
+
+const drawHistoricalComparison = (doc, comparison = {}) => {
+  drawSectionTitle(doc, "Historical Comparison");
+
+  if (!comparison.hasPreviousRun) {
+    drawParagraph(doc, "No previous run exists for comparison.");
+    return;
+  }
+
+  const metrics = comparison.metrics || {};
+
+  drawKeyValueRows(
+    doc,
+    Object.entries(metrics).map(([label, value]) => [
+      capitalize(label),
+      `${value.current} vs ${value.previous} (${value.trend})`,
+    ]),
+  );
+};
+
+const drawChaosReport = (doc, report) => {
+  const chaos = report.chaosReport || {};
+  const metrics = chaos.metrics || {};
+  const assessment = chaos.assessment || {};
+
+  drawSectionTitle(doc, "Chaos Engineering");
+  drawKeyValueRows(doc, [
+    ["Enabled", chaos.enabled ? "Yes" : "No"],
+    ["Profile", capitalize(chaos.profile || "custom")],
+    ["Assessment", assessment.label || capitalize(assessment.status || "unavailable")],
+    ["Injected Requests", metrics.totalInjected || 0],
+    ["Successful Injections", metrics.successfulInjections || 0],
+    ["Failed Injections", metrics.failedInjections || 0],
+    ["Injection Rate", `${metrics.injectionRate || 0}%`],
+    ["Resilience Rate", `${metrics.resilienceRate || 0}%`],
+    ["Chaos Failure Contribution", `${metrics.failureContributionRate || 0}%`],
+    ["Latency Injections", metrics.latencyInjected || 0],
+    ["Failure Injections", metrics.failureInjected || 0],
+    ["Timeout Injections", metrics.timeoutInjected || 0],
+    ["Packet Loss Injections", metrics.packetLossInjected || 0],
+    ["Connection Reset Injections", metrics.connectionResetInjected || 0],
+  ]);
+  drawParagraph(doc, assessment.summary || "No Chaos assessment available.");
+
+  if (Array.isArray(chaos.enabledFaults) && chaos.enabledFaults.length > 0) {
+    drawParagraph(doc, "Configured Faults", {
+      font: "Helvetica-Bold",
+      moveDown: 0.3,
+    });
+    drawBulletList(doc, chaos.enabledFaults, (fault) => fault);
+  }
+
+  if (Array.isArray(chaos.faultBreakdown) && chaos.faultBreakdown.length > 0) {
+    drawParagraph(doc, "Injected Fault Breakdown", {
+      font: "Helvetica-Bold",
+      moveDown: 0.3,
+    });
+    drawKeyValueRows(
+      doc,
+      chaos.faultBreakdown.map((fault) => [
+        fault.label || "Fault",
+        fault.injected || 0,
+      ]),
+    );
+  }
+
+  if (Array.isArray(assessment.evidence) && assessment.evidence.length > 0) {
+    drawParagraph(doc, "Evidence", {
+      font: "Helvetica-Bold",
+      moveDown: 0.3,
+    });
+    drawBulletList(doc, assessment.evidence, (item) => item);
+  }
+
+  if (
+    Array.isArray(assessment.recommendations) &&
+    assessment.recommendations.length > 0
+  ) {
+    drawParagraph(doc, "Recommendations", {
+      font: "Helvetica-Bold",
+      moveDown: 0.3,
+    });
+    drawBulletList(doc, assessment.recommendations, (item) => item);
+  }
+};
+
 const drawIncidentTimeline = (doc, incidentTimeline = []) => {
   const incidents = Array.isArray(incidentTimeline)
     ? [...incidentTimeline].sort(
@@ -1331,11 +1507,7 @@ const downloadPDF = async (req, res) => {
 
   doc.pipe(res);
 
-  drawCoverPage(doc, {
-    projectId,
-    runId,
-    generatedAt: report.generatedAt,
-  });
+  drawCoverPage(doc, report);
 
   doc.addPage();
 
@@ -1356,6 +1528,16 @@ const downloadPDF = async (req, res) => {
   drawInfrastructureMemory(doc, report.infrastructureMemory);
 
   drawRunMetrics(doc, report);
+
+  drawConfigurationSnapshot(doc, report);
+
+  drawDeploymentReadiness(doc, report.deploymentReadiness);
+
+  drawChaosReport(doc, report);
+
+  drawAiRecommendations(doc, report.aiRecommendations);
+
+  drawHistoricalComparison(doc, report.historicalComparison);
 
   drawReportCharts(doc, report);
 

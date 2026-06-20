@@ -15,6 +15,7 @@ import {
   Settings,
   Radio,
   ShieldCheck,
+  BrainCircuit,
 } from "lucide-react";
 
 const groups = [
@@ -43,6 +44,11 @@ const groups = [
         label: "Infrastructure",
         href: "/infrastructure",
         icon: Server,
+      },
+      {
+        label: "Chaos",
+        href: "/chaos",
+        icon: BrainCircuit,
       },
     ],
   },

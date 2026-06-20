@@ -16,6 +16,10 @@ const {
   trackSimulation,
 } = require("../usage/usage.service");
 const plans = require("../../config/plan");
+const { getChaosSnapshot } = require("../chaos/chaos.service");
+const {
+  buildRunConfigurationSnapshot,
+} = require("../run/run.snapshot");
 
 const createProject = async (req, res) => {
   const { name } = req.body;
@@ -105,6 +109,12 @@ const runProjectTraffic = async (req, res) => {
 
   const runId = uuidv4();
   await initControl(id, runId);
+  const chaosConfig = await getChaosSnapshot(req.user.id, id);
+  const configurationSnapshot = buildRunConfigurationSnapshot({
+    config: runConfig,
+    chaosConfig,
+    url,
+  });
 
   await Run.create({
     owner: req.user.id,
@@ -112,6 +122,8 @@ const runProjectTraffic = async (req, res) => {
     runId,
     status: "starting",
     config: runConfig,
+    configurationSnapshot,
+    chaosConfig,
     url,
   });
   await trackSimulation({

@@ -10,10 +10,16 @@ const {
   generateInfrastructureMemory,
 } = require("../modules/memory/memory.generator");
 const { producer, connectProducer, TRAFFIC_TOPIC } = require("../config/kafka");
-const { emitBufferedLog } = require("../websocket/socket");
-const { client: redis, connectRedis } = require("../config/redis");
-const {getMetrics,markRunActive,markRunComplete,} = require("../metrics/metrics.store");
+const { connectRedis } = require("../config/redis");
+const {
+  getMetrics,
+  markRunActive,
+  markRunComplete,
+} = require("../metrics/metrics.store");
 const { saveRun } = require("../modules/run/run.service");
+const {
+  buildRunConfigurationSnapshot,
+} = require("../modules/run/run.snapshot");
 const { initControl, getControl } = require("../control/control.store");
 const { addIncident } = require("./incidentTimeline");
 const { ensureKafkaWorkersReady } = require("./worker-readiness.service");
@@ -82,6 +88,7 @@ const generateTraffic = async (config, projectId, url, options = {}) => {
   await redis.del(`timestamps:${projectId}:${runId}`);
   await redis.del(`errors:${projectId}:${runId}`);
   await redis.del(`failures:${projectId}:${runId}`);
+  await redis.del(`chaos:${projectId}:${runId}`);
 
   logger.info({
     message: "Starting simulation",
@@ -108,11 +115,11 @@ const generateTraffic = async (config, projectId, url, options = {}) => {
   let expectedRequests = 0;
 
   if (config.pattern === "stages") {
-    expectedRequests = await runStages(config, projectId, url, runId);
+    expectedRequests = await runStages(config, projectId, url, runId, options.owner);
   }
   // 🟦 DEFAULT REQUEST MODE (BACKWARD COMPATIBLE)
   else {
-    expectedRequests = await runRequestMode(config, projectId, url, runId);
+    expectedRequests = await runRequestMode(config, projectId, url, runId, options.owner);
   }
 
   // ⏳ wait for processing
@@ -136,6 +143,17 @@ const generateTraffic = async (config, projectId, url, options = {}) => {
     metrics: finalMetrics,
   });
 
+  const existingRun = await Run.findOne({ projectId, runId })
+    .select("chaosConfig configurationSnapshot")
+    .lean();
+  const configurationSnapshot =
+    existingRun?.configurationSnapshot ||
+    buildRunConfigurationSnapshot({
+      config,
+      chaosConfig: existingRun?.chaosConfig,
+      url,
+    });
+
   const savedRun = await saveRun({
   owner: options.owner,
   projectId,
@@ -143,6 +161,8 @@ const generateTraffic = async (config, projectId, url, options = {}) => {
   status: finalStatus,
   completedAt: new Date(),
   config,
+  configurationSnapshot,
+  chaosConfig: existingRun?.chaosConfig,
   url,
   ...finalMetrics,
 });
@@ -190,7 +210,7 @@ return runId;
 /**
  * 🟦 REQUEST MODE (existing logic cleaned)
  */
-const runRequestMode = async (config, projectId, url, runId) => {
+const runRequestMode = async (config, projectId, url, runId, owner) => {
   const requestCount = Number(config.totalRequests || 0);
   const baseRate = Number(config.rate || 50);
   const requestOptions = getRequestOptions(config);
@@ -219,6 +239,7 @@ const runRequestMode = async (config, projectId, url, runId) => {
             uuidv4(),
             projectId,
             runId,
+            owner,
             requestOptions.method,
             requestOptions.headers,
             requestOptions.body,
@@ -264,6 +285,7 @@ const runRequestMode = async (config, projectId, url, runId) => {
       messages.push({
         key: requestId,
         value: JSON.stringify({
+          owner,
           projectId,
           url,
           runId,
@@ -408,7 +430,7 @@ const runRequestMode = async (config, projectId, url, runId) => {
 /**
  * 💀 STAGES MODE (DAY 41 MAGIC)
  */
-const runStages = async (config, projectId, url, runId) => {
+const runStages = async (config, projectId, url, runId, owner) => {
   const stages = config.stages || [];
   const requestOptions = getRequestOptions(config);
   let sent = 0;
@@ -441,6 +463,7 @@ const runStages = async (config, projectId, url, runId) => {
               uuidv4(),
               projectId,
               runId,
+              owner,
               requestOptions.method,
               requestOptions.headers,
               requestOptions.body,
@@ -521,6 +544,7 @@ const runStages = async (config, projectId, url, runId) => {
         messages.push({
           key: requestId,
           value: JSON.stringify({
+            owner,
             projectId,
             url,
             runId,

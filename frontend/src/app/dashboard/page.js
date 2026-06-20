@@ -5,6 +5,7 @@ import { Loader2, Power } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 
 import { DashboardSection } from "@/components/dashboard/DashboardSection";
+import { ChaosDashboardWidget } from "@/components/dashboard/ChaosDashboardWidget";
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -281,6 +282,13 @@ export default function DashboardPage() {
             <RunSelector />
           </DashboardSection>
 
+          <DashboardSection
+            title="Chaos Engineering"
+            description="Current fault-injection posture for the selected project."
+          >
+            <ChaosDashboardWidget />
+          </DashboardSection>
+
           <div className="flex flex-wrap items-center gap-3">
             <Button
               type="button"
@@ -326,7 +334,7 @@ export default function DashboardPage() {
 
           {/* AI */}
           <DashboardSection
-            title="AI Insights"
+            title="Operational Intelligence"
             description="Realtime infrastructure intelligence."
           >
             <RunAiInsights />

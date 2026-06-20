@@ -48,6 +48,7 @@ const recordRequest = async (
   latency,
   isSuccess,
   errorType = "network",
+  chaos={}
 ) => {
   const redis = await connectRedis();
 
@@ -65,6 +66,31 @@ const recordRequest = async (
   multi.hIncrBy(metricsKey, `latencyBucket:${getLatencyBucket(latency)}`, 1);
   multi.hSetNX(metricsKey, "startedAt", String(recordedAt));
   multi.hSet(metricsKey, "lastRequestAt", String(recordedAt));
+
+  if (chaos.injected) {
+    multi.hIncrBy(metricsKey, "chaosInjected", 1);
+    multi.hIncrBy(metricsKey, isSuccess ? "chaosSuccess" : "chaosFailure", 1);
+  }
+
+  if (chaos.latency) {
+    multi.hIncrBy(metricsKey, "latencyInjected", 1);
+  }
+
+  if (chaos.failure) {
+    multi.hIncrBy(metricsKey, "failureInjected", 1);
+  }
+
+  if (chaos.timeout) {
+    multi.hIncrBy(metricsKey, "timeoutInjected", 1);
+  }
+
+  if (chaos.packetLoss) {
+    multi.hIncrBy(metricsKey, "packetLossInjected", 1);
+  }
+
+  if (chaos.connectionReset) {
+    multi.hIncrBy(metricsKey, "connectionResetInjected", 1);
+  }
 
   // latency list (bounded)
   multi.rPush(latenciesKey, String(latency));
@@ -233,6 +259,14 @@ const getMetrics = async (projectId, runId) => {
       server: Number(errors.server || 0),
     },
     failureTimeline: failures.map((t) => ({ time: Number(t) })),
+    chaosInjected: Number(data.chaosInjected || 0),
+    chaosSuccess: Number(data.chaosSuccess || 0),
+    chaosFailure: Number(data.chaosFailure || 0),
+    latencyInjected: Number(data.latencyInjected || 0),
+    failureInjected: Number(data.failureInjected || 0),
+    timeoutInjected: Number(data.timeoutInjected || 0),
+    packetLossInjected: Number(data.packetLossInjected || 0),
+    connectionResetInjected: Number(data.connectionResetInjected || 0),
   };
 };
 

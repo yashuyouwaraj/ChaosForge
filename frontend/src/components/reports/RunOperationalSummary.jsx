@@ -47,7 +47,7 @@ export function RunOperationalSummary({ run: providedRun, runId }) {
         ).toFixed(1)
       : 100;
 
-  const summary = `
+  const summary = run.report?.executiveSummary || `
 Infrastructure sustained
 ${run.rps || 0} RPS with
 average latency of

@@ -18,12 +18,8 @@ const runConsumer = async () => {
     fromBeginning: false,
   });
 
-  let processedCount = 0;
-  let completionMessageReceived = false;
   const processingTimestamps = {};
-  let lastLoggedCount = 0;
-  let currentProjectId = null;
-  let currentRunId = null;
+  const processedCountsByRun = new Map();
 
   consumer
     .run({
@@ -32,18 +28,13 @@ const runConsumer = async () => {
           const data = JSON.parse(message.value.toString());
           const timestamp = Date.now();
 
-          // Track current run for completion logging
-          if (data.projectId) {
-            currentProjectId = data.projectId;
-            currentRunId = data.runId;
-          }
-
           // Skip completion messages
           if (data.type === "traffic-complete") {
-            completionMessageReceived = true;
+            const runKey = `${data.projectId}:${data.runId}`;
             logger.warn({
               message: "TRAFFIC_COMPLETE_RECEIVED - FINAL COUNT",
-              totalProcessedBeforeCompletion: processedCount,
+              totalProcessedBeforeCompletion:
+                processedCountsByRun.get(runKey) || 0,
               completionMessagePartition: partition,
               projectId: data.projectId,
               runId: data.runId,
@@ -58,12 +49,15 @@ const runConsumer = async () => {
             projectId,
             runId,
             url,
+            owner,
             method,
             headers,
             body,
             queryParams,
           } = data;
-          processedCount++;
+          const runKey = `${projectId}:${runId}`;
+          const processedCount = (processedCountsByRun.get(runKey) || 0) + 1;
+          processedCountsByRun.set(runKey, processedCount);
 
           // Log every 100 messages for visibility
           if (processedCount % 100 === 0 || processedCount === 1) {
@@ -87,6 +81,7 @@ const runConsumer = async () => {
             requestId,
             projectId,
             runId,
+            owner,
             method,
             headers,
             body,
@@ -95,22 +90,30 @@ const runConsumer = async () => {
             .then(() => {
               const processingTimeMs =
                 Date.now() - processingTimestamps[requestId];
+              delete processingTimestamps[requestId];
+
               if (processingTimeMs > 1000) {
                 logger.warn({
                   message: "Slow request completed",
                   requestId,
+                  projectId,
+                  runId,
                   processingTimeMs,
                 });
               }
             })
             .catch((err) => {
+              const processingTimeMs =
+                Date.now() - processingTimestamps[requestId];
+              delete processingTimestamps[requestId];
+
               logger.error({
                 message: "Background request processing error",
                 requestId,
                 projectId,
                 runId,
                 error: err.message,
-                processingTimeMs: Date.now() - processingTimestamps[requestId],
+                processingTimeMs,
               });
             });
         } catch (err) {

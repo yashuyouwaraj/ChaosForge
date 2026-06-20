@@ -1,5 +1,7 @@
 const { recordRequest } = require("../metrics/metrics.store");
 const { emitBufferedLog } = require("../websocket/socket");
+const { executeChaos } = require("../modules/chaos/chaos.engine");
+const { recordChaos } = require("../metrics/chaos.metrics");
 
 const {
   simulationRequestsTotal,
@@ -14,11 +16,58 @@ const MAX_RETRIES = 3;
 
 const delay = (ms) => new Promise((res) => setTimeout(res, ms));
 
+const createChaosMetrics = () => ({
+  injected: false,
+  latency: false,
+  timeout: false,
+  failure: false,
+  packetLoss: false,
+  connectionReset: false,
+});
+
+const mergeChaosMetrics = (current, next = {}) => {
+  const merged = {
+    ...current,
+    latency: Boolean(current.latency || next.latency),
+    timeout: Boolean(current.timeout || next.timeout),
+    failure: Boolean(current.failure || next.failure),
+    packetLoss: Boolean(current.packetLoss || next.packetLoss),
+    connectionReset: Boolean(current.connectionReset || next.connectionReset),
+  };
+
+  merged.injected =
+    merged.latency ||
+    merged.timeout ||
+    merged.failure ||
+    merged.packetLoss ||
+    merged.connectionReset;
+
+  return merged;
+};
+
+const getChaosTypes = (metrics = {}) =>
+  ["latency", "timeout", "failure", "packetLoss", "connectionReset"].filter(
+    (type) => metrics[type],
+  );
+
+const classifyError = (err, chaosMetrics = {}) => {
+  if (err.code === "ECONNABORTED" || chaosMetrics.timeout) {
+    return "timeout";
+  }
+
+  if (err.response || chaosMetrics.failure) {
+    return "server";
+  }
+
+  return "network";
+};
+
 const simulateProcessing = async (
   url,
   requestId,
   projectId,
   runId,
+  owner,
   method = "GET",
   headers = {},
   body = null,
@@ -32,6 +81,7 @@ const simulateProcessing = async (
   let finalLatency = 0;
 
   let finalErrorType = "network";
+  let chaosMetrics = createChaosMetrics();
 
   while (attempt < MAX_RETRIES && !success) {
     const start = Date.now();
@@ -47,21 +97,28 @@ const simulateProcessing = async (
         method: normalizedMethod,
       });
 
-      const response = await axios({
+      const axiosRequest = {
         method: normalizedMethod,
         url,
-
         headers,
-
         params: queryParams,
-
         data: ["POST", "PUT", "PATCH", "DELETE"].includes(normalizedMethod)
           ? body
           : undefined,
-
         timeout: 5000,
-      });
+      };
 
+      const {
+        request: finalRequest,
+        metrics: currentMetrics,
+      } = await executeChaos({
+        owner,
+        projectId,
+        request: axiosRequest,
+      });
+      chaosMetrics = mergeChaosMetrics(chaosMetrics, currentMetrics);
+
+      const response = await axios(finalRequest);
       finalLatency = Date.now() - start;
 
       success = true;
@@ -73,19 +130,31 @@ const simulateProcessing = async (
         projectId,
         latency: finalLatency,
         attempts: attempt + 1,
+        chaosInjected: chaosMetrics.injected,
+        chaosTypes: getChaosTypes(chaosMetrics),
       });
 
       /**
        * 💀 STORE METRICS
        */
       try {
-        await recordRequest(projectId, runId, finalLatency, true);
+        await recordRequest(
+          projectId,
+          runId,
+          finalLatency,
+          true,
+          null,
+          chaosMetrics,
+        );
+        await recordChaos(projectId, runId, chaosMetrics);
         logger.debug({
           message: "METRIC_RECORDED_SUCCESS",
           requestId,
           projectId,
           runId,
           latency: finalLatency,
+          chaosInjected: chaosMetrics.injected,
+          chaosTypes: getChaosTypes(chaosMetrics),
         });
       } catch (metricErr) {
         logger.error({
@@ -124,16 +193,12 @@ const simulateProcessing = async (
       });
     } catch (err) {
       finalLatency = Date.now() - start;
+      chaosMetrics = mergeChaosMetrics(chaosMetrics, err.chaosMetrics);
 
       /**
        * 💀 ERROR CLASSIFICATION
        */
-      finalErrorType =
-        err.code === "ECONNABORTED"
-          ? "timeout"
-          : err.response
-            ? "server"
-            : "network";
+      finalErrorType = classifyError(err, chaosMetrics);
 
       /**
        * 💀 FINAL FAILURE
@@ -147,6 +212,10 @@ const simulateProcessing = async (
           latency: finalLatency,
           attempts: attempt + 1,
           errorType: finalErrorType,
+          chaosInjected: chaosMetrics.injected,
+          chaosTypes: getChaosTypes(chaosMetrics),
+          injectedFault: err.chaos?.type,
+          elapsedMs: finalLatency,
         });
 
         try {
@@ -156,7 +225,9 @@ const simulateProcessing = async (
             finalLatency,
             false,
             finalErrorType,
+            chaosMetrics,
           );
+          await recordChaos(projectId, runId, chaosMetrics);
           logger.debug({
             message: "METRIC_RECORDED_FAILURE",
             requestId,
@@ -164,6 +235,8 @@ const simulateProcessing = async (
             runId,
             latency: finalLatency,
             errorType: finalErrorType,
+            chaosInjected: chaosMetrics.injected,
+            chaosTypes: getChaosTypes(chaosMetrics),
           });
         } catch (metricErr) {
           logger.error({
@@ -209,8 +282,13 @@ const simulateProcessing = async (
           runId,
           projectId,
           attempt: attempt + 1,
+          retriesRemaining: MAX_RETRIES - attempt - 1,
           errorType: finalErrorType,
           retryInMs,
+          chaosInjected: chaosMetrics.injected,
+          chaosTypes: getChaosTypes(chaosMetrics),
+          injectedFault: err.chaos?.type,
+          elapsedMs: finalLatency,
         });
 
         emitBufferedLog(projectId, runId, {

@@ -4,7 +4,7 @@ const incidentRoutes = require("./routes/incidents.routes");
 
 const metricsRoutes = require("./routes/metrics.routes");
 const testRoutes = require("./routes/test.routes");
-
+const chaosRoutes = require("./modules/chaos/chaos.routes");
 const requestIdMiddleware = require("./middleware/requestId");
 const memoryRoutes = require("./modules/memory/memory.routes");
 const authRoutes = require("./modules/auth/auth.routes");
@@ -126,6 +126,7 @@ app.use("/api/memory", memoryRoutes);
 
 app.use("/settings", settingsRoutes);
 
+app.use("/chaos", chaosRoutes);
 /**
  * 💀 PROMETHEUS METRICS ENDPOINT
  */
