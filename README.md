@@ -12,7 +12,7 @@
 [![Kafka](https://img.shields.io/badge/Apache-Kafka-231F20?logo=apachekafka&logoColor=white)](docker-compose.yml)
 [![Prometheus](https://img.shields.io/badge/Prometheus-Metrics-E6522C?logo=prometheus&logoColor=white)](monitoring/)
 [![Grafana](https://img.shields.io/badge/Grafana-Dashboards-F46800?logo=grafana&logoColor=white)](monitoring/grafana/)
-[![NVIDIA](https://img.shields.io/badge/NVIDIA-NIM-AI-76B900?logo=nvidia&logoColor=white)](backend/src/modules/ai/)
+<!-- [![NVIDIA](https://img.shields.io/badge/NVIDIA-NIM-AI-76B900?logo=nvidia&logoColor=white)](backend/src/modules/ai/) -->
 ![GitHub stars](https://img.shields.io/github/stars/yashuyouwaraj/ChaosForge?style=social)
 
 <img src="docs/images/landing-page.png" alt="ChaosForge landing page" width="900" />
