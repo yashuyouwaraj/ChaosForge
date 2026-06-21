@@ -14,6 +14,7 @@ const reportRoutes = require("./modules/report/report.routes");
 const runRoutes = require("./modules/run/run.routes");
 const usageRoutes = require("./modules/usage/usage.routes");
 const aiRouter = require("./modules/ai/ai.routes");
+const intelligenceRouter = require("./modules/intelligence/intelligence.routes");
 const healthRoutes = require("./routes/health.routes");
 const settingsRoutes = require("./modules/settings/settings.routes");
 
@@ -121,6 +122,8 @@ app.use("/", testRoutes);
 app.use("/api/incidents", incidentRoutes);
 
 app.use("/api/ai", aiRouter);
+
+app.use("/api/intelligence", intelligenceRouter);
 
 app.use("/api/memory", memoryRoutes);
 

@@ -76,6 +76,7 @@ const generateInfrastructureMemory = async (run) => {
         if (!exists) {
           await saveMemory({
             ...memory,
+            description: memory.description,
             detectionCount: 1,
             firstDetectedAt: new Date(),
             lastDetectedAt: new Date(),
@@ -83,6 +84,10 @@ const generateInfrastructureMemory = async (run) => {
           });
         } else {
           exists.runId = run.runId;
+          exists.title = memory.title;
+          exists.description = memory.description;
+          exists.recommendation = memory.recommendation;
+          exists.severity = memory.severity;
           exists.lastDetectedAt = new Date();
           exists.detectionCount += 1;
           exists.confidence = Math.max(

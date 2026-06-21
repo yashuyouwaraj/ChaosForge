@@ -1,4 +1,5 @@
 import { api } from "@/lib/api";
+import { primeIntelligenceCache } from "@/hooks/useIntelligence";
 
 const isMissingDetailsRoute = (error) =>
   error?.message?.includes("Cannot GET /runs/details");
@@ -102,6 +103,7 @@ const flattenOperationalReport = (report, fallbackRun = {}) => {
     projectId: report.projectId || fallbackRun.projectId,
     runId: report.runId || fallbackRun.runId,
     report,
+    intelligence: report.intelligence || null,
   };
 };
 
@@ -109,6 +111,10 @@ const loadOperationalReport = async (runId, projectId, fallbackRun = {}) => {
   const report = await api(
     `/report/json/${projectId}/${encodeURIComponent(runId)}`,
   );
+
+  if (report.intelligence) {
+    primeIntelligenceCache(projectId, runId, report.intelligence);
+  }
 
   return flattenOperationalReport(report, {
     ...fallbackRun,

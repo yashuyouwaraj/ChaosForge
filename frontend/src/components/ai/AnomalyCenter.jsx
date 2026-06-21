@@ -3,7 +3,8 @@
 import { motion } from "framer-motion";
 import { ShieldAlert, AlertTriangle, Activity } from "lucide-react";
 
-import { useAiAnalysis } from "@/hooks/useAiAnalysis";
+import { useAnomalyDetection } from "@/hooks/useAnomalyDetection";
+import { useIntelligence } from "@/hooks/useIntelligence";
 
 const severityStyles = {
   info: `
@@ -32,9 +33,8 @@ const severityStyles = {
 };
 
 export function AnomalyCenter({ projectId, runId }) {
-  const { analysis, loading } = useAiAnalysis(projectId, runId);
-
-  const anomalies = analysis?.anomalies || [];
+  const { loading } = useIntelligence(projectId, runId);
+  const anomalies = useAnomalyDetection(projectId, runId);
 
   return (
     <div

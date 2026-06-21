@@ -4,10 +4,12 @@ import { motion } from "framer-motion";
 
 import { BrainCircuit, AlertTriangle, Search } from "lucide-react";
 
-import { useAiAnalysis } from "@/hooks/useAiAnalysis";
+import { useRootCauseAnalysis } from "@/hooks/useRootCauseAnalysis";
+import { useIntelligence } from "@/hooks/useIntelligence";
 
 export function RootCauseCenter({ projectId, runId }) {
-  const { analysis, loading } = useAiAnalysis(projectId, runId);
+  const { loading } = useIntelligence(projectId, runId);
+  const causes = useRootCauseAnalysis(projectId, runId);
 
   if (loading) {
     return (
@@ -21,19 +23,6 @@ export function RootCauseCenter({ projectId, runId }) {
       </div>
     );
   }
-
-  const causes =
-    analysis?.anomalies?.map((anomaly, index) => ({
-      title: anomaly.title,
-
-      description: anomaly.description,
-
-      confidence: Math.max(75, 95 - index * 5),
-
-      impact:
-        analysis?.recommendations?.[index] ||
-        "Operational performance may degrade if the issue is not addressed.",
-    })) || [];
 
   return (
     <div

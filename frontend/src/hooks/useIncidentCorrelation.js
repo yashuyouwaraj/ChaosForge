@@ -2,80 +2,65 @@
 
 import { useMemo } from "react";
 
-import { useAnomalyDetection } from "@/hooks/useAnomalyDetection";
-import { usePredictiveRisk } from "@/hooks/usePredictiveRisk";
-import { useRootCauseAnalysis } from "@/hooks/useRootCauseAnalysis";
+import { useIntelligence } from "@/hooks/useIntelligence";
 
-export function useIncidentCorrelation(projectId, runId) {
-  const anomalies = useAnomalyDetection(projectId, runId);
+export function useIncidentCorrelation(projectId, runId, initialData = null) {
+  const { intelligence } = useIntelligence(projectId, runId, initialData);
 
-  const prediction = usePredictiveRisk(projectId, runId);
+  return useMemo(() => {
+    if (!intelligence) {
+      return [];
+    }
 
-  const rootCauses = useRootCauseAnalysis(projectId, runId);
-
-  const chains = useMemo(() => {
     const edges = [];
+    const anomalies = intelligence.rootCause || [];
+    const prediction = intelligence.risk;
 
     const hasSaturation = anomalies.some(
-      (a) => a.type === "Infrastructure Saturation",
+      (item) => item.title === "Infrastructure Saturation",
     );
-
-    const hasLatency = anomalies.some((a) => a.type === "Latency Anomaly");
-
-    const hasFailures = anomalies.some((a) => a.type === "Failure Burst");
-
-    // Saturation → Latency
+    const hasLatency = anomalies.some(
+      (item) => item.title === "Tail Latency Amplification",
+    );
+    const hasFailures = anomalies.some(
+      (item) => item.title === "Failure Rate Escalation",
+    );
 
     if (hasSaturation && hasLatency) {
       edges.push({
         source: "Infrastructure Saturation",
-
         target: "Tail Latency Growth",
       });
     }
 
-    // Latency → Failures
-
     if (hasLatency && hasFailures) {
       edges.push({
         source: "Tail Latency Growth",
-
         target: "Failure Escalation",
       });
     }
-
-    // Saturation → Failures
 
     if (hasSaturation && hasFailures) {
       edges.push({
         source: "Infrastructure Saturation",
-
         target: "Failure Escalation",
       });
     }
 
-    // Predictive Risk
-
-    if (prediction?.level === "High" || prediction?.level === "Critical") {
+    if (prediction?.level === "high" || prediction?.level === "critical") {
       edges.push({
         source: "Predictive Risk",
-
         target: "Operational Instability",
       });
     }
 
-    // Root Cause Correlations
-
-    rootCauses.forEach((cause) => {
+    anomalies.forEach((cause) => {
       edges.push({
         source: cause.title,
-
         target: "Infrastructure Impact",
       });
     });
 
     return edges;
-  }, [anomalies, prediction, rootCauses]);
-
-  return chains;
+  }, [intelligence]);
 }

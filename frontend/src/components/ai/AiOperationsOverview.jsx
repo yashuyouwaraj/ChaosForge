@@ -9,63 +9,59 @@ import {
   TrendingUp,
 } from "lucide-react";
 
-import { useAiAnalysis } from "@/hooks/useAiAnalysis";
-import { useRootCauseAnalysis } from "@/hooks/useRootCauseAnalysis";
-import { useOperationalInsights } from "@/hooks/useOperationalInsights";
-import { useRemediationRecommendations } from "@/hooks/useRemediationRecommendations";
-import { useInfrastructureMemory } from "@/hooks/useInfrastructureMemory";
+import { useIntelligence } from "@/hooks/useIntelligence";
 
 export function AiOperationsOverview({ projectId, runId }) {
-  const { analysis } = useAiAnalysis(projectId, runId);
+  const { intelligence } = useIntelligence(projectId, runId);
 
-  const causes = useRootCauseAnalysis(projectId, runId);
-
-  const { insights } = useOperationalInsights(projectId, runId);
-
-  const recommendations = useRemediationRecommendations(projectId, runId);
-
-  const { memory } = useInfrastructureMemory(projectId);
+  const health = intelligence?.health;
+  const risk = intelligence?.risk;
+  const rootCause = intelligence?.rootCause || [];
+  const recommendations = intelligence?.recommendations || [];
+  const memory = intelligence?.infrastructureMemory?.patterns || [];
 
   const cards = [
     {
       label: "AI Confidence",
-      value: `${analysis?.score || 0}%`,
+      value: `${risk?.confidence || health?.score || 0}%`,
       icon: BrainCircuit,
       color: "text-cyan-300",
     },
-
     {
       label: "Risk Level",
-      value: analysis?.anomalies?.length > 0 ? "Elevated" : "Healthy",
+      value:
+        risk?.level && risk.level !== "stable"
+          ? risk.level.charAt(0).toUpperCase() + risk.level.slice(1)
+          : "Stable",
       icon: ShieldCheck,
       color:
-        analysis?.anomalies?.length > 0 ? "text-yellow-300" : "text-green-300",
+        risk?.level === "stable" || !risk?.level
+          ? "text-green-300"
+          : "text-yellow-300",
     },
-
     {
       label: "Anomalies",
-      value: analysis?.anomalies?.length || 0,
+      value: rootCause.filter(
+        (cause) => cause.title !== "No Dominant Failure Source",
+      ).length,
       icon: AlertTriangle,
       color: "text-orange-300",
     },
-
     {
       label: "Root Causes",
-      value: causes.length,
+      value: rootCause.length,
       icon: TrendingUp,
       color: "text-red-300",
     },
-
     {
       label: "Recommendations",
       value: recommendations.length,
       icon: Wrench,
       color: "text-cyan-300",
     },
-
     {
       label: "Patterns Learned",
-      value: memory?.length || 0,
+      value: memory.length,
       icon: Database,
       color: "text-purple-300",
     },

@@ -1,53 +1,57 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useIntelligence } from "@/hooks/useIntelligence";
 
-import { api } from "@/lib/api";
+export function useAiAnalysis(projectId, runId, initialData = null) {
+  const { intelligence, loading, error } = useIntelligence(
+    projectId,
+    runId,
+    initialData,
+  );
 
-export function useAiAnalysis(projectId, runId) {
-  const [analysis, setAnalysis] = useState(null);
+  if (!intelligence) {
+    return { analysis: null, loading, error };
+  }
 
-  const [loading, setLoading] = useState(true);
-
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!projectId || !runId) {
-      return;
-    }
-
-    let ignore = false;
-
-    const load = async () => {
-      try {
-        setLoading(true);
-        setError("");
-
-        const result = await api(`/api/ai/${projectId}/${runId}`);
-
-        if (!ignore) {
-          setAnalysis(result);
-        }
-      } catch (err) {
-        if (!ignore) {
-          setError(err.message || "Failed to load AI analysis");
-        }
-      } finally {
-        if (!ignore) {
-          setLoading(false);
-        }
-      }
-    };
-
-    load();
-
-    return () => {
-      ignore = true;
-    };
-  }, [projectId, runId]);
+  const successRate =
+    intelligence.metrics.totalRequests > 0
+      ? (intelligence.metrics.success / intelligence.metrics.totalRequests) * 100
+      : 0;
 
   return {
-    analysis,
+    analysis: {
+      generatedAt: intelligence.generatedAt,
+      metrics: intelligence.metrics,
+      score: intelligence.health.score,
+      anomalies: intelligence.rootCause.map((cause) => ({
+        severity:
+          cause.severity === "critical"
+            ? "critical"
+            : cause.severity === "high"
+              ? "high"
+              : cause.severity === "moderate"
+                ? "medium"
+                : "info",
+        title: cause.title,
+        description: cause.evidence,
+      })),
+      insights: intelligence.operationalInsights.map((insight) => ({
+        severity:
+          insight.severity === "critical"
+            ? "critical"
+            : insight.severity === "warning" ||
+                insight.severity === "high" ||
+                insight.severity === "moderate"
+              ? "warning"
+              : "info",
+        title: insight.title,
+        explanation: insight.description,
+      })),
+      recommendations: intelligence.recommendations.map(
+        (item) => item.reason || item.title,
+      ),
+      successRate,
+    },
     loading,
     error,
   };

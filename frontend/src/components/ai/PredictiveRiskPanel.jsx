@@ -8,7 +8,9 @@ import {
   TrendingUp,
 } from "lucide-react";
 
-import { useAiAnalysis } from "@/hooks/useAiAnalysis";
+import { usePredictiveRisk } from "@/hooks/usePredictiveRisk";
+import { useIntelligence } from "@/hooks/useIntelligence";
+import { useHealthScore } from "@/hooks/useHealthScore";
 
 const riskStyles = {
   Stable: `
@@ -40,18 +42,11 @@ export function PredictiveRiskPanel({
   projectId,
   runId,
 }) {
-  const {
-    analysis,
-    loading,
-  } = useAiAnalysis(
-    projectId,
-    runId,
-  );
+  const { loading } = useIntelligence(projectId, runId);
+  const prediction = usePredictiveRisk(projectId, runId);
+  const healthScore = useHealthScore(projectId, runId);
 
-  if (
-    loading ||
-    !analysis
-  ) {
+  if (loading || !prediction) {
     return (
       <div
         className="
@@ -64,57 +59,22 @@ export function PredictiveRiskPanel({
     );
   }
 
-  const score =
-    analysis.score || 0;
+  const risk = prediction.risk;
 
-  const risk =
-    Math.max(
-      0,
-      100 - score,
-    );
-
-  let level =
-    "Healthy";
-
-  if (score < 90) {
-    level =
-      "Warning";
-  }
-
-  if (score < 70) {
-    level =
-      "Critical";
-  }
+  const level = prediction.level;
 
   const riskStyle =
-    level ===
-    "Healthy"
+    level === "Stable"
       ? "Stable"
-      : level ===
-          "Warning"
+      : level === "Moderate"
         ? "Moderate"
-        : "Critical";
+        : level === "High"
+          ? "High"
+          : "Critical";
 
-  const forecast =
-    analysis.anomalies
-      ?.length > 0
-      ? "AI analysis detected operational anomalies requiring investigation."
-      : "Infrastructure execution remained stable with no significant degradation indicators.";
+  const forecast = prediction.forecast;
 
-  const drivers =
-    analysis.anomalies
-      ?.length > 0
-      ? analysis.anomalies.map(
-          (
-            anomaly,
-          ) =>
-            anomaly.title,
-        )
-      : [
-          "Excellent reliability",
-          "Stable throughput",
-          "No failure escalation",
-        ];
+  const drivers = prediction.drivers;
 
   return (
     <div
@@ -464,7 +424,7 @@ export function PredictiveRiskPanel({
                   text-cyan-300
                 "
               >
-                {score}/100
+                {healthScore}/100
               </span>
             </div>
           </div>

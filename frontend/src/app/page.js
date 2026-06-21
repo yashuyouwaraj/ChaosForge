@@ -56,7 +56,7 @@ const pricingPlans = [
   },
   {
     name: "Production",
-    price: "$299",
+    price: "₹500",
     suffix: "/mo",
     subtitle: "For scaling distributed teams.",
     cta: "Start Free Trial",
@@ -71,7 +71,8 @@ const pricingPlans = [
   },
   {
     name: "Enterprise",
-    price: "Custom",
+    price: "₹2500",
+    suffix: "/mo",
     subtitle: "For mission-critical infrastructure.",
     cta: "Contact Sales",
     highlighted: false,

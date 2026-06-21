@@ -15,6 +15,8 @@ const PLATFORM_EVENTS = {
     "platform-activity",
 };
 
+const INTELLIGENCE_UPDATE_EVENT = "intelligence:update";
+
 const getRunLogsEvent = (
   projectId,
   runId,
@@ -23,6 +25,7 @@ const getRunLogsEvent = (
 
 module.exports = {
   PLATFORM_EVENTS,
+  INTELLIGENCE_UPDATE_EVENT,
 
   getRunLogsEvent,
 };

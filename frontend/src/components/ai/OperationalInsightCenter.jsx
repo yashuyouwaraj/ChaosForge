@@ -4,7 +4,9 @@ import { motion } from "framer-motion";
 
 import { BrainCircuit, ShieldAlert, Activity } from "lucide-react";
 
-import { useAiAnalysis } from "@/hooks/useAiAnalysis";
+import { useOperationalInsights } from "@/hooks/useOperationalInsights";
+import { useRemediationRecommendations } from "@/hooks/useRemediationRecommendations";
+import { useIntelligence } from "@/hooks/useIntelligence";
 
 const severityStyles = {
   info: `
@@ -33,11 +35,9 @@ const severityStyles = {
 };
 
 export function OperationalInsightCenter({ projectId, runId }) {
-  const { analysis, loading, error } = useAiAnalysis(projectId, runId);
-
-  const insights = analysis?.insights || [];
-
-  const recommendations = analysis?.recommendations || [];
+  const { loading, error } = useIntelligence(projectId, runId);
+  const { insights } = useOperationalInsights(projectId, runId);
+  const recommendations = useRemediationRecommendations(projectId, runId);
 
   return (
     <div
@@ -276,7 +276,9 @@ export function OperationalInsightCenter({ projectId, runId }) {
                         "
                     >
                       {insight.recommendation ||
-                        recommendations.join(" • ") ||
+                        recommendations
+                          .map((item) => item.reason || item.action)
+                          .join(" • ") ||
                         "No recommendations generated."}
                     </p>
                   </div>

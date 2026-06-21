@@ -2,75 +2,60 @@
 
 import { useMemo } from "react";
 
-import { useRootCauseAnalysis } from "@/hooks/useRootCauseAnalysis";
-import { useRemediationRecommendations } from "@/hooks/useRemediationRecommendations";
+import { useIntelligence } from "@/hooks/useIntelligence";
 
-export function useRunbookGeneration(projectId, runId) {
-  const causes = useRootCauseAnalysis(projectId, runId);
+export function useRunbookGeneration(projectId, runId, initialData = null) {
+  const { intelligence } = useIntelligence(projectId, runId, initialData);
 
-  const recommendations = useRemediationRecommendations(projectId, runId);
+  return useMemo(() => {
+    if (!intelligence) {
+      return [];
+    }
 
-  const runbook = useMemo(() => {
+    const causes = intelligence.rootCause || [];
+    const recommendations = intelligence.recommendations || [];
     const steps = [];
 
-    // SATURATION
-
-    if (causes.some((c) => c.title === "Infrastructure Saturation")) {
+    if (causes.some((cause) => cause.title === "Infrastructure Saturation")) {
       steps.push({
         title: "Scale Worker Capacity",
-
         description:
           "Increase worker count or processing capacity to reduce queue pressure.",
       });
-
       steps.push({
         title: "Verify Queue Health",
-
         description: "Inspect request backlog and processing throughput.",
       });
     }
 
-    // LATENCY
-
-    if (causes.some((c) => c.title === "Tail Latency Amplification")) {
+    if (causes.some((cause) => cause.title === "Tail Latency Amplification")) {
       steps.push({
         title: "Analyze Slow Requests",
-
         description:
           "Review high-latency endpoints and downstream dependencies.",
       });
-
       steps.push({
         title: "Monitor Recovery",
-
         description: "Track p95 latency and verify stabilization.",
       });
     }
 
-    // FAILURES
-
-    if (causes.some((c) => c.title === "Failure Escalation")) {
+    if (causes.some((cause) => cause.title === "Failure Rate Escalation")) {
       steps.push({
         title: "Inspect Upstream Dependencies",
-
         description:
           "Check external services, APIs, and infrastructure health.",
       });
-
       steps.push({
         title: "Enable Recovery Workflow",
-
         description:
           "Reduce failure amplification and verify service recovery.",
       });
     }
 
-    // PREDICTIVE RISK
-
     if (recommendations.length >= 3) {
       steps.push({
         title: "Reduce Traffic Pressure",
-
         description:
           "Temporarily decrease load until operational stability returns.",
       });
@@ -79,7 +64,6 @@ export function useRunbookGeneration(projectId, runId) {
     if (steps.length === 0) {
       steps.push({
         title: "Continue Monitoring",
-
         description: "No active remediation workflow required.",
       });
     }
@@ -88,7 +72,5 @@ export function useRunbookGeneration(projectId, runId) {
       ...step,
       order: index + 1,
     }));
-  }, [causes, recommendations]);
-
-  return runbook;
+  }, [intelligence]);
 }

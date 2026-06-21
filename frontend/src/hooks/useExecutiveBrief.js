@@ -2,22 +2,28 @@
 
 import { useMemo } from "react";
 
-import { useHealthScore } from "@/hooks/useHealthScore";
-import { usePredictiveRisk } from "@/hooks/usePredictiveRisk";
-import { useRootCauseAnalysis } from "@/hooks/useRootCauseAnalysis";
+import { useIntelligence } from "@/hooks/useIntelligence";
 
-export function useExecutiveBrief(projectId, runId, run) {
-  const score = useHealthScore(projectId, runId);
-
-  const prediction = usePredictiveRisk(projectId, runId);
-
-  const rootCauses = useRootCauseAnalysis(projectId, runId);
+export function useExecutiveBrief(projectId, runId, run, initialData = null) {
+  const { intelligence } = useIntelligence(projectId, runId, initialData);
 
   return useMemo(() => {
+    if (!intelligence) {
+      return {
+        score: 0,
+        assessment: "Loading",
+        impact: "Unknown",
+        action: "Loading intelligence...",
+        findings: [],
+      };
+    }
+
+    const score = intelligence.health.score;
+    const rootCauses = intelligence.rootCause || [];
+    const prediction = intelligence.risk;
+
     let assessment = "Excellent";
-
     let impact = "Low";
-
     let action = "Continue monitoring.";
 
     if (score < 90) {
@@ -34,7 +40,7 @@ export function useExecutiveBrief(projectId, runId, run) {
       impact = "High";
     }
 
-    if (prediction?.level === "Critical") {
+    if (prediction?.level === "critical") {
       action = "Immediate remediation recommended.";
     }
 
@@ -49,13 +55,13 @@ export function useExecutiveBrief(projectId, runId, run) {
       impact,
       action,
       findings: [
-        `Health score evaluated at ${score}/100`,
+        `Health score evaluated at ${score}/100 (grade ${intelligence.health.grade})`,
         `${rootCauses.length} probable root causes identified`,
         prediction?.level
           ? `Predictive risk level: ${prediction.level}`
           : "No elevated predictive risk detected",
-        `Throughput: ${run?.rps || 0} RPS`,
+        `Throughput: ${run?.rps || intelligence.overview?.rps || 0} RPS`,
       ],
     };
-  }, [score, prediction, rootCauses, run]);
+  }, [intelligence, run]);
 }

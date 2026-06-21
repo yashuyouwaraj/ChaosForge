@@ -20,6 +20,13 @@ const markRunActive = (projectId, runId) => {
 
 const markRunComplete = (runId) => {
   completedRuns.add(runId);
+
+  const projectId = metricsBuffer[runId];
+
+  if (projectId) {
+    const { clearIntelligenceStream } = require("../modules/intelligence/intelligence.stream");
+    clearIntelligenceStream(projectId, runId);
+  }
 };
 
 const getActiveRunCount = () =>
@@ -315,6 +322,11 @@ setInterval(async () => {
         const metrics = await getMetrics(projectId, runId);
 
         io.to(`run-${runId}`).emit(`metrics-${projectId}-${runId}`, metrics);
+
+        if (!completedRuns.has(runId)) {
+          const { scheduleIntelligenceUpdate } = require("../modules/intelligence/intelligence.stream");
+          scheduleIntelligenceUpdate(projectId, runId, metrics);
+        }
 
         // 💀 cleanup completed runs
         if (
