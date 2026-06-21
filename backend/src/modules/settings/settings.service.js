@@ -17,6 +17,7 @@ const allowedUpdatePaths = {
     "totalRequests",
   ]),
   notifications: new Set(["email", "simulationCompleted", "weeklyReport"]),
+  ai: new Set(["provider", "mode", "model"]),
 };
 
 const buildSettingsUpdate = (updates = {}) => {

@@ -25,9 +25,14 @@ import { LatencyBuckets } from "@/components/dashboard/LatencyBuckets";
 import { RealtimeCharts } from "@/components/dashboard/RealtimeCharts";
 
 import { LiveLogStream } from "@/components/dashboard/LiveLogStream";
+import { DashboardCopilotActions } from "@/components/dashboard/DashboardCopilotActions";
+import { AiDashboardPanel } from "@/components/copilot/AiDashboardPanel";
+import { ChaosAdvisorPanel } from "@/components/copilot/ChaosAdvisorPanel";
 
 import { usePlatform } from "@/components/providers/PlatformProvider";
 import { usePlatformOverview } from "@/hooks/usePlatformOverview";
+import { useProject } from "@/components/providers/ProjectProvider";
+import { useRun } from "@/components/providers/RunProvider";
 import { api } from "@/lib/api";
 import { wakeGrafana, wakePrometheus } from "@/lib/observability";
 
@@ -67,6 +72,8 @@ const wakeWorkerUrls = async () => {
 
 export default function DashboardPage() {
   const overview = usePlatformOverview();
+  const { projectId } = useProject() || {};
+  const { selectedRun } = useRun() || {};
   const { infrastructure } = usePlatform();
   const { infrastructureSummary, loading: infrastructureLoading } =
     infrastructure || {};
@@ -282,6 +289,10 @@ export default function DashboardPage() {
             <RunSelector />
           </DashboardSection>
 
+          <div className="flex justify-end">
+            <DashboardCopilotActions />
+          </div>
+
           <DashboardSection
             title="Chaos Engineering"
             description="Current fault-injection posture for the selected project."
@@ -334,10 +345,27 @@ export default function DashboardPage() {
 
           {/* AI */}
           <DashboardSection
+            title="AI Platform Intelligence"
+            description="Intelligence Engine metrics with NVIDIA Copilot platform status."
+          >
+            <AiDashboardPanel
+              projectId={projectId}
+              runId={selectedRun?.runId}
+            />
+          </DashboardSection>
+
+          <DashboardSection
             title="Operational Intelligence"
             description="Realtime infrastructure intelligence."
           >
             <RunAiInsights />
+          </DashboardSection>
+
+          <DashboardSection
+            title="Chaos Advisor"
+            description="AI-generated chaos experiment profiles with apply-to-project support."
+          >
+            <ChaosAdvisorPanel />
           </DashboardSection>
 
           {/* <DashboardSection

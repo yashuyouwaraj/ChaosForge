@@ -511,7 +511,7 @@ body::after {
 
 .hero-orb {
   z-index: 3;
-  filter: blur(80px);
+  filter: blur(48px);
 }
 
 .hero-orb-left {
@@ -774,13 +774,240 @@ body::after {
   }
 }
 
+/* Landing page animations */
+.landing-reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+
+.landing-reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.landing-reveal-delay-1 { transition-delay: 0.08s; }
+.landing-reveal-delay-2 { transition-delay: 0.16s; }
+.landing-reveal-delay-3 { transition-delay: 0.24s; }
+.landing-reveal-delay-4 { transition-delay: 0.32s; }
+
+.landing-parallax-layer {
+  will-change: transform;
+  transition: transform 0.15s ease-out;
+}
+
+.landing-card-glow {
+  position: relative;
+  overflow: hidden;
+}
+
+.landing-card-glow::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: radial-gradient(
+    600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    rgba(34, 211, 238, 0.12),
+    transparent 40%
+  );
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.landing-card-glow:hover::before {
+  opacity: 1;
+}
+
+.landing-workflow-step {
+  position: relative;
+}
+
+.landing-workflow-step::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -2rem;
+  width: 2px;
+  height: 2rem;
+  background: linear-gradient(180deg, rgba(34, 211, 238, 0.5), transparent);
+  transform: translateX(-50%);
+}
+
+.landing-workflow-step:last-child::after {
+  display: none;
+}
+
+.landing-timeline-node {
+  position: relative;
+  z-index: 2;
+}
+
+.landing-timeline-connector {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(34, 211, 238, 0.35) 20%,
+    rgba(34, 211, 238, 0.35) 80%,
+    transparent
+  );
+  transform: translateY(-50%);
+  z-index: 1;
+}
+
+.landing-flow-line {
+  stroke-dasharray: 8 6;
+  animation: landingFlow 20s linear infinite;
+}
+
+@keyframes landingFlow {
+  to {
+    stroke-dashoffset: -200;
+  }
+}
+
+.landing-pulse-dot {
+  animation: landingPulse 2.4s ease-in-out infinite;
+}
+
+@keyframes landingPulse {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+.landing-chart-bar {
+  transform-origin: bottom;
+  animation: landingBarGrow 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes landingBarGrow {
+  from {
+    transform: scaleY(0);
+  }
+
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.landing-nav {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(3, 8, 22, 0.72);
+  backdrop-filter: blur(20px);
+}
+
+.landing-nav-link {
+  color: #94a3b8;
+  transition: color 0.2s ease;
+}
+
+.landing-nav-link:hover,
+.landing-nav-link:focus-visible {
+  color: #67e8f9;
+  outline: none;
+}
+
+.landing-section-gradient {
+  background: linear-gradient(
+    180deg,
+    rgba(2, 6, 23, 0.08) 0%,
+    rgba(2, 6, 23, 0.36) 50%,
+    rgba(2, 6, 23, 0.08) 100%
+  );
+}
+
+.landing-particle {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(34, 211, 238, 0.6);
+  animation: landingParticle 8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes landingParticle {
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: translateY(0) translateX(0);
+  }
+
+  50% {
+    opacity: 0.8;
+    transform: translateY(-24px) translateX(8px);
+  }
+}
+
+.landing-dashboard-preview {
+  box-shadow:
+    0 0 0 1px rgba(34, 211, 238, 0.12),
+    0 40px 120px rgba(2, 6, 23, 0.65);
+}
+
+.landing-scroll-indicator {
+  animation: landingScrollBounce 2s ease-in-out infinite;
+}
+
+@keyframes landingScrollBounce {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.6;
+  }
+
+  50% {
+    transform: translateY(8px);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .landing-workflow-step::after {
+    display: none;
+  }
+
+  .landing-timeline-connector {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
 
-  .floating-glow {
+  .floating-glow,
+  .landing-flow-line,
+  .landing-pulse-dot,
+  .landing-chart-bar,
+  .landing-particle,
+  .landing-scroll-indicator {
     animation: none;
+  }
+
+  .landing-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
   }
 
   .glass-panel,

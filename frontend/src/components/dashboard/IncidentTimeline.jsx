@@ -2,6 +2,8 @@
 
 import { motion } from "framer-motion";
 import { usePlatform } from "@/components/providers/PlatformProvider";
+import { useProject } from "@/components/providers/ProjectProvider";
+import { AiExplainButton } from "@/components/copilot/AiExplainPanel";
 
 const styles = {
   critical: {
@@ -43,6 +45,11 @@ const styles = {
 
 export function IncidentTimeline() {
   const { incidents: timeline } = usePlatform();
+  const { projectId } = useProject() || {};
+  const activeRunId =
+    timeline.find((incident) => incident?.metadata?.runId)?.metadata?.runId ||
+    null;
+
   return (
     <div
       className="
@@ -68,6 +75,20 @@ export function IncidentTimeline() {
         >
          Realtime distributed infrastructure activity and operational intelligence.
         </p>
+
+        {projectId && activeRunId && (
+          <div className="mt-5">
+            <AiExplainButton
+              label="✨ Investigate with AI"
+              title="Incident Investigation"
+              skill="incidentInvestigator"
+              payload={{
+                projectId,
+                runId: activeRunId,
+              }}
+            />
+          </div>
+        )}
       </div>
 
       {/* EMPTY */}

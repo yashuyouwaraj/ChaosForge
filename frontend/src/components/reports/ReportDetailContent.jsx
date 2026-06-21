@@ -17,6 +17,8 @@ import { RegressionAnalysis } from "./RegressionAnalysis";
 import { ExportActions } from "./ExportActions";
 import { RunChaosConfiguration } from "./RunChaosConfiguration";
 import { ReportEnterpriseIntelligence } from "./ReportEnterpriseIntelligence";
+import { AiExplainButton } from "@/components/copilot/AiExplainPanel";
+import { AiReportAppendix } from "./AiReportAppendix";
 
 export function ReportDetailContent({ projectId, runId }) {
   const [run, setRun] = useState(null);
@@ -139,6 +141,27 @@ export function ReportDetailContent({ projectId, runId }) {
 
       <RunOperationalSummary run={run} />
 
+      <div className="flex justify-end">
+        <AiExplainButton
+          label="✨ Explain Report"
+          title="Explain Report"
+          skill="explainReport"
+          payload={{
+            projectId: projectId || run.projectId,
+            runId,
+          }}
+        />
+        <AiExplainButton
+          label="AI Report"
+          title="AI Report Generator"
+          skill="aiReportGenerator"
+          payload={{
+            projectId: projectId || run.projectId,
+            runId,
+          }}
+        />
+      </div>
+
       <ReportEnterpriseIntelligence run={run} />
 
       <RunChaosConfiguration run={run} />
@@ -158,6 +181,8 @@ export function ReportDetailContent({ projectId, runId }) {
       <IncidentReportTimeline incidents={incidents} runId={runId} />
 
       <AiPostmortemSummary incidents={incidents} run={run} runId={runId} />
+
+      <AiReportAppendix projectId={projectId || run.projectId} runId={runId} />
     </>
   );
 }

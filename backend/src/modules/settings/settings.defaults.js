@@ -22,6 +22,12 @@ const DEFAULT_SETTINGS = {
     simulationCompleted: true,
     weeklyReport: true,
   },
+
+  ai: {
+    provider: "nvidia",
+    mode: "automatic",
+    model: "ultra",
+  },
 };
 
 module.exports = DEFAULT_SETTINGS;

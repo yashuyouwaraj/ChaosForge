@@ -106,11 +106,18 @@ export const wakePrometheus = () => {
     .finally(() => window.clearTimeout(timeoutId));
 };
 
-export const getPrometheusGraphUrl = (path= "") => {
-    return `${getPrometheusUrl()}${path}`;
-}
+export const getPrometheusGraphUrl = (path = "") => {
+  return `${getPrometheusUrl()}${path}`;
+};
 
 export const getGrafanaDashboardUrl = (path = "") => {
   return `${getGrafanaUrl()}${path}`;
+};
+
+export const getGrafanaEmbedUrl = (path = "/dashboards") => {
+  const basePath = path.startsWith("/") ? path : `/${path}`;
+  const separator = basePath.includes("?") ? "&" : "?";
+
+  return `${getGrafanaUrl()}${basePath}${separator}orgId=1&theme=dark`;
 };
 

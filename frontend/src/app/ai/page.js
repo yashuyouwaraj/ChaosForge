@@ -21,6 +21,7 @@ import { useRun } from "@/components/providers/RunProvider";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { useSimulationRuns } from "@/hooks/useSimulationRuns";
 import { AiOperationsOverview } from "@/components/ai/AiOperationsOverview";
+import { AiExplainButton } from "@/components/copilot/AiExplainPanel";
 
 const formatDate = (value) => {
   if (!value) {
@@ -160,6 +161,60 @@ export default function Page() {
 
           {canRenderAi ? (
             <>
+              <div className="flex flex-wrap gap-3">
+                <AiExplainButton
+                  label="✨ Explain Run"
+                  title="Explain Run"
+                  skill="explainRun"
+                  payload={{
+                    projectId: activeProjectId,
+                    runId: activeRunId,
+                  }}
+                />
+                <AiExplainButton
+                  label="Executive Brief"
+                  title="Executive Brief"
+                  skill="executiveBrief"
+                  payload={{
+                    projectId: activeProjectId,
+                    runId: activeRunId,
+                  }}
+                />
+                <AiExplainButton
+                  label="Optimization Advisor"
+                  title="Optimization Advisor"
+                  skill="optimizationAdvisor"
+                  payload={{
+                    projectId: activeProjectId,
+                    runId: activeRunId,
+                  }}
+                />
+                <AiExplainButton
+                  label="Weekly Review"
+                  title="Weekly Infrastructure Review"
+                  skill="weeklyInfrastructureReview"
+                  payload={{ projectId: activeProjectId }}
+                />
+                <AiExplainButton
+                  label="AI Runbook"
+                  title="Runbook Generator"
+                  skill="runbook"
+                  payload={{
+                    projectId: activeProjectId,
+                    runId: activeRunId,
+                  }}
+                />
+                <AiExplainButton
+                  label="Capacity Planner"
+                  title="Capacity Planner"
+                  skill="capacityPlanner"
+                  payload={{
+                    projectId: activeProjectId,
+                    runId: activeRunId,
+                  }}
+                />
+              </div>
+
               <AiOperationsOverview projectId={activeProjectId} runId={activeRunId} />
 
               <ExecutiveBriefCenter

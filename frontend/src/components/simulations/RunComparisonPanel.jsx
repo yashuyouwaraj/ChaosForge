@@ -5,6 +5,7 @@ import { GitCompareArrows, Lightbulb, TrendingDown, TrendingUp } from "lucide-re
 
 import { useSimulationRuns } from "@/hooks/useSimulationRuns";
 import { api } from "@/lib/api";
+import { AiExplainButton } from "@/components/copilot/AiExplainPanel";
 
 const comparisonMetrics = [
   ["success", "Success Rate", true],
@@ -230,6 +231,19 @@ export function RunComparisonPanel() {
                   </ul>
                 </div>
               ) : null}
+
+              <div className="mt-5">
+                <AiExplainButton
+                  label="✨ Compare with AI"
+                  title="AI Run Comparison"
+                  skill="compareRuns"
+                  payload={{
+                    projectId,
+                    runAId: selectedRuns.runA,
+                    runBId: selectedRuns.runB,
+                  }}
+                />
+              </div>
             </div>
           )}
         </div>

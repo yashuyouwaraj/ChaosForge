@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: ChaosForge
+    orgId: 1
+    folder: ChaosForge
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards

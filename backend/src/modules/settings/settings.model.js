@@ -92,6 +92,24 @@ const settingsSchema = new mongoose.Schema(
         default: DEFAULT_SETTINGS.notifications.weeklyReport,
       },
     },
+
+    ai: {
+      provider: {
+        type: String,
+        default: DEFAULT_SETTINGS.ai.provider,
+      },
+
+      mode: {
+        type: String,
+        enum: ["automatic", "fast", "balanced", "deep", "custom"],
+        default: DEFAULT_SETTINGS.ai.mode,
+      },
+
+      model: {
+        type: String,
+        default: DEFAULT_SETTINGS.ai.model,
+      },
+    },
   },
   {
     timestamps: true,

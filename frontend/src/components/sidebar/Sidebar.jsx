@@ -16,6 +16,7 @@ import {
   Radio,
   ShieldCheck,
   BrainCircuit,
+  BotMessageSquare,
 } from "lucide-react";
 
 const groups = [
@@ -67,6 +68,12 @@ const groups = [
         label: "AI Insights",
         href: "/ai",
         icon: Brain,
+      },
+
+      {
+        label: "Ask ChaosForge",
+        href: "/ask",
+        icon: BotMessageSquare,
       },
 
       {

@@ -57,7 +57,6 @@ export function ObservabilitySummary() {
 
   const {
     infrastructureSummary,
-    health,
   } = infrastructure;
 
   const criticalIncidents =
@@ -72,49 +71,8 @@ export function ObservabilitySummary() {
       className="
         grid gap-6
         sm:grid-cols-2
-        xl:grid-cols-4
       "
     >
-      <StatusCard
-        label="Grafana"
-
-        value={
-          infrastructureSummary
-            ?.services
-            ?.grafana ||
-          "Unknown"
-        }
-
-        status={
-          infrastructureSummary
-            ?.services
-            ?.grafana ===
-          "connected"
-            ? "healthy"
-            : "critical"
-        }
-      />
-
-      <StatusCard
-        label="Prometheus"
-
-        value={
-          infrastructureSummary
-            ?.services
-            ?.prometheus ||
-          "Unknown"
-        }
-
-        status={
-          infrastructureSummary
-            ?.services
-            ?.prometheus ===
-          "connected"
-            ? "healthy"
-            : "critical"
-        }
-      />
-
       <StatusCard
         label="Critical Alerts"
 

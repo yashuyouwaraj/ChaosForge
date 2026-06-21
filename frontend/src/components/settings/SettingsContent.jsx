@@ -8,6 +8,7 @@ import { PasswordCard } from "./PasswordCard";
 import { SimulationDefaultsCard } from "./SimulationDefaultsCard";
 import { NotificationCard } from "./NotificationCard";
 import { DangerZoneCard } from "./DangerZoneCard";
+import { AiSettingsCard } from "./AiSettingsCard";
 
 export function SettingsContent() {
   const { settings, loading, error, updateSettings, refreshSettings, saved, dirty } =
@@ -87,6 +88,8 @@ export function SettingsContent() {
       />
 
       <NotificationCard settings={settings} updateSettings={updateSettings} />
+
+      <AiSettingsCard settings={settings} updateSettings={updateSettings} />
 
       <DangerZoneCard reloadSettings={refreshSettings} />
     </div>
