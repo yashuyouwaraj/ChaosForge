@@ -204,10 +204,6 @@ The marketing landing page walks through the complete platform story: workflow, 
 |---------------------|---------|
 | <img src="docs/images/landing-intelligence.png" alt="Landing intelligence section" width="420" /> | <img src="docs/images/landing-pricing.png" alt="Landing pricing section" width="420" /> |
 
-**Full landing page (scroll capture):**
-
-<img src="docs/images/landing-page-full.png" alt="ChaosForge full landing page" width="900" />
-
 ---
 
 ### Authentication
@@ -230,13 +226,9 @@ The dashboard streams real-time telemetry while a simulation is active: RPS, lat
 |-----------------------------------|---------------------|
 | <img src="docs/images/dashboard-running-graphs.png" alt="Dashboard running graphs" width="420" /> | <img src="docs/images/dashboard-latency-buckets.png" alt="Dashboard latency buckets" width="420" /> |
 
-| Live Infrastructure Feed | Active Run Controls |
+| Live Infrastructure Feed | Simulation Controls |
 |--------------------------|---------------------|
-| <img src="docs/images/dashboard-live-logs.png" alt="Dashboard live logs" width="420" /> | <img src="docs/images/dashboard-running-simulation.png" alt="Dashboard running simulation" width="420" /> |
-
-**Full dashboard (scroll capture during live run):**
-
-<img src="docs/images/dashboard-full.png" alt="Dashboard full page" width="900" />
+| <img src="docs/images/dashboard-live-logs.png" alt="Dashboard live logs" width="420" /> | <img src="docs/images/dashboard-running-simulation.png" alt="Simulation Controls" width="420" /> |
 
 ---
 
@@ -255,10 +247,6 @@ Configure staged traffic, monitor active runs, review simulation history, and co
 | Run Comparison | Live Metrics During Run |
 |----------------|------------------------|
 | <img src="docs/images/simulations-run-comparison.png" alt="Run comparison" width="420" /> | <img src="docs/images/simulation-running.png" alt="Simulation running with graphs" width="420" /> |
-
-**Full simulations page:**
-
-<img src="docs/images/simulations-full.png" alt="Simulations full page" width="900" />
 
 ---
 
