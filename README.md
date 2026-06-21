@@ -442,13 +442,13 @@ sequenceDiagram
     FE->>FE: Update simulation history table
 ```
 
-### Platform Layer Diagram
+<!-- ### Platform Layer Diagram
 
 <img src="docs/images/architecture.png" alt="ChaosForge architecture diagram" width="900" />
 
 ### API Request Flow
 
-<img src="docs/images/api-flow.png" alt="ChaosForge API flow diagram" width="900" />
+<img src="docs/images/api-flow.png" alt="ChaosForge API flow diagram" width="900" /> -->
 
 ### System Overview
 
