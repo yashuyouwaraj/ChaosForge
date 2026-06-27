@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import dynamic from "next/dynamic";
 
 import { LandingClosing } from "@/components/landing/LandingClosing";
@@ -9,6 +10,7 @@ import { LandingLiveOperations } from "@/components/landing/LandingLiveOperation
 import { LandingNav } from "@/components/landing/LandingNav";
 import { LandingPlatformOverview } from "@/components/landing/LandingPlatformOverview";
 import { LandingReportsComparison } from "@/components/landing/LandingReportsComparison";
+import { wakeBackend } from "@/lib/runtime";
 
 const LazyPlatformOverview = dynamic(
   () =>
@@ -47,6 +49,10 @@ const LazyFooter = dynamic(
 );
 
 export default function HomePage() {
+  useEffect(() => {
+    wakeBackend();
+  }, []);
+
   return (
     <main className="overflow-hidden bg-background text-foreground">
       <LandingNav />

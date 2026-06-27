@@ -1,244 +1,48 @@
-services:
+Hi Vinod,
 
-  backend:
-    build: ./backend
+Thank you for the update and for shortlisting my profile for the SDE-1 Backend role at Papaya Global.
 
-    profiles:
-      - app
+Please find my responses below:
 
-    restart: unless-stopped
+• Total Experience:
+1+ year of professional backend development experience.
 
-    ports:
-      - "3001:3001"
+• Relevant Backend Experience:
+I have hands-on experience building backend systems using Java, Spring Boot, REST APIs, Microservices, Kafka, Redis, PostgreSQL, and Docker. At TCS, I have worked on scalable backend services, asynchronous workflows, CI/CD integration, and production reliability improvements.
 
-    environment:
-      NODE_ENV: production
+Additionally, I have built distributed backend systems through projects like ChaosForge, where I designed event-driven microservices using Spring Boot, Kafka, Redis, and Docker for real-time distributed load testing and concurrent processing.
 
-      PORT: 3001
+• Experience with Java, Spring, Spring Boot & Microservices:
+Yes, I have worked extensively with Java and Spring Boot for backend API development, authentication, asynchronous processing, caching, and microservice-based architectures.
 
-      FRONTEND_URL: http://localhost:3000
+• Agile Development Experience:
+Yes, I have been part of Agile development cycles involving sprint planning, code reviews, debugging, testing, release validation, and CI/CD workflows.
 
-      CORS_ORIGIN: http://localhost:3000
+• Database Experience:
+I have experience working with SQL and NoSQL databases including PostgreSQL, MongoDB, and Redis.
 
-      MONGO_URI: mongodb://mongo:27017/chaosforge
+• AWS Experience:
+Yes, I have hands-on exposure to AWS services such as EC2 and S3 along with Docker-based deployment workflows.
 
-      REDIS_URL: redis://redis:6379
+• Location:
+I am currently based in Chennai and willing to relocate to Bangalore.
 
-      KAFKA_BROKER: kafka:9092
+• Current CTC:
+7.19 LPA (Fixed)
 
-      KAFKA_TOPIC_REPLICATION_FACTOR: 1
+• Expected CTC:
+Considering the backend-focused scope of the role and my backend engineering experience, I would be looking for a compensation around 16 LPA.
 
-      KAFKA_TRAFFIC_TOPIC_PARTITIONS: 6
+• Notice Period:
+I will be available to join within 7 days due to an ongoing project transition at my current organization.
 
-      USE_KAFKA: "true"
+• Reason for Change:
+I am looking for an opportunity that offers stronger backend engineering challenges, scalable distributed systems exposure, and ownership-driven product development.
 
-      PROMETHEUS_BASE_URL: ${PROMETHEUS_BASE_URL:-http://prometheus:9090}
+• In-person Interview Availability:
+Yes, I am available for the in-person final interview round.
 
-      PROMETHEUS_HEALTH_URL: ${PROMETHEUS_HEALTH_URL:-http://prometheus:9090/-/healthy}
+Looking forward to the next steps in the process.
 
-      GRAFANA_URL: ${GRAFANA_URL:-http://grafana:3000}
-
-      GRAFANA_HEALTH_URL: ${GRAFANA_HEALTH_URL:-http://grafana:3000/api/health}
-
-    depends_on:
-      - redis
-      - kafka
-      - mongo
-
-  worker:
-    build: ./backend
-
-    profiles:
-      - app
-
-    restart: unless-stopped
-
-    command: npm run worker
-
-    environment:
-      NODE_ENV: production
-
-      MONGO_URI: mongodb://mongo:27017/chaosforge
-
-      REDIS_URL: redis://redis:6379
-
-      KAFKA_BROKER: kafka:9092
-
-      KAFKA_TOPIC_REPLICATION_FACTOR: 1
-
-      KAFKA_TRAFFIC_TOPIC_PARTITIONS: 6
-
-      USE_KAFKA: "true"
-
-    depends_on:
-      - redis
-      - kafka
-      - mongo
-
-  frontend:
-    build:
-      context: ./frontend
-
-      args:
-        API_URL: ${API_URL:-http://backend:3001}
-
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
-
-        NEXT_PUBLIC_SOCKET_URL: ${NEXT_PUBLIC_SOCKET_URL:-http://localhost:3001}
-
-        NEXT_PUBLIC_GRAFANA_URL: ${NEXT_PUBLIC_GRAFANA_URL:-http://localhost:5000}
-
-        NEXT_PUBLIC_GRAFANA_WAKE_URL: ${NEXT_PUBLIC_GRAFANA_WAKE_URL:-http://localhost:5000}
-
-        NEXT_PUBLIC_PROMETHEUS_URL: ${NEXT_PUBLIC_PROMETHEUS_URL:-http://localhost:9090}
-
-    profiles:
-      - app
-
-    restart: unless-stopped
-
-    environment:
-      API_URL: ${API_URL:-http://backend:3001}
-
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
-
-      NEXT_PUBLIC_SOCKET_URL: ${NEXT_PUBLIC_SOCKET_URL:-http://localhost:3001}
-
-      NEXT_PUBLIC_GRAFANA_URL: ${NEXT_PUBLIC_GRAFANA_URL:-http://localhost:5000}
-
-      NEXT_PUBLIC_GRAFANA_WAKE_URL: ${NEXT_PUBLIC_GRAFANA_WAKE_URL:-http://localhost:5000}
-
-      NEXT_PUBLIC_PROMETHEUS_URL: ${NEXT_PUBLIC_PROMETHEUS_URL:-http://localhost:9090}
-
-    ports:
-      - "3000:3000"
-
-    depends_on:
-      - backend
-
-  redis:
-    image: redis:7
-
-    restart: unless-stopped
-
-    ports:
-      - "6379:6379"
-
-    volumes:
-      - redis-data:/data
-
-  kafka:
-    image: apache/kafka:latest
-
-    restart: unless-stopped
-
-    ports:
-      - "9092:9092"
-      - "29092:29092"
-
-    environment:
-      KAFKA_PROCESS_ROLES: broker,controller
-
-      KAFKA_NODE_ID: 1
-
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
-
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
-
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,HOST://0.0.0.0:29092,CONTROLLER://0.0.0.0:9093
-
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,HOST://localhost:29092
-
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-
-  mongo:
-    image: mongo:7
-
-    restart: unless-stopped
-
-    ports:
-      - "27017:27017"
-
-    volumes:
-      - mongo-data:/data/db
-
-  prometheus:
-    image: prom/prometheus
-
-    restart: unless-stopped
-
-    entrypoint:
-      - /bin/sh
-      - -c
-
-    command:
-      - |
-        sed \
-          -e "s|__PROMETHEUS_BACKEND_SCHEME__|$${PROMETHEUS_BACKEND_SCHEME}|g" \
-          -e "s|__PROMETHEUS_BACKEND_TARGET__|$${PROMETHEUS_BACKEND_TARGET}|g" \
-          /etc/prometheus/prometheus.yml.template > /tmp/prometheus.yml
-        exec /bin/prometheus \
-          --config.file=/tmp/prometheus.yml \
-          --storage.tsdb.path=/prometheus \
-          --web.console.libraries=/usr/share/prometheus/console_libraries \
-          --web.console.templates=/usr/share/prometheus/consoles
-
-    environment:
-      PROMETHEUS_BACKEND_SCHEME: ${PROMETHEUS_BACKEND_SCHEME:-http}
-
-      PROMETHEUS_BACKEND_TARGET: ${PROMETHEUS_BACKEND_TARGET:-host.docker.internal:3001}
-
-    ports:
-      - "9090:9090"
-
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml.template:ro
-      - prometheus-data:/prometheus
-
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
-    depends_on:
-      - redis
-      - kafka
-      - mongo
-
-  grafana:
-    image: grafana/grafana
-
-    restart: unless-stopped
-
-    ports:
-      - "5000:3000"
-
-    volumes:
-      - grafana-data:/var/lib/grafana
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
-
-    depends_on:
-      - prometheus
-
-    environment:
-      GF_SECURITY_ALLOW_EMBEDDING: "true"
-
-      GF_AUTH_ANONYMOUS_ENABLED: "true"
-
-      GF_AUTH_ANONYMOUS_ORG_ROLE: Editor
-
-      GF_SECURITY_COOKIE_SAMESITE: disabled
-
-      GF_SERVER_ROOT_URL: http://localhost:5000
-
-volumes:
-  mongo-data:
-
-  redis-data:
-
-  grafana-data:
-
-  prometheus-data:
+Best Regards,
+Yashu Youwaraj

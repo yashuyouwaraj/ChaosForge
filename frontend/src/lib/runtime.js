@@ -49,3 +49,24 @@ export const getSocketBaseUrl = () => {
 };
 
 export const isProduction = process.env.NODE_ENV === "production";
+
+const BACKEND_WAKE_TIMEOUT_MS = 12000;
+
+export const wakeBackend = () => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), BACKEND_WAKE_TIMEOUT_MS);
+  const backendWakeUrl = `${getApiBaseUrl()}/health`;
+
+  fetch(backendWakeUrl, {
+    method: "GET",
+    mode: "no-cors",
+    cache: "no-store",
+    signal: controller.signal,
+  })
+    .catch(() => {})
+    .finally(() => window.clearTimeout(timeoutId));
+};
