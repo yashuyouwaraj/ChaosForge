@@ -50,7 +50,22 @@ export const getSocketBaseUrl = () => {
 
 export const isProduction = process.env.NODE_ENV === "production";
 
+const PRODUCTION_BACKEND_URL = "https://chaosforge.onrender.com";
 const BACKEND_WAKE_TIMEOUT_MS = 12000;
+
+const getBackendWakeUrl = () => {
+  const envUrl = process.env.NEXT_PUBLIC_API_URL;
+
+  if (envUrl) {
+    return cleanUrl(envUrl);
+  }
+
+  if (isBrowser && isLocalHostname(window.location.hostname)) {
+    return `${window.location.protocol}//${window.location.hostname}:3001`;
+  }
+
+  return PRODUCTION_BACKEND_URL;
+};
 
 export const wakeBackend = () => {
   if (typeof window === "undefined") {
@@ -59,7 +74,7 @@ export const wakeBackend = () => {
 
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), BACKEND_WAKE_TIMEOUT_MS);
-  const backendWakeUrl = `${getApiBaseUrl()}/health`;
+  const backendWakeUrl = `${getBackendWakeUrl()}/health`;
 
   fetch(backendWakeUrl, {
     method: "GET",
